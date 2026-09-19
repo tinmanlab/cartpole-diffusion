@@ -22,7 +22,7 @@ const required=[
   '.horizon-metrics strong{display:block;font-size:12px',
   '.horizon-labels{display:grid;grid-template-columns:1fr 1fr 2fr 1fr 1fr;align-items:center;margin-top:7px;font-size:11px',
   '.horizon-groups span{display:block;font-size:11px',
-  '.horizon-note{margin:8px 0 0;font-size:11px'
+  '.horizon-note{margin:8px 0 0;font-size:11px',
   '.reobserve-title b{font-size:13px',
   '.reobserve-cell b{font:700 14px',
   '.reobserve-cell em{display:block',
