@@ -22,6 +22,54 @@ Cart-Pole
 observe again and replan
 ```
 
+## Atomic live tick snapshots
+
+The live controller now follows the atomic snapshot contract adopted from the latest `tinmanlab/cartpole-transformer` v0.6 work, adapted for Diffusion Policy action chunks.
+
+A rendered live snapshot means:
+
+```text
+current plant state
++ current plan snapshot
++ current next action a[cursor]
+        ↓ Step / next 20 ms tick
+physics transition
+        ↓
+cursor advances
+        ↓
+if cursor < 4:
+    keep the same plan observation
+    expose the next action from the same chunk
+else:
+    re-observe immediately on the post-transition state
+    generate a fresh 16-action plan
+    expose its new a[0]
+        ↓
+render the next atomic snapshot
+```
+
+The displayed force in live mode is therefore the force that will be applied on the **next** 20 ms transition, not the force that was already consumed to reach the displayed pose.
+
+The Plant panel exposes the current simulation tick. When paused, **Step 20 ms** advances exactly one physics tick.
+
+The plan observation intentionally stays frozen for the four-action execution prefix. The UI labels:
+
+- the tick at which the current plan was generated,
+- the current plant tick,
+- the plan age in ticks.
+
+After the fourth action, replanning happens immediately in the same transition. The new plan observation must equal the newly displayed plant state and the next action resets to `a[0]`.
+
+Browser QA numerically verifies:
+
+- Step advances exactly one tick,
+- the previously displayed next force becomes the recorded last-applied force,
+- cursor increments one action per tick inside the prefix,
+- plan observation stays unchanged while cursor advances,
+- the fourth action triggers immediate replan,
+- the fresh plan observation equals the post-transition plant state,
+- the displayed next force always matches the current `plan[cursor]`.
+
 ## Guided one-cycle walkthrough
 
 For a first pass, use **한 cycle 설명** instead of trying to read the live page while it is moving.
@@ -267,7 +315,7 @@ That preserves the key receding-horizon idea while keeping every value inspectab
 - DDIM stride: 5
 - prediction horizon: 16
 - execute prefix: 4
-- controls: Pause/Run, Reset, temporary left/right disturbance
+- controls: Pause/Run, paused single-tick **Step 20 ms**, Reset, temporary left/right disturbance
 
 ## Advanced view
 
@@ -305,6 +353,7 @@ It verifies:
 - denoising visualization changes as replanning occurs
 - Pause freezes the simulation
 - Push changes the visible Cart-Pole state
+- atomic live snapshots keep plant tick, plan snapshot, cursor and next force synchronized; paused Step advances exactly one 20 ms tick
 - guided mode freezes live physics, applies exactly four actions, shows four before/after state comparisons, and restarts the next cycle from the after-state
 - Advanced opens correctly
 - no browser console / page errors

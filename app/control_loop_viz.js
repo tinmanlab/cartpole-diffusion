@@ -325,10 +325,15 @@ function renderSamplingCompare(rootEl,data){
     +'<div><span>pairwise 평균 plan 차이</span><b>'+fmt(meanPair,2)+' N</b></div></div>'
     +'<p class="sampling-note"><b>중요:</b> seed를 바꾸면 같은 observation에서도 서로 다른 sample plan이 나올 수 있습니다. 여기서 보이는 sample spread는 <b>sampling diversity</b>일 뿐, calibrated uncertainty·확률·confidence가 아닙니다.</p>';
 }
-function renderObservation(rootEl,obs,planCount){
+function renderObservation(rootEl,obs,planCount,meta){
   if(!obs){rootEl.innerHTML='';return}
+  meta=meta||{};
+  var startTick=Number.isFinite(meta.planStartTick)?meta.planStartTick:null;
+  var currentTick=Number.isFinite(meta.currentTick)?meta.currentTick:null;
+  var age=startTick!==null&&currentTick!==null?Math.max(0,currentTick-startTick):null;
+  var tickText=startTick===null?'이 4개 상태값으로 현재 plan을 생성했습니다.':'plan tick '+startTick+' · current tick '+currentTick+' · age '+age+' tick'+(age===1?'':'s');
   rootEl.innerHTML=
-    '<div class="obs-title" data-qa="observation-title"><b>현재 plan #'+planCount+'</b><span>이 4개 상태값으로 현재 plan을 생성했습니다.</span></div>'
+    '<div class="obs-title" data-qa="observation-title"><b>현재 plan #'+planCount+'</b><span>'+tickText+'</span></div>'
     +'<div class="obs-values" data-qa="observation-values">'
     +'<div><span>x</span><b>'+fmt(obs[0],2)+' m</b><small>cart position</small></div>'
     +'<div><span>ẋ</span><b>'+fmt(obs[1],2)+' m/s</b><small>cart velocity</small></div>'
@@ -338,14 +343,21 @@ function renderObservation(rootEl,obs,planCount){
 }
 function renderHorizon(plan,cursor,guide){
   var executeCount=4,dt=.02,predSeconds=plan.length*dt,execSeconds=executeCount*dt;
-  var applied=cursor>0;if(guide&&guide.enabled)applied=!!guide.applied;
-  var finished=applied&&cursor>=executeCount;
+  var isGuide=!!(guide&&guide.enabled),guideApplied=isGuide&&!!guide.applied;
+  var finished=isGuide?guideApplied&&cursor>=executeCount:cursor>=executeCount;
   var slots=plan.map(function(v,i){
     var cls=i<executeCount?" execute":" planned";
     if(i<executeCount){
-      if(applied&&i<Math.max(0,cursor-1))cls+=" done";
-      else if(applied&&i===Math.max(0,cursor-1))cls+=" current";
-      else cls+=" pending";
+      if(isGuide){
+        var guideActive=guideApplied?Math.max(0,Math.min(3,cursor-1)):-1;
+        if(i<guideActive)cls+=" done";
+        else if(i===guideActive)cls+=" current";
+        else cls+=" pending";
+      }else{
+        if(i<cursor)cls+=" done";
+        else if(i===cursor&&cursor<executeCount)cls+=" current";
+        else cls+=" pending";
+      }
     }else if(finished)cls+=" discarded";
     return '<i class="horizon-slot'+cls+'" data-action-index="'+i+'" title="a['+i+'] = '+fmt(v*10,2)+' N"></i>';
   }).join("");
@@ -363,18 +375,29 @@ function renderHorizon(plan,cursor,guide){
 }
 function renderExecution(rootEl,plan,cursor,policyForce,guide){
   if(!plan||!plan.length){rootEl.innerHTML='<div class="exec-empty">plan을 기다리는 중…</div>';return}
-  var applied=cursor>0;
-  if(guide&&guide.enabled)applied=!!guide.applied;
-  var active=applied?Math.max(0,Math.min(3,cursor-1)):-1;
+  var isGuide=!!(guide&&guide.enabled),guideApplied=isGuide&&!!guide.applied;
   var cards='';
   for(var i=0;i<4;i++){
-    var state=i<active?'done':i===active?'active':'future';
-    cards+='<div class="exec-action '+state+'" data-qa="exec-action"><span>a['+i+']</span><b>'+(plan[i]>=0?'+':'')+fmt(plan[i]*10,2)+' N</b><small>'+(state==='active'?'현재 적용':state==='done'?'완료':'실행 예정')+'</small></div>';
+    var state,label;
+    if(isGuide){
+      var guideActive=guideApplied?Math.max(0,Math.min(3,cursor-1)):-1;
+      state=i<guideActive?'done':i===guideActive?'active':'future';
+      label=state==='active'?'마지막 적용':state==='done'?'완료':'실행 예정';
+    }else{
+      state=i<cursor?'done':i===cursor&&cursor<4?'active':'future';
+      label=state==='active'?'다음 20 ms':state==='done'?'실행됨':'실행 예정';
+    }
+    cards+='<div class="exec-action '+state+'" data-qa="exec-action" data-action-index="'+i+'"><span>a['+i+']</span><b>'+(plan[i]>=0?'+':'')+fmt(plan[i]*10,2)+' N</b><small>'+label+'</small></div>';
   }
-  var nowText=applied
-    ? '<strong>'+(policyForce>=0?'+':'')+fmt(policyForce,2)+' N</strong>'
-    : '<strong class="not-applied">아직 적용 안 함</strong>';
-  rootEl.innerHTML='<div class="exec-now" data-qa="current-force"><span>현재 cart에 적용되는 force</span>'+nowText+'</div>'
+  var nowLabel,nowText;
+  if(isGuide){
+    nowLabel=guideApplied?'마지막으로 적용한 force':'현재 cart에 적용되는 force';
+    nowText=guideApplied?'<strong>'+(policyForce>=0?'+':'')+fmt(policyForce,2)+' N</strong>':'<strong class="not-applied">아직 적용 안 함</strong>';
+  }else{
+    nowLabel=cursor<4?'현재 snapshot에서 다음 20 ms에 적용할 force':'다음 force';
+    nowText=cursor<4?'<strong>'+(policyForce>=0?'+':'')+fmt(policyForce,2)+' N</strong>':'<strong class="not-applied">재계획</strong>';
+  }
+  rootEl.innerHTML='<div class="exec-now" data-qa="current-force" data-next-action-index="'+(cursor<4?cursor:-1)+'"><span>'+nowLabel+'</span>'+nowText+'</div>'
     +'<div class="exec-prefix" data-qa="exec-prefix">'+cards+'</div>'
     +renderHorizon(plan,cursor,guide);
 }
