@@ -10,6 +10,7 @@
 :root{--bg:#f6f7f9;--panel:#fff;--text:#172033;--muted:#667085;--line:#e3e7ee;--ink:#273247;--green:#3c9a73;--blue:#5476df;--purple:#8968ca;--red:#df6767;--soft:#f2f4f7;--radius:15px}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#fafbfc,#f4f5f7);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:15px;line-height:1.5}
 button{font:inherit}.wrap{max-width:1580px;margin:auto;padding:12px 16px 48px}.topbar{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px;padding:0 2px}.topbar strong{font-size:18px;letter-spacing:-.015em}.topbar span{font-size:12px;color:var(--muted)}
+.mode-switch{display:flex;gap:4px;padding:3px;border:1px solid #e0e4ea;border-radius:9px;background:#f7f8fa}.mode-switch button{border:0;background:transparent;border-radius:6px;padding:5px 10px;font-size:11px;color:#667085;cursor:pointer}.mode-switch button.active{background:#fff;color:#273247;box-shadow:0 1px 3px rgba(20,30,50,.12);font-weight:700}.mode-switch button:disabled{opacity:.38;cursor:not-allowed}.learn-only[hidden]{display:none!important}
 .lab-grid{display:grid;grid-template-columns:clamp(235px,22vw,310px) minmax(0,1fr);gap:12px;align-items:start}.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px;min-width:0}.card-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.card-head b{font-size:15px}.card-head span{font-size:11px;color:var(--muted)}
 .scene{border:1px solid #edf0f4;border-radius:10px;background:#fbfcfd;overflow:hidden}.scene svg{display:block;width:100%;height:auto}.scene text{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#697386}.sim-readout{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}.sim-readout span{display:flex;justify-content:space-between;gap:8px;background:#fafbfc;border:1px solid #e7e9ee;border-radius:7px;padding:8px 9px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#596273}.sim-readout b{font-family:Inter,system-ui;font-size:11px;color:#8b93a1}.controls{display:flex;align-items:center;gap:7px;margin-top:9px;flex-wrap:wrap}.controls button{min-height:38px;border:1px solid #d9dde5;border-radius:8px;background:#fff;padding:8px 11px;cursor:pointer;font-size:12px}.controls .primary{background:var(--ink);color:#fff;border-color:var(--ink)}.controls .push{background:#fffaf2;border-color:#eadcc8}.controls button:disabled{opacity:.38;cursor:not-allowed}.card-head span i{font-style:normal;font:700 11px ui-monospace,monospace;color:#405fc3}.controls .spacer{flex:1}.sim-status{margin-top:8px;font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .guide-bar{display:flex;align-items:center;gap:10px;border:1px solid #dfe4ee;border-radius:11px;background:#f8faff;padding:10px 12px;margin-bottom:12px}.guide-copy{min-width:0;flex:1}.guide-copy b{display:block;font-size:13px;color:#334155}.guide-copy span{display:block;font-size:12px;color:#667085;margin-top:2px;line-height:1.5}.guide-start,.guide-controls button{min-height:36px;border:1px solid #cfd6e3;border-radius:8px;background:#fff;padding:7px 10px;cursor:pointer;font-size:12px}.guide-start{background:#344054;color:#fff;border-color:#344054;font-weight:650}.guide-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.guide-controls[hidden],.guide-start[hidden]{display:none}.guide-step{min-width:118px;text-align:center;font-size:13px;font-weight:700;color:#405fc3;background:#eef3ff;border-radius:8px;padding:7px 9px}.guide-controls button:disabled{opacity:.35;cursor:default}.guide-exit{margin-left:2px}
@@ -22,16 +23,18 @@ button{font:inherit}.wrap{max-width:1580px;margin:auto;padding:12px 16px 48px}.t
 .exec-now{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f6f8ff;border:1px solid #dfe5fb;border-radius:9px;padding:10px 12px}.exec-now span{font-size:12px;color:#667085}.exec-now strong{font:22px ui-monospace,SFMono-Regular,Menlo,monospace;color:#405fc3}.exec-prefix{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:9px}.exec-action{border:1px solid #e3e6eb;border-radius:8px;padding:9px;background:#fafbfc}.exec-action span{display:block;font-size:11px;color:#8b93a1}.exec-action b{display:block;font:15px ui-monospace,monospace;margin-top:3px}.exec-action small{font-size:11px;color:#9aa1ad}.exec-action.active{background:#eef3ff;border-color:#9db1ef;box-shadow:inset 0 0 0 1px #9db1ef}.exec-action.active b{color:#405fc3}.exec-action.done{opacity:.52}.exec-rest{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45}.horizon-panel{margin-top:12px;border:1px solid #dfe4eb;border-radius:11px;background:#fcfcfd;padding:11px}.horizon-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.horizon-head b{display:block;font-size:13px}.horizon-head span{display:block;font-size:11px;color:var(--muted);margin-top:2px}.horizon-metrics{text-align:right;white-space:nowrap}.horizon-metrics strong{display:block;font-size:12px;color:#344054}.horizon-metrics em{display:block;font-size:11px;color:#2f7f5e;font-style:normal;margin-top:2px}.horizon-track-wrap{position:relative;margin-top:11px}.horizon-track{display:grid;grid-template-columns:repeat(16,1fr);gap:3px}.horizon-slot{display:block;height:34px;border-radius:4px;background:#e9edf2;border:1px solid #dde2e9}.horizon-slot.execute{background:#dff2e8;border-color:#b8dfc8}.horizon-slot.execute.done{background:#b9dfca}.horizon-slot.execute.current{background:#3c9a73;border-color:#2e7d5b;box-shadow:0 0 0 2px rgba(60,154,115,.15)}.horizon-slot.planned.discarded{background:repeating-linear-gradient(135deg,#f2f3f5,#f2f3f5 5px,#e3e6eb 5px,#e3e6eb 10px);opacity:.7}.reobserve-marker{position:absolute;left:25%;top:-7px;bottom:-7px;width:2px;background:#5476df;transform:translateX(-2px)}.reobserve-marker:before{content:"";position:absolute;top:-3px;left:-4px;width:10px;height:10px;border-radius:50%;background:#5476df}.horizon-labels{display:grid;grid-template-columns:1fr 1fr 2fr 1fr 1fr;align-items:center;margin-top:7px;font-size:11px;color:#7b8492}.horizon-labels span:nth-child(2){text-align:right}.horizon-labels b{text-align:center;color:#405fc3;font-size:11px}.horizon-labels span:last-child{text-align:right}.horizon-groups{display:grid;grid-template-columns:1fr 3fr;gap:6px;margin-top:8px}.horizon-groups>div{border-radius:8px;padding:8px 9px}.execute-window{background:#f2faf5;border:1px solid #cce8d7}.planned-window{background:#f7f8fa;border:1px solid #e2e5ea}.planned-window.is-discarded{background:#f3f4f6}.horizon-groups b{display:block;font-size:11px}.horizon-groups span{display:block;font-size:11px;color:#667085;margin-top:2px}.horizon-note{margin:8px 0 0;font-size:11px;line-height:1.55;color:#596273}.horizon-note b{color:#344054}
 .loop-back{background:#f8fafb;border:1px dashed #d9dee6;border-radius:10px;padding:10px 12px;font-size:12px;color:#556070;text-align:center;line-height:1.5}.loop-back b{color:#273247}.reobserve-compare{margin-top:10px;text-align:left;border-top:1px solid #e1e5eb;padding-top:10px}.reobserve-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px}.reobserve-title b{font-size:13px}.reobserve-title span{font-size:11px;color:var(--muted)}.reobserve-values{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.reobserve-cell{background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:8px}.reobserve-cell>span{display:block;font-size:11px;color:#7b8492}.reobserve-cell>div{display:flex;align-items:baseline;gap:5px;margin-top:3px;flex-wrap:wrap}.reobserve-cell b{font:700 14px ui-monospace,monospace;color:#273247}.reobserve-cell i{font-style:normal;color:#98a2b3}.reobserve-cell small{font-size:10px;color:#8b93a1}.reobserve-cell em{display:block;margin-top:4px;font:11px ui-monospace,monospace;color:#405fc3;font-style:normal}
 details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-top:10px;padding:0 13px}summary{cursor:pointer;font-weight:650;font-size:13px;padding:11px 0}details>div{padding:0 0 12px;color:#465163;font-size:12px;line-height:1.65}.advanced-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(240px,.5fr);gap:8px}.ladder-shell{border:1px solid var(--line);border-radius:10px;background:#fcfcfd;padding:7px;overflow-x:auto}.ladder{display:flex;align-items:stretch;min-width:720px}.ladder-stage{flex:1 1 0;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px;cursor:pointer}.ladder-stage.active{border-color:var(--blue);background:#f5f7ff}.stage-top{display:flex;justify-content:space-between;gap:4px;align-items:center;margin-bottom:5px}.stage-top b{font-size:11px}.stage-top span{font-size:10px;color:var(--muted)}.ladder-arrow{width:28px;flex:0 0 28px;display:flex;align-items:center;justify-content:center;color:#a8b0bd}.ladder-arrow svg{width:24px;height:18px}.vector-strip{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}.vector-strip.compact{gap:1px}.vector-cell{border:0;padding:0;border-radius:2px;height:21px;min-width:0;cursor:crosshair}.vector-strip.compact .vector-cell{height:28px}.vector-cell.linked-dim{opacity:.11}.vector-cell.linked-highlight{outline:2px solid var(--ink);outline-offset:1px;opacity:1}.inspector{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px}.inspector-title{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px}.inspector-title b{font-size:13px}.inspector-title span{font-size:10px;color:var(--muted);text-align:right}.inspect-row{display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px;align-items:center;margin:6px 0}.inspect-label b{display:block;font-size:11px}.inspect-label span{display:block;font-size:10px;color:var(--muted)}.hover-readout{margin-top:7px;font:11px ui-monospace,monospace;color:#667085}.foot{margin-top:12px;text-align:center;color:#9299a5;font-size:10px}.foot a{color:inherit}
+.replay-lab{background:#fff;border:1px solid #e1e5ea;border-radius:15px;padding:15px;overflow:hidden}.replay-lab[hidden]{display:none}.replay-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding-bottom:11px;border-bottom:1px solid #edf0f3}.replay-head .eyebrow{font-size:11px;letter-spacing:.07em;color:#7563a3}.replay-head h2{font-size:18px;margin:2px 0 3px}.replay-head p{font-size:11px;color:#717a88;margin:0;max-width:800px}.replay-clock{text-align:right;min-width:90px}.replay-clock b{display:block;white-space:nowrap;font:18px ui-monospace,monospace}.replay-clock span{font-size:11px;color:#8b93a1}.shared-disturbance{display:grid;grid-template-columns:145px 1fr;gap:12px;align-items:center;margin:12px 0}.replay-disturbance-now span{display:block;font-size:11px;color:#89919d}.replay-disturbance-now b{font:12px ui-monospace,monospace;color:#667085}.replay-disturbance-now b.active{color:#b86713}.replay-track{height:13px;border-radius:7px;background:#edf0f3;position:relative;overflow:hidden}.replay-track i{position:absolute;top:0;bottom:0;background:#d7a05b}.replay-track i.negative{background:#7da2cc}.replay-track em{position:absolute;top:-2px;bottom:-2px;width:2px;background:#5d4b92;z-index:2}.replay-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.replay-card{border:1px solid #e3e7ed;border-radius:11px;padding:10px;background:#fbfcfd}.replay-card.failed{background:#f5f5f6}.replay-card-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.replay-card-head>div{display:flex;flex-direction:column}.replay-card-head b{font-size:13px}.replay-card-head span{font-size:11px;color:#8a93a2}.replay-card-head strong{font-size:11px;color:#3d8a64}.replay-card.failed .replay-card-head strong{color:#b65c5c}.replay-mini{width:100%;height:auto;display:block;margin-top:5px;background:linear-gradient(#fff,#f7f8fa);border-radius:8px;border:1px solid #edf0f3}.replay-values,.replay-metrics{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}.replay-values>div,.replay-metrics>div{padding:6px 7px;border:1px solid #e6e9ed;border-radius:6px;background:#fff}.replay-values span,.replay-metrics span{display:block;font-size:11px;color:#89919d}.replay-values b,.replay-metrics b{font:11px ui-monospace,monospace;color:#4b5563}.replay-plan-meta{margin-top:6px;font:11px ui-monospace,monospace;color:#7b8492}.replay-controls{display:grid;grid-template-columns:auto auto auto minmax(180px,1fr) auto;gap:8px;align-items:center;margin-top:12px}.replay-controls button{border:1px solid #d9dde5;border-radius:7px;background:#fff;padding:7px 10px;font-size:11px;cursor:pointer}.replay-controls .primary{background:#293548;color:#fff;border-color:#293548}.replay-controls input{width:100%}.replay-controls span{font:11px ui-monospace,monospace;color:#78818f}.replay-note{margin-top:10px;padding:9px 11px;border-radius:8px;background:#f5f3fa;font-size:11px;color:#626b79;line-height:1.5}.replay-note b{color:#5f4a93}
 @media(max-width:1120px){.lab-grid{grid-template-columns:clamp(225px,27vw,280px) minmax(0,1fr)}.obs-values{grid-template-columns:1fr 1fr}.advanced-grid{grid-template-columns:1fr}.blackbox{justify-content:flex-start}.sequence-guide{align-items:flex-start;flex-direction:column}}
+@media(max-width:980px){.replay-grid{grid-template-columns:1fr}.shared-disturbance{grid-template-columns:1fr}.replay-controls{grid-template-columns:1fr 1fr}.replay-controls input,.replay-controls span{grid-column:1/3}.replay-head h2{font-size:16px}}
 @media(orientation:portrait), (max-width:760px){.wrap{padding:10px 10px 36px}.topbar{min-height:38px}.topbar span{display:none}.lab-grid{grid-template-columns:1fr}.scene svg{max-height:250px}.card{padding:12px}.card-head b{font-size:14px}.card-head span{font-size:10px}.guide-bar{align-items:stretch;flex-direction:column}.guide-start{width:100%}.guide-controls{display:grid;grid-template-columns:1fr 1fr}.guide-step{grid-column:1/3;min-width:0}.guide-exit{grid-column:1/3}.obs-values{grid-template-columns:1fr 1fr}.conditioning-head{flex-direction:column;gap:5px}.conditioning-observations{grid-template-columns:1fr}.cond-arrow{text-align:center}.conditioning-summary{grid-template-columns:1fr 1fr 1fr}.sampling-head{flex-direction:column;gap:5px}.sampling-summary{grid-template-columns:1fr 1fr}.sampling-legend{justify-content:flex-start}.step-head b{font-size:15px}.step-head span{font-size:11px}.policy-plain{font-size:13px}.blackbox{font-size:11px}.timeline-head{flex-direction:column;gap:5px}.timeline-status{text-align:left}.timeline-controls{grid-template-columns:1fr 1fr}.timeline-controls input[type="range"]{grid-column:1/3;grid-row:1}.timeline-controls label{grid-column:1/3}.timeline-scale{font-size:11px}.denoise-update-flow{grid-template-columns:1fr}.denoise-update-flow>i{transform:rotate(90deg);height:18px}.update-card strong{font-size:16px}.denoise-update-head{align-items:flex-start;flex-direction:column}.denoise-stages{overflow-x:visible}.sequence-svg{display:none}.mobile-sequence{display:flex;flex-direction:column;gap:8px}.sequence-guide{align-items:flex-start;flex-direction:column}}
 @media(max-width:520px){body{font-size:14px}.topbar strong{font-size:17px}.scene text{font-size:11px}.sim-readout span{font-size:11px}.controls button{font-size:12px}.obs-values{grid-template-columns:1fr}.obs-values b{font-size:16px}.conditioning-summary{grid-template-columns:1fr}.conditioning-legend,.divergence-legend,.sampling-legend{justify-content:flex-start;flex-wrap:wrap}.divergence-head{flex-direction:column;gap:5px}.divergence-head strong{white-space:normal}.divergence-metrics{grid-template-columns:1fr 1fr}.sampling-summary{grid-template-columns:1fr}.exec-prefix{grid-template-columns:1fr 1fr}.exec-now strong{font-size:20px}.horizon-head{flex-direction:column;gap:5px}.horizon-metrics{text-align:left;white-space:normal}.horizon-track{gap:2px}.horizon-slot{height:30px}.horizon-labels{grid-template-columns:1fr 1fr}.horizon-labels b{grid-column:1/3;grid-row:2;text-align:left;margin-top:3px}.horizon-labels span:nth-child(4){grid-column:1}.horizon-labels span:nth-child(5){grid-column:2;text-align:right}.horizon-groups{grid-template-columns:1fr}.reobserve-marker{left:25%}.reobserve-title{align-items:flex-start;flex-direction:column}.reobserve-values{grid-template-columns:1fr 1fr}.advanced-grid{grid-template-columns:1fr}.ladder{min-width:0;flex-direction:column}.ladder-arrow{width:100%;height:22px;flex:0 0 22px}.ladder-arrow svg{transform:rotate(90deg)}.inspect-row{grid-template-columns:1fr}.sequence-title{font-size:14px}.sequence-sub{font-size:10px}.sequence-plain{font-size:12px}}
 </style>
 </head>
 <body>
 <main class="wrap">
-<header class="topbar"><strong>Cart-Pole Diffusion</strong><span id="modelTag">learned denoiser loading…</span></header>
+<header class="topbar"><strong>Cart-Pole Diffusion</strong><div class="mode-switch" role="group" aria-label="lab mode"><button id="learnModeBtn" class="active">Learn</button><button id="replayModeBtn" disabled>Replay</button></div><span id="modelTag">learned denoiser loading…</span></header>
 
-<section class="lab-grid">
+<section class="lab-grid learn-only">
 <aside id="plantCard" class="card" data-qa="plant">
   <div class="card-head"><b>Plant · 실시간 Cart-Pole</b><span>50 Hz physics · TICK <i id="tickLabel">0</i></span></div>
   <div class="scene"><svg viewBox="0 0 600 270" role="img" aria-label="simple live Cart-Pole plant">
@@ -92,7 +95,7 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
 </section>
 </section>
 
-<details data-qa="advanced"><summary>Advanced · 한 denoising step 내부 수치 보기</summary><div>
+<details class="learn-only" data-qa="advanced"><summary>Advanced · 한 denoising step 내부 수치 보기</summary><div>
   <div class="advanced-grid">
     <div class="ladder-shell"><div id="ladder" class="ladder"></div></div>
     <div id="inspector" class="inspector"></div>
@@ -100,16 +103,37 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
   <div id="hoverReadout" class="hover-readout">hover a cell → follow action[i]</div>
 </div></details>
 
-<details><summary>Training에서는 무엇을 배우나?</summary><div>Demonstration의 미래 action chunk에 Gaussian noise를 일부러 섞고, 모델이 그 noise를 맞히도록 학습합니다. 실행할 때는 정답 action이 없으므로 완전한 Gaussian noise에서 시작해 같은 noise predictor를 반복 호출하여 action plan을 생성합니다.</div></details>
+<details class="learn-only"><summary>Training에서는 무엇을 배우나?</summary><div>Demonstration의 미래 action chunk에 Gaussian noise를 일부러 섞고, 모델이 그 noise를 맞히도록 학습합니다. 실행할 때는 정답 action이 없으므로 완전한 Gaussian noise에서 시작해 같은 noise predictor를 반복 호출하여 action plan을 생성합니다.</div></details>
 
-<details><summary>이 toy와 원래 Diffusion Policy의 관계</summary><div>이 toy는 observation horizon이 1인 low-dimensional 예제입니다. 원래 Diffusion Policy는 observation history를 조건으로 미래 action sequence를 예측하고, 그중 일부 action만 실행한 뒤 새 observation으로 다시 계획하는 구조를 사용합니다. 여기서는 현재 Cart-Pole state 4개를 관측하고 16개 force를 예측하며 앞 4개만 실행합니다.</div></details>
+<details class="learn-only"><summary>이 toy와 원래 Diffusion Policy의 관계</summary><div>이 toy는 observation horizon이 1인 low-dimensional 예제입니다. 원래 Diffusion Policy는 observation history를 조건으로 미래 action sequence를 예측하고, 그중 일부 action만 실행한 뒤 새 observation으로 다시 계획하는 구조를 사용합니다. 여기서는 현재 Cart-Pole state 4개를 관측하고 16개 force를 예측하며 앞 4개만 실행합니다.</div></details>
 
-<footer class="foot">Environment → learned policy → explainer separation follows the same teaching architecture as cartpole-transformer · <a href="https://github.com/tinmanlab/cartpole-diffusion">source</a></footer>
+<section id="replayMode" class="replay-lab" data-qa="replay-lab" hidden>
+  <header class="replay-head">
+    <div><span class="eyebrow">DETERMINISTIC REPLAY · SAME INITIAL STATE · SAME DISTURBANCE</span><h2>Same policy, three sampler seed streams</h2><p>세 환경은 같은 learned diffusion policy와 4-action replanning을 사용합니다. 다른 것은 deterministic Gaussian seed stream뿐입니다.</p></div>
+    <div class="replay-clock"><b id="replayTime">0.00 s</b><span id="replayTick">0 / 500</span></div>
+  </header>
+  <div class="shared-disturbance">
+    <div class="replay-disturbance-now"><span>shared disturbance</span><b id="replayDisturbance">— 0 N</b></div>
+    <div id="replayTrack" class="replay-track" aria-label="shared disturbance schedule"></div>
+  </div>
+  <div id="replayCards" class="replay-grid"></div>
+  <div class="replay-controls">
+    <button id="replayRunBtn" class="primary">Pause</button>
+    <button id="replayRestartBtn">Restart replay</button>
+    <button id="replayEndBtn">End</button>
+    <input id="replaySlider" type="range" min="0" max="500" step="1" value="0" aria-label="diffusion comparison replay tick">
+    <span id="replayRecorded">0 / 500 recorded</span>
+  </div>
+  <div class="replay-note"><b>해석 경계:</b> seed별 raw trajectory, angle, effort를 나란히 보여줄 뿐 winner를 만들지 않습니다. 이 deterministic 10 s replay는 sampling seed가 closed-loop trajectory에 어떻게 전파되는지 보는 통제 예제입니다.</div>
+</section>
+
+<footer class="foot learn-only">Environment → learned policy → explainer separation follows the same teaching architecture as cartpole-transformer · <a href="https://github.com/tinmanlab/cartpole-diffusion">source</a></footer>
 </main>
 
 <script src="app/tiny_denoiser.js"></script>
 <script src="app/diffusion_viz.js"></script>
 <script src="app/control_loop_viz.js"></script>
+<script src="app/diffusion_compare.js"></script>
 <script>
 (function(){
 "use strict";
@@ -117,6 +141,7 @@ var H=16,MAXF=10,S=.008,T=100,TAU=.02,EXECUTE=4,START_T=95,STRIDE=5;
 var model=null,state=null,running=true,disturbance=0,elapsed=0,simTick=0,policyForce=0,lastAppliedForce=0,lastAppliedActionIndex=-1,plan=[],planCursor=0,planCount=0,planStartTick=0,noiseSeed=11,history=[],selectedT=95,planObservation=null,raf=0,lastNow=0,acc=0,status="balancing";
 var guideMode=false,guideStep=0,guideApplied=false,guideBefore=null,guideAfter=null,guideWasRunning=true,denoiseStepIndex=0,denoiseActionIndex=0;
 var conditioningCompareData=null,samplingCompareData=null;
+var appMode="learn",replayRun=null,replayIndex=0,replayRunning=false,replayAcc=0,replayWasRunning=true;
 function E(id){return document.getElementById(id)}function clamp(x,a,b){return Math.max(a,Math.min(b,x))}function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}function deg(x){return x*180/Math.PI}
 function resetState(){return{x:0,xDot:0,theta:5*Math.PI/180,thetaDot:0}}
 function stateArray(){return[state.x,state.xDot,state.theta,state.thetaDot]}
@@ -161,6 +186,70 @@ function buildConditioningComparison(){
   var plusObs=[0,0,5*Math.PI/180,0],minusObs=[0,0,-5*Math.PI/180,0];
   var plus=planHistoryFromFixedLatent(plusObs,initial),minus=planHistoryFromFixedLatent(minusObs,initial);
   return{seed:seed,initial:initial,plusObs:plusObs,minusObs:minusObs,plusPlan:plus.plan,minusPlan:minus.plan,plusHistory:plus.history,minusHistory:minus.history,sameNoise:true};
+}
+function comparisonCore(){
+  return{
+    physics:physics,
+    terminal:function(s){return Math.abs(s.theta)>18*Math.PI/180||Math.abs(s.x)>2.4},
+    planForSeed:function(obs,seed){return planHistoryFromFixedLatent(obs,fixedGaussian16(seed)).plan}
+  };
+}
+function replayPose(s){
+  var cx=160+s.x*48,pivotY=126,len=72;
+  return{cx:cx,tipX:cx+Math.sin(s.theta)*len,tipY:pivotY-Math.cos(s.theta)*len};
+}
+function replayCardHtml(ctrl,tick){
+  var p=replayPose(ctrl.state),failed=ctrl.failed,statusText=failed?"FELL":tick>=DiffusionCompare.HORIZON_STEPS?"DONE":"ACTIVE";
+  var degTheta=deg(ctrl.state.theta),m=ctrl.metrics;
+  return '<article class="replay-card'+(failed?' failed':'')+'" data-controller="'+ctrl.id+'" data-disturbance="'+ctrl.disturbance+'" data-base-seed="'+ctrl.baseSeed+'" data-plan-seed="'+ctrl.planSeed+'" data-state="'+[ctrl.state.x,ctrl.state.xDot,ctrl.state.theta,ctrl.state.thetaDot].join(',')+'" data-next-force="'+ctrl.nextForce+'" data-plan-number="'+ctrl.planNumber+'" data-cursor="'+ctrl.cursor+'" data-failed="'+(ctrl.failed?'true':'false')+'">'
+    +'<div class="replay-card-head"><div><b>'+ctrl.label+'</b><span>same policy · seed stream '+ctrl.baseSeed+'</span></div><strong>'+statusText+'</strong></div>'
+    +'<svg viewBox="0 0 320 185" class="replay-mini" aria-label="'+ctrl.label+' deterministic replay">'
+    +'<rect x="24" y="145" width="272" height="18" rx="6" fill="#f1f3f6"/><line x1="31" y1="154" x2="289" y2="154" stroke="#bbc3ce" stroke-width="4" stroke-linecap="round"/>'
+    +'<line x1="45" y1="139" x2="45" y2="169" stroke="#d78585" stroke-dasharray="3 3"/><line x1="275" y1="139" x2="275" y2="169" stroke="#d78585" stroke-dasharray="3 3"/>'
+    +'<rect x="'+(p.cx-34).toFixed(1)+'" y="126" width="68" height="26" rx="7" fill="'+(failed?'#7a808a':'#35445c')+'"/>'
+    +'<circle cx="'+(p.cx-19).toFixed(1)+'" cy="159" r="8" fill="#1d2939"/><circle cx="'+(p.cx+19).toFixed(1)+'" cy="159" r="8" fill="#1d2939"/>'
+    +'<line x1="'+p.cx.toFixed(1)+'" y1="127" x2="'+p.tipX.toFixed(1)+'" y2="'+p.tipY.toFixed(1)+'" stroke="'+(failed?'#989fa9':'#e56e6e')+'" stroke-width="8" stroke-linecap="round"/><circle cx="'+p.cx.toFixed(1)+'" cy="127" r="6" fill="#1d2939"/>'
+    +(Math.abs(ctrl.lastAppliedForce)>.05?'<line x1="'+p.cx.toFixed(1)+'" y1="176" x2="'+(p.cx+Math.sign(ctrl.lastAppliedForce)*Math.min(45,Math.abs(ctrl.lastAppliedForce)*4)).toFixed(1)+'" y2="176" stroke="#8b5cf6" stroke-width="3"/>':'')
+    +'</svg>'
+    +'<div class="replay-values"><div><span>x</span><b>'+fmt(ctrl.state.x,2)+' m</b></div><div><span>θ</span><b>'+fmt(degTheta,1)+'°</b></div><div><span>last force</span><b>'+(ctrl.lastAppliedForce>=0?'+':'')+fmt(ctrl.lastAppliedForce,2)+' N</b></div><div><span>next force</span><b>'+(ctrl.nextForce>=0?'+':'')+fmt(ctrl.nextForce,2)+' N</b></div></div>'
+    +'<div class="replay-metrics"><div><span>max |θ|</span><b>'+fmt(deg(m.maxAbsTheta),1)+'°</b></div><div><span>mean |θ|</span><b>'+fmt(deg(m.meanAbsTheta),1)+'°</b></div><div><span>control effort</span><b>'+fmt(m.controlEffort,2)+' N·s</b></div><div><span>survival</span><b>'+(failed?fmt((ctrl.failedAt||0)*TAU,2):fmt(tick*TAU,2)+'+')+' s</b></div></div>'
+    +'<div class="replay-plan-meta">plan #'+ctrl.planNumber+' · seed '+ctrl.planSeed+' · next a['+ctrl.cursor+']</div></article>';
+}
+function ensureReplayRun(){
+  if(replayRun||!model)return;
+  replayRun=DiffusionCompare.runToEnd(model,comparisonCore());
+  replayIndex=0;replayAcc=0;
+  E("replaySlider").max=String(replayRun.trace.length-1);
+  var bars=DiffusionCompare.DISTURBANCE_PULSES.map(function(p){return '<i class="'+(p.force<0?'negative':'')+'" style="left:'+(p.start/DiffusionCompare.HORIZON_STEPS*100)+'%;width:'+(p.duration/DiffusionCompare.HORIZON_STEPS*100)+'%" title="'+fmt(p.start*TAU,1)+' s · '+p.force+' N"></i>'}).join("");
+  E("replayTrack").innerHTML=bars+'<em id="replayMarker" style="left:0%"></em>';
+  renderReplay();
+}
+function renderReplay(){
+  if(!replayRun)return;
+  replayIndex=clamp(replayIndex,0,replayRun.trace.length-1);
+  var snap=replayRun.trace[replayIndex],ids=DiffusionCompare.CONTROLLERS.map(function(x){return x.id});
+  E("replayTime").textContent=fmt(snap.time,2)+" s";E("replayTick").textContent=snap.tick+" / "+DiffusionCompare.HORIZON_STEPS;
+  E("replayDisturbance").textContent=(snap.disturbance>0?"→ ":snap.disturbance<0?"← ":"— ")+Math.abs(snap.disturbance)+" N";
+  E("replayDisturbance").classList.toggle("active",snap.disturbance!==0);
+  E("replayCards").innerHTML=ids.map(function(id){return replayCardHtml(snap.controllers[id],snap.tick)}).join("");
+  var marker=E("replayMarker");if(marker)marker.style.left=(snap.tick/DiffusionCompare.HORIZON_STEPS*100)+"%";
+  E("replaySlider").value=String(replayIndex);E("replayRecorded").textContent=replayIndex+" / "+(replayRun.trace.length-1)+" recorded";
+  E("replayRunBtn").textContent=replayRunning?"Pause":replayIndex>=replayRun.trace.length-1?"Replay":"Run";
+  E("replayMode").dataset.currentTick=String(snap.tick);E("replayMode").dataset.traceLength=String(replayRun.trace.length);E("replayMode").dataset.done="true";
+}
+function setAppMode(mode){
+  if(mode!=="learn"&&mode!=="replay")return;
+  if(mode==="replay"){
+    if(!model||guideMode)return;
+    replayWasRunning=running;running=false;updateRunControls();ensureReplayRun();replayRunning=true;replayAcc=0;lastNow=performance.now();
+  }else{
+    replayRunning=false;running=replayWasRunning&&status!=="fell";updateRunControls();lastNow=performance.now();
+  }
+  appMode=mode;
+  document.querySelectorAll(".learn-only").forEach(function(el){el.hidden=mode==="replay"});
+  E("replayMode").hidden=mode!=="replay";
+  E("learnModeBtn").classList.toggle("active",mode==="learn");E("replayModeBtn").classList.toggle("active",mode==="replay");
+  if(mode==="replay")renderReplay();else{renderController();renderSim()}
 }
 function makePlan(){
   if(!model)return;
@@ -270,7 +359,7 @@ function step(){
   return true;
 }
 function setStateArray(a){state={x:a[0],xDot:a[1],theta:a[2],thetaDot:a[3]}}
-function setGuideDisabled(on){["runBtn","resetBtn","pushL","pushR"].forEach(function(id){E(id).disabled=on});E("stepBtn").disabled=on||running||status==="fell"||!model}
+function setGuideDisabled(on){["runBtn","resetBtn","pushL","pushR"].forEach(function(id){E(id).disabled=on});E("stepBtn").disabled=on||running||status==="fell"||!model;E("replayModeBtn").disabled=on||!model}
 function clearGuideClasses(){document.querySelectorAll(".guide-focus,.guide-dim").forEach(function(el){el.classList.remove("guide-focus","guide-dim")})}
 function markGuide(qa,cls){document.querySelectorAll('[data-qa="'+qa+'"]').forEach(function(el){if(cls==="guide-focus")el.classList.remove("guide-dim");if(cls==="guide-dim")el.classList.remove("guide-focus");el.classList.add(cls)})}
 function guideText(){
@@ -334,13 +423,29 @@ function exitGuide(){
 }
 function frame(now){
   if(!lastNow)lastNow=now;var delta=Math.min(.08,(now-lastNow)/1000);lastNow=now;
-  if(running&&model&&!guideMode){
+  if(appMode==="replay"){
+    if(replayRunning&&replayRun){
+      replayAcc+=delta;var guard=0;
+      while(replayAcc>=TAU&&guard<4){
+        if(replayIndex<replayRun.trace.length-1){replayIndex++;replayAcc-=TAU;guard++}
+        else{replayRunning=false;replayAcc=0;break}
+      }
+      renderReplay();
+    }
+  }else if(running&&model&&!guideMode){
     acc+=delta;
     while(acc>=TAU){var advanced=step();if(!advanced){acc=0;break}acc-=TAU;if(!running)break}
-  }else if(!running){acc=0}
-  renderSim();raf=requestAnimationFrame(frame);
+    renderSim();
+  }else{if(!running)acc=0;renderSim()}
+  raf=requestAnimationFrame(frame);
 }
 function push(v){disturbance=v}function pushEnd(){disturbance=0}
+E("learnModeBtn").addEventListener("click",function(){setAppMode("learn")});
+E("replayModeBtn").addEventListener("click",function(){setAppMode("replay")});
+E("replayRunBtn").addEventListener("click",function(){if(!replayRun)return;if(replayIndex>=replayRun.trace.length-1)replayIndex=0;replayRunning=!replayRunning;replayAcc=0;renderReplay()});
+E("replayRestartBtn").addEventListener("click",function(){if(!replayRun)return;replayIndex=0;replayRunning=true;replayAcc=0;renderReplay()});
+E("replayEndBtn").addEventListener("click",function(){if(!replayRun)return;replayIndex=replayRun.trace.length-1;replayRunning=false;replayAcc=0;renderReplay()});
+E("replaySlider").addEventListener("input",function(){if(!replayRun)return;replayRunning=false;replayIndex=Number(this.value);replayAcc=0;renderReplay()});
 E("runBtn").addEventListener("click",function(){if(status==="fell")reset();else{running=!running;updateRunControls();renderSim()}});
 E("stepBtn").addEventListener("click",function(){if(running||guideMode||status==="fell")return;step();renderSim()});
 E("guideBtn").addEventListener("click",startGuide);
@@ -351,7 +456,7 @@ E("resetBtn").addEventListener("click",reset);
 [["pushL",-4],["pushR",4]].forEach(function(pair){var b=E(pair[0]);b.addEventListener("pointerdown",function(){push(pair[1])});["pointerup","pointerleave","pointercancel"].forEach(function(ev){b.addEventListener(ev,pushEnd)})});
 DiffusionViz.subscribe(function(index){if(index===null){E("hoverReadout").textContent="hover a cell → follow action[i]";return}var s=stage(),parts=["action["+index+"]"];if(s){parts.push("a_t="+fmt(s.latent[index],3));if(s.pred)parts.push("εθ="+fmt(s.pred[index],3));if(s.x0)parts.push("â0="+fmt(s.x0[index],3));}E("hoverReadout").textContent=parts.join(" · ")});
 state=resetState();renderSim();DiffusionViz.renderInspector(E("inspector"),null);
-CartPoleTinyDenoiser.load("artifacts/model.json").then(function(m){model=m;var tr=m.metadata.training;E("modelTag").textContent="learned εθ · val MSE "+fmt(tr.validation_epsilon_mse,4);conditioningCompareData=buildConditioningComparison();samplingCompareData=buildSamplingComparison();makePlan();updateRunControls();raf=requestAnimationFrame(frame)}).catch(function(err){status="model load failed";E("modelTag").textContent=String(err);renderSim()});
+CartPoleTinyDenoiser.load("artifacts/model.json").then(function(m){model=m;var tr=m.metadata.training;E("modelTag").textContent="learned εθ · val MSE "+fmt(tr.validation_epsilon_mse,4);conditioningCompareData=buildConditioningComparison();samplingCompareData=buildSamplingComparison();makePlan();E("replayModeBtn").disabled=false;updateRunControls();raf=requestAnimationFrame(frame)}).catch(function(err){status="model load failed";E("modelTag").textContent=String(err);renderSim()});
 })();
 </script>
 </body>

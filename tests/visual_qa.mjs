@@ -318,6 +318,57 @@ async function desktop(browser){
   await page.getByRole('button',{name:'Pause'}).click();const p0=await page.locator('#elapsed').innerText();await page.waitForTimeout(320);const p1=await page.locator('#elapsed').innerText();if(p0!==p1)err('desktop: Pause did not freeze clock');if(!(await page.getByRole('button',{name:'Step 20 ms'}).isEnabled().catch(()=>false)))err('desktop: Step 20 ms is disabled while paused');
   const adv=page.locator('[data-qa="advanced"] summary');await adv.click();await page.waitForTimeout(120);if(!(await page.locator('[data-qa="advanced"]').evaluate(e=>e.open)))err('desktop: Advanced did not open');
   await page.screenshot({path:path.join(outDir,'desktop-advanced.jpg'),type:'jpeg',quality:82,fullPage:true});
+
+  // Deterministic side-by-side replay adapted from latest cartpole-transformer Compare mode.
+  await page.locator('#replayModeBtn').click();await page.waitForTimeout(160);
+  const replayLab=page.locator('[data-qa="replay-lab"]');
+  if(!(await replayLab.isVisible()))err('replay: lab did not open');
+  const visibleLearn=await page.locator('.learn-only').evaluateAll(els=>els.filter(el=>el.getClientRects().length>0&&getComputedStyle(el).display!=='none').length);
+  if(visibleLearn!==0)err('replay: Learn content still visible in Replay mode ('+visibleLearn+')');
+  const replayCards=page.locator('.replay-card');
+  if(await replayCards.count()!==3)err('replay: expected three seed-stream cards');
+  await page.locator('#replayRunBtn').click();await page.waitForTimeout(60);
+  const replayTickLive=Number(await replayLab.getAttribute('data-current-tick'));
+  if(!(replayTickLive>0&&replayTickLive<100))warn('replay: auto replay did not advance into early trace, got '+replayTickLive);
+
+  const replaySlider=page.locator('#replaySlider');
+  await replaySlider.evaluate(el=>{el.value='0';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(60);
+  const initialReplay=await replayCards.evaluateAll(els=>els.map(el=>({state:el.dataset.state,seed:Number(el.dataset.baseSeed),disturbance:Number(el.dataset.disturbance)})));
+  if(new Set(initialReplay.map(x=>x.state)).size!==1)err('replay: initial states are not identical');
+  if(new Set(initialReplay.map(x=>x.seed)).size!==3)err('replay: base seed streams are not distinct');
+  if(initialReplay.some(x=>x.disturbance!==0))err('replay: initial shared disturbance is not zero');
+
+  await replaySlider.evaluate(el=>{el.value='81';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(60);
+  const pulseReplay=await replayCards.evaluateAll(els=>els.map(el=>Number(el.dataset.disturbance)));
+  if(pulseReplay.some(v=>v!==4))err('replay: tick 81 does not show shared +4 N disturbance: '+pulseReplay.join(','));
+
+  await replaySlider.evaluate(el=>{el.value='120';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(60);
+  const splitReplay=await replayCards.evaluateAll(els=>els.map(el=>el.dataset.state));
+  if(new Set(splitReplay).size<2)err('replay: seed streams have not diverged by tick 120');
+
+  await page.locator('#replayEndBtn').click();await page.waitForTimeout(60);
+  const finalTick=Number(await replayLab.getAttribute('data-current-tick'));
+  const traceLength=Number(await replayLab.getAttribute('data-trace-length'));
+  const finalMetrics=await replayCards.locator('.replay-metrics').allInnerTexts();
+  const replayNote=await page.locator('.replay-note').innerText();
+  if(finalTick!==500||traceLength!==501)err('replay: final tick/trace length contract failed '+finalTick+'/'+traceLength);
+  if(finalMetrics.length!==3)err('replay: final raw metrics missing');
+  if(!replayNote.includes('winner'))err('replay: no-ranking claim boundary missing');
+  await page.screenshot({path:path.join(outDir,'desktop-seed-replay-final.jpg'),type:'jpeg',quality:84,fullPage:true});
+
+  const replayButtonText=await page.locator('#replayRunBtn').innerText();
+  if(replayButtonText!=='Replay')err('replay: completed trace does not expose Replay');
+  await page.locator('#replayRunBtn').click();await page.waitForTimeout(140);
+  await page.locator('#replayRunBtn').click();await page.waitForTimeout(50);
+  const replayRestartTick=Number(await replayLab.getAttribute('data-current-tick'));
+  if(!(replayRestartTick>0&&replayRestartTick<100))err('replay: Replay did not restart from tick 0');
+  report.interactions.seedReplay={cards:await replayCards.count(),initialReplay,pulseTick:81,pulseReplay,divergenceTick:120,splitStates:splitReplay,finalTick,traceLength,replayRestartTick};
+
+  await page.locator('#learnModeBtn').click();await page.waitForTimeout(80);
+  if(await replayLab.isVisible())err('replay: Learn mode did not hide replay lab');
+  const visibleLearnAfter=await page.locator('.learn-only').evaluateAll(els=>els.filter(el=>el.getClientRects().length>0&&getComputedStyle(el).display!=='none').length);
+  if(visibleLearnAfter<1)err('replay: Learn mode did not restore Learn content');
+
   if(browserErrors.length)err('desktop browser errors: '+browserErrors.join(' | '));report.interactions.consoleErrors=browserErrors;await page.close();
 }
 async function mobile(browser){
@@ -432,6 +483,29 @@ async function mobile(browser){
   if(mobileHorizon.minFont!==null&&mobileHorizon.minFont<10.5)err('mobile horizon: text too small '+mobileHorizon.minFont+'px');
   await page.screenshot({path:path.join(outDir,'mobile-horizon.jpg'),type:'jpeg',quality:82,fullPage:true});
   await page.getByRole('button',{name:'Live로 돌아가기'}).click();await page.waitForTimeout(80);
+
+  await page.locator('#replayModeBtn').click();await page.waitForTimeout(140);
+  const mobileReplay=page.locator('[data-qa="replay-lab"]'),mobileCards=page.locator('.replay-card');
+  if(!(await mobileReplay.isVisible()))err('mobile replay: lab hidden');
+  const mobileVisibleLearn=await page.locator('.learn-only').evaluateAll(els=>els.filter(el=>el.getClientRects().length>0&&getComputedStyle(el).display!=='none').length);
+  if(mobileVisibleLearn!==0)err('mobile replay: Learn content still visible in Replay mode ('+mobileVisibleLearn+')');
+  if(await mobileCards.count()!==3)err('mobile replay: expected three cards');
+  const mobileReplayLayout=await page.evaluate(()=>{
+    const lab=document.querySelector('[data-qa="replay-lab"]'),grid=document.querySelector('.replay-grid'),r=lab?.getBoundingClientRect();
+    const fonts=lab?[...lab.querySelectorAll('b,span,strong,p,button')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite):[];
+    return{viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,right:r?.right||0,columns:grid?getComputedStyle(grid).gridTemplateColumns:'',minFont:fonts.length?Math.min(...fonts):null};
+  });
+  if(mobileReplayLayout.scrollWidth>mobileReplayLayout.viewport+2||mobileReplayLayout.right>mobileReplayLayout.viewport+2)err('mobile replay: layout escapes viewport');
+  if(mobileReplayLayout.columns.trim().split(/\s+/).length!==1)err('mobile replay: controller cards are not vertically stacked');
+  if(mobileReplayLayout.minFont!==null&&mobileReplayLayout.minFont<10.5)err('mobile replay: text too small '+mobileReplayLayout.minFont+'px');
+  await page.locator('#replayRunBtn').click();await page.waitForTimeout(40);
+  const mobileReplaySlider=page.locator('#replaySlider');
+  await mobileReplaySlider.evaluate(el=>{el.value='81';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(60);
+  const mobilePulse=await mobileCards.evaluateAll(els=>els.map(el=>Number(el.dataset.disturbance)));
+  if(mobilePulse.some(v=>v!==4))err('mobile replay: tick 81 shared disturbance mismatch '+mobilePulse.join(','));
+  report.interactions.mobileSeedReplay={...mobileReplayLayout,cards:await mobileCards.count(),pulseTick:81,pulseDisturbances:mobilePulse};
+  await page.screenshot({path:path.join(outDir,'mobile-seed-replay.jpg'),type:'jpeg',quality:82,fullPage:true});
+  await page.locator('#learnModeBtn').click();await page.waitForTimeout(60);
 
   if(browserErrors.length)err('mobile browser errors: '+browserErrors.join(' | '));
   report.interactions.mobileConsoleErrors=browserErrors;

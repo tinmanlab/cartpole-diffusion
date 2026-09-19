@@ -70,6 +70,58 @@ Browser QA numerically verifies:
 - the fresh plan observation equals the post-transition plant state,
 - the displayed next force always matches the current `plan[cursor]`.
 
+## Deterministic three-seed closed-loop replay
+
+The latest `cartpole-transformer` Compare mode was used as the interaction reference for a separate **Replay** mode.
+
+Replay does not compare different controller architectures. All three environments use the same:
+
+- learned diffusion denoiser,
+- Cart-Pole dynamics,
+- initial state,
+- 4-action execution prefix,
+- replanning rule,
+- deterministic disturbance schedule.
+
+Only the deterministic Gaussian seed stream differs:
+
+```text
+Seed 10101
+Seed 20202
+Seed 30303
+```
+
+Each seed stream owns an independent Cart-Pole state. Every environment receives the same disturbance at the same simulation tick:
+
+```text
++4 N : ticks 80..87
+-4 N : ticks 190..197
++4 N : ticks 300..307
+-4 N : ticks 410..417
+```
+
+The 10 s run is fully recorded as 501 snapshots (tick 0 through tick 500), so the replay can be paused, scrubbed, restarted, or jumped to the end without recomputing a different episode.
+
+The deterministic runtime checker generates the entire replay twice and requires byte-identical traces. It also checks that:
+
+- all three controllers start from exactly the same state,
+- their base seed streams are distinct,
+- all receive the same disturbance at every tick,
+- the +4 N pulse is present at replay tick 81,
+- the closed-loop states have diverged by tick 120,
+- all recorded states/forces/metrics are finite,
+- any failed controller would freeze at its failure pose with zero future force.
+
+In the current fixed 10 s configuration all three seed streams survive the full horizon. Their raw summaries are:
+
+| seed stream | survival | max |theta| | mean |theta| | control effort |
+| --- | ---: | ---: | ---: | ---: |
+| 10101 | 10.0 s | 5.0 deg | 1.27 deg | 8.73 N·s |
+| 20202 | 10.0 s | 5.0 deg | 1.23 deg | 8.62 N·s |
+| 30303 | 10.0 s | 5.0 deg | 1.27 deg | 8.71 N·s |
+
+These numbers describe this deterministic replay only. The UI intentionally keeps the raw metrics visible without declaring a winner or treating the three traces as calibrated uncertainty.
+
 ## Guided one-cycle walkthrough
 
 For a first pass, use **한 cycle 설명** instead of trying to read the live page while it is moving.
