@@ -41,7 +41,8 @@ function rowSvg(stage,finalPlan,rowY,title,subtitle,color,kind){
     var x=x0+i/(values.length-1)*width,shown=clamp(v*10,-limit,limit),y=rowY+height/2-(shown/limit)*(height*.42);
     return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.2" class="execute-point"/>';
   }).join("");
-  var unit=kind==="final"?" N":"";\n  return '<g class="sequence-row '+kind+'">'
+  var unit=kind==="final"?" N":"";
+  return '<g class="sequence-row '+kind+'">'
     +'<text x="8" y="'+(rowY+20)+'" class="sequence-title">'+title+'</text>'
     +'<text x="8" y="'+(rowY+39)+'" class="sequence-sub">'+subtitle+'</text>'
     +'<line x1="'+x0+'" y1="'+(rowY+height/2)+'" x2="'+(x0+width)+'" y2="'+(rowY+height/2)+'" class="sequence-zero"/>'
