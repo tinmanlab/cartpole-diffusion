@@ -12,7 +12,7 @@ async function inspect(page,name){
     const pick=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};
     const sels=['[data-qa="plant"]','[data-qa="controller"]','[data-qa="observe"]','[data-qa="plan"]','[data-qa="act"]','[data-qa="replan"]'];
     const boxes=Object.fromEntries(sels.map(s=>[s,pick(s)]));
-    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.conditioning-head b,.conditioning-head span,.conditioning-head em,.cond-obs span,.cond-obs b,.cond-obs small,.cond-arrow,.conditioning-legend,.conditioning-summary span,.conditioning-summary b,.conditioning-note,.divergence-head b,.divergence-head span,.divergence-head strong,.divergence-legend,.divergence-metrics span,.divergence-metrics b,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.timeline-head b,.timeline-head span,.timeline-status strong,.timeline-status span,.timeline-controls button,.timeline-controls label,.timeline-controls select,.timeline-scale,.timeline-caption,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.horizon-head b,.horizon-head span,.horizon-metrics strong,.horizon-metrics em,.horizon-labels,.horizon-groups b,.horizon-groups span,.horizon-note,.loop-back')];
+    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.conditioning-head b,.conditioning-head span,.conditioning-head em,.cond-obs span,.cond-obs b,.cond-obs small,.cond-arrow,.conditioning-legend,.conditioning-summary span,.conditioning-summary b,.conditioning-note,.divergence-head b,.divergence-head span,.divergence-head strong,.divergence-legend,.divergence-metrics span,.divergence-metrics b,.sampling-head b,.sampling-head span,.sampling-head em,.sampling-condition span,.sampling-condition b,.sampling-condition small,.sampling-starts,.sampling-legend,.sampling-summary span,.sampling-summary b,.sampling-note,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.timeline-head b,.timeline-head span,.timeline-status strong,.timeline-status span,.timeline-controls button,.timeline-controls label,.timeline-controls select,.timeline-scale,.timeline-caption,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.horizon-head b,.horizon-head span,.horizon-metrics strong,.horizon-metrics em,.horizon-labels,.horizon-groups b,.horizon-groups span,.horizon-note,.loop-back')];
     const fonts=core.filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
     const overlap=(a,b)=>{if(!a||!b)return 0;return Math.max(0,Math.min(a.right,b.right)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y))};
     const visibleCount=s=>[...document.querySelectorAll(s)].filter(e=>e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden').length;
@@ -109,13 +109,37 @@ async function desktop(browser){
   if(!conditioningData.text.includes('첫 reverse update'))err('guided conditioning: first-update divergence explanation missing');
   if(!conditioningData.text.includes('condition'))err('guided conditioning: conditioning explanation missing');
   report.interactions.conditioning=conditioningData;
-  await page.screenshot({path:path.join(outDir,'desktop-conditioning.jpg'),type:'jpeg',quality:84,fullPage:true});
+
+  const sampling=page.locator('[data-qa="sampling-compare"]');
+  if(!(await sampling.isVisible()))err('guided sampling: comparison panel is hidden at 1/6');
+  const samplingData=await sampling.evaluate(el=>({
+    sameObservation:el.dataset.sameObservation==='true',
+    observationTheta:Number(el.dataset.observationTheta),
+    seedCount:Number(el.dataset.seedCount),
+    seeds:(el.dataset.seeds||'').split(',').filter(Boolean).map(Number),
+    initialSpread:Number(el.dataset.initialSpread),
+    meanPairDiffN:Number(el.dataset.meanPairDiffN),
+    maxPairDiffN:Number(el.dataset.maxPairDiffN),
+    paths:el.querySelectorAll('.sampling-plan').length,
+    text:el.textContent||''
+  }));
+  if(!samplingData.sameObservation)err('guided sampling: observation was not held fixed');
+  if(Math.abs(samplingData.observationTheta-5*Math.PI/180)>1e-12)err('guided sampling: fixed observation theta is not +5 degrees');
+  if(samplingData.seedCount!==3||samplingData.seeds.join(',')!=='10101,20202,30303')err('guided sampling: unexpected seed set');
+  if(![samplingData.initialSpread,samplingData.meanPairDiffN,samplingData.maxPairDiffN].every(Number.isFinite))err('guided sampling: non-finite diversity metrics');
+  if(samplingData.initialSpread<=1e-4||samplingData.meanPairDiffN<=1e-4||samplingData.maxPairDiffN<=1e-4)err('guided sampling: different seeds did not produce visible diversity');
+  if(samplingData.paths!==3)err('guided sampling: expected three final-plan curves');
+  if(!samplingData.text.includes('sampling diversity'))err('guided sampling: diversity label missing');
+  if(!samplingData.text.includes('calibrated uncertainty'))err('guided sampling: uncertainty claim boundary missing');
+  report.interactions.samplingDiversity=samplingData;
+  await page.screenshot({path:path.join(outDir,'desktop-observation-experiments.jpg'),type:'jpeg',quality:84,fullPage:true});
 
   const next=page.getByRole('button',{name:'다음'});
   await next.click();await page.waitForTimeout(80);
   if(!(await page.locator('#guideStep').innerText()).includes('2/6'))err('guided cycle: random-start step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-noise"].guide-focus').count()!==1)err('guided cycle: random sequence not focused');
   if(await conditioning.isVisible())err('guided conditioning: comparison panel should hide after observation step');
+  if(await sampling.isVisible())err('guided sampling: comparison panel should hide after observation step');
   if(await page.locator('[data-qa="denoise-timeline"]').isVisible())err('guided cycle: denoise timeline should be hidden at random-start');
   if(await page.locator('[data-qa="denoise-one-step"]').isVisible())err('guided cycle: one-step denoise panel should be hidden at random-start');
 
@@ -252,7 +276,27 @@ async function mobile(browser){
     };
   });
   report.interactions.mobileConditioning=mobileConditioning;
+  const mobileSampling=await page.locator('[data-qa="sampling-compare"]').evaluate(el=>{
+    const r=el.getBoundingClientRect();
+    const fonts=[...el.querySelectorAll('b,span,small,em,p')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
+    return {
+      visible:!el.hidden&&r.width>0&&r.height>0,x:r.x,width:r.width,right:r.right,
+      viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,
+      sameObservation:el.dataset.sameObservation==='true',seedCount:Number(el.dataset.seedCount),
+      initialSpread:Number(el.dataset.initialSpread),meanPairDiffN:Number(el.dataset.meanPairDiffN),
+      paths:el.querySelectorAll('.sampling-plan').length,minFont:fonts.length?Math.min(...fonts):null,
+      text:el.textContent||''
+    };
+  });
+  report.interactions.mobileSampling=mobileSampling;
   if(!mobileConditioning.visible)err('mobile conditioning: panel hidden at 1/6');
+  if(!mobileSampling.visible)err('mobile sampling: panel hidden at 1/6');
+  if(mobileSampling.scrollWidth>mobileSampling.viewport+2||mobileSampling.right>mobileSampling.viewport+2)err('mobile sampling: panel escapes viewport');
+  if(!mobileSampling.sameObservation||mobileSampling.seedCount!==3)err('mobile sampling: fixed-observation/seed-count contract failed');
+  if(!Number.isFinite(mobileSampling.initialSpread)||mobileSampling.initialSpread<=1e-4||!Number.isFinite(mobileSampling.meanPairDiffN)||mobileSampling.meanPairDiffN<=1e-4)err('mobile sampling: diversity metrics missing');
+  if(mobileSampling.paths!==3)err('mobile sampling: expected three curves');
+  if(!mobileSampling.text.includes('calibrated uncertainty'))err('mobile sampling: uncertainty claim boundary missing');
+  if(mobileSampling.minFont!==null&&mobileSampling.minFont<10.5)err('mobile sampling: text too small '+mobileSampling.minFont+'px');
   if(mobileConditioning.scrollWidth>mobileConditioning.viewport+2||mobileConditioning.right>mobileConditioning.viewport+2)err('mobile conditioning: panel escapes viewport');
   if(!mobileConditioning.sameNoise||mobileConditioning.seed!==424242)err('mobile conditioning: same-noise contract missing');
   if(!Number.isFinite(mobileConditioning.meanAbsDiffN)||mobileConditioning.meanAbsDiffN<=1e-4)err('mobile conditioning: plan difference missing');
@@ -260,7 +304,7 @@ async function mobile(browser){
   if(mobileConditioning.historyStates!==20||mobileConditioning.historyPaths!==2)err('mobile conditioning: expected two 20-state denoise trajectories');
   if(Math.abs(mobileConditioning.initialDelta)>1e-12||mobileConditioning.firstAfterT!==90||mobileConditioning.firstUpdateDelta<=1e-6)err('mobile conditioning: first-update divergence contract failed');
   if(mobileConditioning.minFont!==null&&mobileConditioning.minFont<10.5)err('mobile conditioning: text too small '+mobileConditioning.minFont+'px');
-  await page.screenshot({path:path.join(outDir,'mobile-conditioning.jpg'),type:'jpeg',quality:82,fullPage:true});
+  await page.screenshot({path:path.join(outDir,'mobile-observation-experiments.jpg'),type:'jpeg',quality:82,fullPage:true});
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(60);
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(100);
   const mobileGuideStep=await page.locator('#guideStep').innerText();
