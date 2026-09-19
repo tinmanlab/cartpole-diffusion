@@ -23,6 +23,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate Python diffusion core
+        run: |
+          python -m pip install --disable-pip-version-check numpy
+          python -m unittest training.test_core
+      - name: Validate deployed browser runtime
+        run: |
+          node --check app/tiny_denoiser.js
+          node --check app/diffusion_viz.js
+          node --check app/control_loop_viz.js
+          node tests/index_script_smoke.cjs
+          node tests/readability_smoke.cjs
+          node tests/model_runtime_check.cjs
+          node tests/live_policy_smoke.cjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static site

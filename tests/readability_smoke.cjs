@@ -6,11 +6,14 @@ const required=[
   '.card-head b{font-size:15px',
   '.step-head b{display:block;font-size:16px',
   '.obs-values b{display:block;font:17px',
+  '.obs-values small{font-size:11px',
   '.policy-plain{border-left:4px',
   'font-size:13px;line-height:1.65',
   '.sequence-title{font:700 15px',
+  '.sequence-scale{font:11px',
   '.sequence-plain{',
-  '.exec-now strong{font:22px'
+  '.exec-now strong{font:22px',
+  '.exec-action small{font-size:11px'
 ];
 for(const token of required)if(!html.includes(token))throw new Error("readability contract missing: "+token);
 console.log("READABILITY_CONTRACT_OK");

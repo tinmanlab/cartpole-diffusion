@@ -84,14 +84,45 @@ The detailed timestep ladder and `a_t / predicted epsilon / estimated a0 / next 
 
 ## Validation
 
-CI checks:
+The validation structure is adapted from `cartpole-transformer` but kept specific to this static diffusion lab.
 
-- Python dynamics/diffusion core
-- model load and inference
-- control-loop visualization syntax
-- inline page syntax
-- readability regression contract
+### Runtime / semantic checks
+
+- Python dynamics and diffusion-core tests
+- quantized browser-model load and inference
+- model metadata / feature-width / conditioning invariants
+- deterministic inference
+- timestep and state-conditioning sensitivity
+- browser inference latency threshold
 - deterministic 10-second 50 Hz learned-policy rollout
+- inline page and visualization syntax
+- readability regression contract
+
+### Browser visual QA
+
+A Playwright Chromium workflow serves the exact static files that will be deployed and checks both desktop and mobile layouts.
+
+It verifies:
+
+- no page-level horizontal overflow
+- no Plant / Controller overlap
+- minimum core font size
+- four observation values and four executed-prefix actions
+- three denoising sequence snapshots
+- the final execute region and four execute points
+- simulation clock and plan number advance
+- denoising visualization changes as replanning occurs
+- Pause freezes the simulation
+- Push changes the visible Cart-Pole state
+- Advanced opens correctly
+- no browser console / page errors
+- mobile uses the vertical A → B → C denoising cards without horizontal scrolling
+
+Every run uploads `desktop.jpg`, `desktop-advanced.jpg`, `mobile.jpg`, and `report.json` as a GitHub Actions artifact.
+
+### Deployment gate
+
+GitHub Pages now repeats the core runtime, readability, model-runtime, and closed-loop checks before uploading the site. A broken browser runtime therefore cannot be published merely because the static files exist.
 
 ## References
 
