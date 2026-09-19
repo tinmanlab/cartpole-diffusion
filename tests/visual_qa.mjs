@@ -47,6 +47,41 @@ async function responsiveSweep(browser){
       .filter(e=>e.getClientRects().length).map(e=>({sel:e.className||e.tagName,px:parseFloat(getComputedStyle(e).fontSize)})));
     const smallGuideText=guideTextSizes.filter(r=>r.px<13.9);
     if(smallGuideText.length)err('responsive '+width+': essential guide text below 14px effective — '+smallGuideText.map(r=>r.sel+' '+r.px+'px').join('; '));
+    if(width<=760){
+      const narrowGeometry=await page.evaluate(()=>{
+        // Only the active .loop step / .loop-back is "guidebar-directed content" for the
+        // ordering/overlap measurement — the plant card sits above the guide bar with its
+        // own valid position and also carries guide-focus, so it must not be selected here.
+        var bar=document.querySelector('[data-qa="guide-bar"]'),focus=document.querySelector('.loop .step.guide-focus,.loop-back.guide-focus');
+        var br=bar?bar.getBoundingClientRect():null,fr=focus?focus.getBoundingClientRect():null;
+        var stageBtns=[...document.querySelectorAll('.stage-btn')];
+        var stageRects=stageBtns.map(function(e){var r=e.getBoundingClientRect();
+          var cx=r.left+r.width/2,cy=r.top+r.height/2,hit=document.elementFromPoint(cx,cy);
+          return{left:Math.round(r.left),right:Math.round(r.right),hitOk:!!hit&&e.contains(hit)};
+        });
+        var identity=document.querySelector('[data-qa="guide-identity"]'),ir=identity?identity.getBoundingClientRect():null;
+        return{viewport:innerWidth,barPresent:!!bar,focusPresent:!!focus,barBottom:br?Math.round(br.bottom):null,focusTop:fr?Math.round(fr.top):null,stageRects:stageRects,identityRight:ir?Math.round(ir.right):null,identityLeft:ir?Math.round(ir.left):null};
+      });
+      if(!narrowGeometry.barPresent)err('responsive '+width+': guide bar not found for ordering/overlap measurement');
+      if(!narrowGeometry.focusPresent)err('responsive '+width+': no active .loop step / .loop-back guide-focus target found');
+      if(narrowGeometry.stageRects.some(r=>r.right>narrowGeometry.viewport+2||r.left<-2))err('responsive '+width+': a stage-nav button is squeezed outside the viewport bounds');
+      if(narrowGeometry.stageRects.some(r=>!r.hitOk))err('responsive '+width+': a stage-nav button center is covered by another element (elementFromPoint mismatch)');
+      if(narrowGeometry.identityRight!==null&&(narrowGeometry.identityRight>narrowGeometry.viewport+2||narrowGeometry.identityLeft<-2))err('responsive '+width+': guide-identity readout is squeezed outside the viewport bounds');
+      if(narrowGeometry.barBottom!==null&&narrowGeometry.focusTop!==null){
+        var narrowGap=narrowGeometry.focusTop-narrowGeometry.barBottom;
+        if(narrowGap<0)err('responsive '+width+': guide bar overlaps the focused panel (gap '+narrowGap+'px)');
+        if(narrowGap>60)err('responsive '+width+': giant blank gap between guide bar and focused panel ('+narrowGap+'px)');
+      }
+      if(width===320){
+        // Viewport-truth screenshot at the narrowest contract width. Result requires a
+        // real four-action apply, which mobile() already screenshots/geometry-checks at
+        // 390 against the identical <=760px layout rule; duplicating that full apply
+        // flow here would add cost without new coverage.
+        await page.locator('.stage-btn').nth(1).click();await page.waitForTimeout(120);
+        await page.screenshot({path:path.join(outDir,'responsive-320-guide-calculation-viewport.jpg'),type:'jpeg',quality:84});
+        await page.locator('.stage-btn').nth(0).click();await page.waitForTimeout(80);
+      }
+    }
     await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
     await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(180);
     if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('responsive '+width+': guided denoise step not reached');
@@ -498,23 +533,71 @@ async function mobile(browser){
   // F3: on narrow width, the focused panel must be readable and the guide controls
   // reachable without scrolling through hundreds of px of dimmed prior sections; dimmed
   // sections are removed from layout (not merely faded), and the after-state/result
-  // values are never among them since only guide-dim panels are hidden.
-  const mobileGuideFocus=await page.evaluate(()=>{
-    var focus=document.querySelector('.step.guide-focus,[data-qa="plant"].guide-focus');
+  // values are never among them since only guide-dim panels are hidden. Geometry, not
+  // mere viewport intersection, since a clipped/overflowed element still "intersects".
+  const readMobileGuideGeometry=()=>page.evaluate(()=>{
+    var bar=document.querySelector('[data-qa="guide-bar"]');
+    // Only the active .loop step / .loop-back is "guidebar-directed content" for the
+    // ordering/overlap measurement — the plant card sits above the guide bar with its own
+    // valid position and also carries guide-focus, so it must not be selected here.
+    var focus=document.querySelector('.loop .step.guide-focus,.loop-back.guide-focus');
     var nav=document.querySelector('[data-qa="stage-nav"]');
-    var fr=focus?focus.getBoundingClientRect():null,nr=nav?nav.getBoundingClientRect():null;
+    var br=bar?bar.getBoundingClientRect():null,fr=focus?focus.getBoundingClientRect():null,nr=nav?nav.getBoundingClientRect():null;
+    var stageBtns=[...document.querySelectorAll('.stage-btn')];
+    var stageRects=stageBtns.map(function(e){var r=e.getBoundingClientRect();
+      var cx=r.left+r.width/2,cy=r.top+r.height/2,hit=document.elementFromPoint(cx,cy);
+      return{h:Math.round(r.height),left:Math.round(r.left),right:Math.round(r.right),hitOk:!!hit&&e.contains(hit)};
+    });
+    var identity=document.querySelector('[data-qa="guide-identity"]'),ir=identity?identity.getBoundingClientRect():null;
     var dimmedVisible=[...document.querySelectorAll('.step.guide-dim,.loop-back.guide-dim')].filter(function(e){return e.getClientRects().length>0}).length;
     return{
+      viewport:innerWidth,
+      barPresent:!!bar,
+      focusPresent:!!focus,
+      barBottom:br?Math.round(br.bottom):null,
+      focusTop:fr?Math.round(fr.top):null,
       focusInViewport:!!fr&&fr.top<innerHeight&&fr.bottom>0,
       navInViewport:!!nr&&nr.top<innerHeight&&nr.bottom>0,
+      stageRects:stageRects,
+      identityRight:ir?Math.round(ir.right):null,
+      identityLeft:ir?Math.round(ir.left):null,
       dimmedVisible:dimmedVisible,
       scrollY:scrollY
     };
   });
+  const mobileGuideFocus=await readMobileGuideGeometry();
   report.interactions.mobileGuideFocus=mobileGuideFocus;
+  if(!mobileGuideFocus.barPresent)err('mobile: guide bar not found for ordering/overlap measurement');
+  if(!mobileGuideFocus.focusPresent)err('mobile: no active .loop step / .loop-back guide-focus target found after guided entry');
   if(!mobileGuideFocus.focusInViewport)err('mobile: focused guide panel is not visible near the top of the viewport after guided entry');
   if(!mobileGuideFocus.navInViewport)err('mobile: stage nav / guide controls not reachable in viewport after guided entry');
   if(mobileGuideFocus.dimmedVisible!==0)err('mobile: dimmed (irrelevant) guide sections are still taking layout space instead of being hidden');
+  if(mobileGuideFocus.stageRects.some(r=>r.right>mobileGuideFocus.viewport+2||r.left<-2))err('mobile: a stage-nav button is squeezed outside the viewport bounds');
+  if(mobileGuideFocus.stageRects.some(r=>r.h<44))err('mobile: a stage-nav button is below the 44px touch height');
+  if(mobileGuideFocus.stageRects.some(r=>!r.hitOk))err('mobile: a stage-nav button center is covered by another element (elementFromPoint mismatch)');
+  if(mobileGuideFocus.identityRight!==null&&(mobileGuideFocus.identityRight>mobileGuideFocus.viewport+2||mobileGuideFocus.identityLeft<-2))err('mobile: guide-identity readout is squeezed outside the viewport bounds');
+  if(mobileGuideFocus.barBottom!==null&&mobileGuideFocus.focusTop!==null){
+    var gap=mobileGuideFocus.focusTop-mobileGuideFocus.barBottom;
+    if(gap<0)err('mobile: guide bar overlaps/covers the focused panel (gap '+gap+'px)');
+    if(gap>60)err('mobile: giant blank gap between guide bar and focused panel ('+gap+'px)');
+  }
+  await page.screenshot({path:path.join(outDir,'mobile-guide-entry-viewport.jpg'),type:'jpeg',quality:84});
+
+  const mobileStageBtn=i=>page.locator('.stage-btn').nth(i);
+  await mobileStageBtn(1).click();await page.waitForTimeout(120);
+  if(!(await page.locator('#guideStep').innerText()).includes('2/6'))err('mobile: Calculation stage did not jump to 2/6');
+  const mobileCalcGeometry=await readMobileGuideGeometry();
+  report.interactions.mobileCalcGeometry=mobileCalcGeometry;
+  if(!mobileCalcGeometry.barPresent||!mobileCalcGeometry.focusPresent)err('mobile Calculation stage: guide bar or active .loop step target missing');
+  if(mobileCalcGeometry.stageRects.some(r=>r.right>mobileCalcGeometry.viewport+2||r.left<-2))err('mobile Calculation stage: a stage-nav button is squeezed outside the viewport bounds');
+  if(mobileCalcGeometry.stageRects.some(r=>!r.hitOk))err('mobile Calculation stage: a stage-nav button center is covered by another element');
+  if(mobileCalcGeometry.barBottom!==null&&mobileCalcGeometry.focusTop!==null){
+    var calcGap=mobileCalcGeometry.focusTop-mobileCalcGeometry.barBottom;
+    if(calcGap<0||calcGap>60)err('mobile Calculation stage: guide bar / focused panel gap out of range ('+calcGap+'px)');
+  }
+  await page.screenshot({path:path.join(outDir,'mobile-guide-calculation-viewport.jpg'),type:'jpeg',quality:84});
+  await page.screenshot({path:path.join(outDir,'mobile-guide-calculation-full.jpg'),type:'jpeg',quality:84,fullPage:true});
+  await mobileStageBtn(0).click();await page.waitForTimeout(80);
   const mobileConditioning=await page.locator('[data-qa="conditioning-compare"]').evaluate(el=>{
     const r=el.getBoundingClientRect();
     const fonts=[...el.querySelectorAll('b,span,small,em,p')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
@@ -613,6 +696,22 @@ async function mobile(browser){
   if(mobileHorizon.markerRatio===null||Math.abs(mobileHorizon.markerRatio-.25)>.025)err('mobile horizon: re-observation marker not at 25%');
   if(mobileHorizon.minFont!==null&&mobileHorizon.minFont<10.5)err('mobile horizon: text too small '+mobileHorizon.minFont+'px');
   await page.screenshot({path:path.join(outDir,'mobile-horizon.jpg'),type:'jpeg',quality:82,fullPage:true});
+
+  await mobileStageBtn(3).click();await page.waitForTimeout(120);
+  if(!(await page.locator('#guideStep').innerText()).includes('6/6'))err('mobile: Result stage did not reach 6/6 after execution');
+  const mobileResultGeometry=await readMobileGuideGeometry();
+  report.interactions.mobileResultGeometry=mobileResultGeometry;
+  if(!mobileResultGeometry.barPresent||!mobileResultGeometry.focusPresent)err('mobile Result stage: guide bar or active .loop step target missing');
+  if(mobileResultGeometry.stageRects.some(r=>r.right>mobileResultGeometry.viewport+2||r.left<-2))err('mobile Result stage: a stage-nav button is squeezed outside the viewport bounds');
+  if(mobileResultGeometry.stageRects.some(r=>!r.hitOk))err('mobile Result stage: a stage-nav button center is covered by another element');
+  if(mobileResultGeometry.identityRight!==null&&(mobileResultGeometry.identityRight>mobileResultGeometry.viewport+2||mobileResultGeometry.identityLeft<-2))err('mobile Result stage: guide-identity readout squeezed outside the viewport bounds');
+  if(mobileResultGeometry.barBottom!==null&&mobileResultGeometry.focusTop!==null){
+    var resultGap=mobileResultGeometry.focusTop-mobileResultGeometry.barBottom;
+    if(resultGap<0||resultGap>60)err('mobile Result stage: guide bar / focused panel gap out of range ('+resultGap+'px)');
+  }
+  await page.screenshot({path:path.join(outDir,'mobile-guide-result-viewport.jpg'),type:'jpeg',quality:84});
+  await page.screenshot({path:path.join(outDir,'mobile-guide-result-full.jpg'),type:'jpeg',quality:84,fullPage:true});
+
   await page.getByRole('button',{name:'Live로 돌아가기'}).click();await page.waitForTimeout(80);
   if((await page.locator('[data-qa="observe"],[data-qa="plan"],[data-qa="act"],[data-qa="replan"]').evaluateAll(els=>els.filter(e=>e.getClientRects().length>0).length))!==4)err('mobile: not all control-loop panels returned to layout after exiting guided mode');
 
