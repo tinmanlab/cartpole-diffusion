@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Cart-Pole로 diffusion model과 Diffusion Policy를 처음부터 배우는 interactive robotics lab">
+<title>Cart-Pole Diffusion Lab</title>
+<style>
+:root{--bg:#f7f8fb;--panel:#fff;--text:#172033;--muted:#667085;--line:#e4e7ec;--ink:#243047;--blue:#5477e8;--red:#e66b6b;--green:#3e9d75;--purple:#8a6bd1;--gold:#c6922d;--soft:#f2f4f8;--radius:18px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55}
+button,input,select{font:inherit}.wrap{max-width:1180px;margin:auto;padding:26px 18px 60px}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:18px}.brand h1{margin:0;font-size:clamp(29px,5vw,46px);line-height:1.03;letter-spacing:-.04em}.brand p{margin:9px 0 0;color:var(--muted);max-width:780px}.badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.badge{border:1px solid var(--line);background:var(--panel);padding:6px 10px;border-radius:999px;font-size:12px;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;min-width:0}.panel h2,.panel h3{margin:0 0 8px;letter-spacing:-.02em}.muted{color:var(--muted)}.tiny{font-size:12px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.idea-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.idea{border:1px solid var(--line);border-radius:14px;padding:13px}.idea b{display:block;margin-bottom:4px}.idea:nth-child(1)b{color:var(--green)}.idea:nth-child(2)b{color:var(--purple)}.idea:nth-child(3)b{color:var(--blue)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.scene{background:linear-gradient(180deg,#fbfcff,#f0f3f8);border:1px solid var(--line);border-radius:15px;padding:8px}.scene svg{display:block;width:100%;height:auto}.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.control label{display:flex;justify-content:space-between;gap:8px;font-size:13px}.control input{width:100%}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.actions button,.actions select{min-height:40px;border-radius:10px;border:1px solid var(--line);background:#fff;padding:8px 11px}.actions button{cursor:pointer}.actions button.primary{background:var(--ink);color:white;border-color:var(--ink)}.actions button:disabled{opacity:.5;cursor:not-allowed}
+.statebox{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.state{border:1px solid var(--line);border-radius:11px;padding:9px;background:#fafbfc;min-width:0}.state b{display:block;font-size:12px}.state span{font-size:13px}.force{margin-top:12px;background:var(--soft);border-radius:12px;padding:11px 13px;display:flex;justify-content:space-between;gap:12px;align-items:center}.force strong{font-size:18px}
+.steps{display:flex;gap:7px;overflow:auto;padding-bottom:4px;margin-bottom:13px}.step{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer;font-size:13px}.step.active{background:var(--ink);color:white;border-color:var(--ink)}
+.lesson{background:#f8f9fc;border-radius:15px;padding:15px;min-height:190px}.lesson h3{margin-bottom:5px}.formula{margin-top:10px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 11px;font:13px ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto;white-space:pre-wrap}.note{border-left:4px solid var(--gold);background:#fff9ed;padding:10px 12px;border-radius:8px;margin-top:12px;font-size:13px}
+.pipeline{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:7px;margin:13px 0}.node{border:1px solid var(--line);border-radius:12px;padding:10px;min-height:82px;background:#fff}.node b{display:block;font-size:13px;margin-bottom:4px}.node div{font-size:12px;color:var(--muted)}.arr{text-align:center;color:#98a2b3;font-weight:800}.node.clean{background:#f1faf6}.node.noise{background:#f8f3ff}.node.mix{background:#fff7f7}.node.reverse{background:#f2f5ff}
+.diffusion-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:16px}.plotwrap{border:1px solid var(--line);border-radius:15px;padding:10px;background:#fcfcfd}.plotwrap canvas{width:100%;height:280px;display:block}.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;font-size:12px;color:var(--muted)}.key{display:inline-flex;align-items:center;gap:5px}.dot{width:9px;height:9px;border-radius:999px;display:inline-block}.dot.clean{background:var(--green)}.dot.current{background:var(--red)}.dot.noise{background:var(--purple)}
+.sliderbox{border:1px solid var(--line);border-radius:15px;padding:14px}.sliderbox input{width:100%}.bigstep{font-size:35px;font-weight:800;letter-spacing:-.04em}.metric{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:8px;margin-top:8px;font-size:13px}.metric strong{text-align:right}
+.chunk{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;align-items:center;height:122px;margin-top:12px}.barcell{height:100%;position:relative;background:#f5f6f8;border-radius:7px;overflow:hidden}.barzero{position:absolute;left:0;right:0;top:50%;height:1px;background:#cfd4dc}.barv{position:absolute;left:20%;right:20%;border-radius:5px;background:var(--red);min-height:2px}.barlabel{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:9px;color:#98a2b3}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:12px}.compare-card{border:1px solid var(--line);border-radius:14px;padding:14px}.compare-card .flow{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#f8f9fc;border-radius:9px;padding:9px;margin-top:8px}
+.tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}.table th{color:var(--muted);font-weight:600}
+.footer{margin-top:18px;color:var(--muted);font-size:12px;text-align:center}.footer a{color:inherit}
+@media(max-width:900px){.grid,.diffusion-grid{grid-template-columns:1fr}.top{flex-direction:column}.badges{justify-content:flex-start}.pipeline{grid-template-columns:1fr}.arr{transform:rotate(90deg)}}
+@media(max-width:620px){.wrap{padding:16px 12px 46px}.panel{padding:14px}.idea-grid,.compare{grid-template-columns:1fr}.controls{grid-template-columns:1fr}.statebox{grid-template-columns:1fr 1fr}.chunk{gap:2px}.barlabel{display:none}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="top">
+<div class="brand"><h1>Cart-Pole로 배우는 Diffusion</h1><p>이미지를 만들기 전에, 로봇의 <b>미래 action sequence</b>를 노이즈에서 복원해봅니다. forward diffusion, reverse denoising, conditioning, action chunking을 한 화면에서 연결합니다.</p></div>
+<div class="badges"><span class="badge">Beginner first</span><span class="badge">State → action chunk</span><span class="badge">No trained network yet</span></div>
+</header>
+
+<section class="panel">
+<h2>한 문장으로 먼저</h2>
+<div class="idea-grid">
+<div class="idea"><b>① Clean action a₀</b>좋은 제어 행동의 짧은 미래 시퀀스를 준비합니다.</div>
+<div class="idea"><b>② Noise를 섞어 aₜ</b>점점 원래 행동을 알아보기 어렵게 만듭니다.</div>
+<div class="idea"><b>③ 다시 denoise</b>로봇 상태를 조건으로 노이즈를 제거해 행동 시퀀스를 복원합니다.</div>
+</div>
+<p class="muted" style="margin-bottom:0">이미지 diffusion에서 픽셀을 복원했다면, Diffusion Policy에서는 <b>행동 시퀀스</b>를 복원한다고 생각하면 됩니다.</p>
+</section>
+
+<div class="grid" style="margin-top:16px">
+<section class="panel">
+<h2>1. 로봇 상태 c를 바꿔보세요</h2>
+<p class="muted">이 상태가 diffusion policy의 조건(condition)이 됩니다. 현재 v0.1의 clean action은 학습 데이터 대신 작은 teacher controller가 만듭니다.</p>
+<div class="scene">
+<svg viewBox="0 0 620 300" role="img" aria-label="Cart-Pole state visualization">
+<line x1="30" y1="245" x2="590" y2="245" stroke="#c7ccd6" stroke-width="4"/>
+<rect id="cart" x="255" y="207" width="110" height="38" rx="9" fill="#4d5f7a"/>
+<circle id="wheel1" cx="280" cy="254" r="12" fill="#283345"/>
+<circle id="wheel2" cx="340" cy="254" r="12" fill="#283345"/>
+<line id="pole" x1="310" y1="207" x2="310" y2="70" stroke="#e66b6b" stroke-width="14" stroke-linecap="round"/>
+<circle id="pivot" cx="310" cy="207" r="10" fill="#172033"/>
+<text id="sceneTheta" x="18" y="28" fill="#667085" font-size="14">θ = 8°</text>
+<text id="sceneOmega" x="18" y="49" fill="#667085" font-size="14">θ̇ = 0°/s</text>
+<text x="30" y="282" fill="#98a2b3" font-size="13">continuous force: −10 N ← 0 → +10 N</text>
+</svg>
+</div>
+<div class="controls">
+<div class="control"><label><span>막대 각도 θ</span><strong id="thetaVal">8°</strong></label><input id="theta" type="range" min="-11" max="11" value="8" step="1"></div>
+<div class="control"><label><span>각속도 θ̇</span><strong id="omegaVal">0°/s</strong></label><input id="omega" type="range" min="-100" max="100" value="0" step="5"></div>
+<div class="control"><label><span>카트 위치 x</span><strong id="xVal">0.00 m</strong></label><input id="x" type="range" min="-0.8" max="0.8" value="0" step="0.02"></div>
+<div class="control"><label><span>카트 속도 ẋ</span><strong id="xdotVal">0.00 m/s</strong></label><input id="xdot" type="range" min="-1.2" max="1.2" value="0" step="0.04"></div>
+</div>
+<div class="actions">
+<select id="preset" aria-label="Cart-Pole example state"><option value="right">오른쪽으로 기울어짐</option><option value="left">왼쪽으로 기울어짐</option><option value="moving">움직이며 복구 중</option><option value="center">거의 안정</option></select>
+<button id="resetState" type="button">상태 초기화</button>
+<button id="replan" class="primary" type="button">현재 상태에서 replan</button>
+</div>
+<div class="statebox">
+<div class="state"><b>x</b><span id="sx">0.00 m</span></div><div class="state"><b>ẋ</b><span id="sv">0.00 m/s</span></div><div class="state"><b>θ</b><span id="st">8°</span></div><div class="state"><b>θ̇</b><span id="sw">0°/s</span></div>
+</div>
+<div class="force"><div><span class="tiny muted">clean chunk의 첫 force</span><br><strong id="teacherForce">+4.89 N</strong></div><div class="mono" id="conditionText">c = [0.00, 0.00, 0.140, 0.00]</div></div>
+</section>
+
+<section class="panel">
+<h2>2. 개념을 순서대로 펼쳐보기</h2>
+<div class="steps">
+<button class="step active" data-step="0">① Why?</button><button class="step" data-step="1">② Forward</button><button class="step" data-step="2">③ Reverse</button><button class="step" data-step="3">④ Condition</button><button class="step" data-step="4">⑤ Chunk</button><button class="step" data-step="5">⑥ Real model</button>
+</div>
+<div class="lesson"><h3 id="lessonTitle"></h3><div id="lessonText"></div><div class="formula" id="lessonFormula"></div></div>
+<div class="note"><b>교육용 경계:</b> 이 페이지의 reverse 과정은 원래 clean action과 noise를 알고 있는 <b>oracle denoiser</b>입니다. 실제 diffusion policy는 정답을 보지 못하고 학습된 신경망 <span class="mono">εθ(aₜ,t,c)</span>가 noise를 예측합니다.</div>
+</section>
+</div>
+
+<section class="panel" style="margin-top:16px">
+<h2>3. Diffusion microscope — action sequence에 직접 noise를 넣어보기</h2>
+<div class="pipeline">
+<div class="node clean"><b>condition c</b><div id="pipeCondition">현재 Cart-Pole 상태</div></div><div class="arr">→</div>
+<div class="node clean"><b>clean action a₀</b><div>16-step normalized force sequence</div></div><div class="arr">+</div>
+<div class="node noise"><b>Gaussian noise ε</b><div>새로운 가능한 행동을 탐색하는 seed</div></div><div class="arr">→</div>
+<div class="node mix"><b>noisy action aₜ</b><div id="pipeNoisy">t = 70 / 100</div></div>
+</div>
+<div class="diffusion-grid">
+<div class="plotwrap">
+<canvas id="actionPlot" width="820" height="280" aria-label="Clean and noisy action sequence plot"></canvas>
+<div class="legend"><span class="key"><i class="dot clean"></i> clean a₀</span><span class="key"><i class="dot current"></i> shown aₜ</span><span class="key"><i class="dot noise"></i> ε (scaled guide)</span></div>
+<div class="chunk" id="chunkBars" aria-label="Action sequence bars"></div>
+</div>
+<div class="sliderbox">
+<div class="tiny muted">diffusion timestep</div><div class="bigstep"><span id="tValue">70</span> / 100</div>
+<input id="tSlider" type="range" min="0" max="100" value="70" step="1" aria-label="Diffusion timestep">
+<div class="metric"><span>signal weight √ᾱₜ</span><strong id="signalWeight">0.44</strong></div>
+<div class="metric"><span>noise weight √(1−ᾱₜ)</span><strong id="noiseWeight">0.90</strong></div>
+<div class="metric"><span>first shown action</span><strong id="shownForce">—</strong></div><div class="tiny muted" style="margin-top:8px">aₜ는 diffusion latent라 ±1을 넘을 수 있습니다. 실제 Cart-Pole 입력은 ±10 N에서 clip합니다.</div>
+<div class="actions"><button id="resample" type="button">새 noise ε</button><button id="denoise" class="primary" type="button">t → 0 재생</button></div>
+<div class="formula" id="forwardFormula">aₜ = √ᾱₜ · a₀ + √(1−ᾱₜ) · ε</div>
+</div>
+</div>
+</section>
+
+<div class="grid" style="margin-top:16px">
+<section class="panel">
+<h2>4. 행동을 실제 Cart-Pole에 넣어보기</h2>
+<p class="muted">현재 화면의 <span class="mono">aₜ</span>에서 앞 4개 action만 실행한 뒤, 갱신된 상태에서 새 clean chunk를 replan합니다. t가 크면 noise가 많아 제어가 나빠질 수 있습니다.</p>
+<div class="actions"><button id="execute" class="primary" type="button">앞 4 action 실행 + replan</button><button id="executeOne" type="button">1 action 실행</button><button id="restore" type="button">처음 상태로</button></div>
+<div class="force"><div><span class="tiny muted">execution result</span><br><strong id="execStatus">아직 실행하지 않음</strong></div><div class="mono" id="execDelta">Δθ = 0.0°</div></div>
+<div class="note"><b>Receding horizon의 핵심:</b> 실제 시스템은 긴 시퀀스를 전부 맹목적으로 실행하지 않습니다. 일부만 실행하고 새 관측을 받아 다시 action chunk를 생성합니다.</div>
+</section>
+<section class="panel">
+<h2>5. Direct policy와 무엇이 다른가?</h2>
+<div class="compare">
+<div class="compare-card"><b>Direct policy</b><div class="flow">state → one action</div><p class="muted">한 번의 forward pass로 바로 행동을 냅니다. 구조가 단순하고 빠릅니다.</p></div>
+<div class="compare-card"><b>Diffusion policy</b><div class="flow">state + noise → iterative denoise → action chunk</div><p class="muted">여러 번의 denoising으로 미래 행동 시퀀스를 생성합니다. 다양한 가능한 행동 분포와 시간적 일관성을 표현하기 좋습니다.</p></div>
+</div>
+</section>
+</div>
+
+<section class="panel" style="margin-top:16px">
+<h2>6. 지금 데모와 실제 학습 모델의 차이</h2>
+<div class="tablewrap"><table class="table"><thead><tr><th>부분</th><th>v0.1 interactive lab</th><th>실제 diffusion policy</th></tr></thead><tbody>
+<tr><td>Clean action a₀</td><td>작은 teacher controller가 브라우저에서 생성</td><td>demonstration dataset의 action sequence</td></tr>
+<tr><td>Forward diffusion</td><td>실제 Gaussian noise 식을 사용</td><td>학습 중 같은 종류의 noise corruption 사용</td></tr>
+<tr><td>Denoiser</td><td>정답 noise를 아는 oracle path</td><td>학습된 εθ 또는 다른 prediction parameterization</td></tr>
+<tr><td>Condition c</td><td>[x, ẋ, θ, θ̇]</td><td>state, image, history 등 task 관측</td></tr>
+<tr><td>Execution</td><td>연속 force Cart-Pole toy dynamics</td><td>action chunk 일부 실행 후 observation을 갱신하며 재계획</td></tr>
+</tbody></table></div>
+<p class="muted" style="margin-bottom:0">다음 구현 단계는 이 UI를 유지한 채 teacher/oracle만 <b>dataset + tiny trained 1D denoiser</b>로 교체하는 것입니다.</p>
+</section>
+
+<footer class="footer">Interaction approach inspired by <a href="https://poloclub.github.io/diffusion-explainer/">Polo Club Diffusion Explainer</a> · Robotics concept reference: <a href="https://diffusion-policy.cs.columbia.edu/">Diffusion Policy</a> · Cart-Pole Diffusion Lab v0.1</footer>
+</main>
+
+<script>
+(function(){
+"use strict";
+var T=100,H=16,MAX_FORCE=10,execInitial=null,noiseSeed=7,currentStep=0,animation=null;
+var state=[0,0,8*Math.PI/180,0],clean=[],eps=[],shown=[];
+var presets={
+ right:[0,0,8*Math.PI/180,0],
+ left:[0,0,-8*Math.PI/180,0],
+ moving:[0.12,-0.42,5*Math.PI/180,-35*Math.PI/180],
+ center:[0.02,0.05,1.5*Math.PI/180,-4*Math.PI/180]
+};
+function el(id){return document.getElementById(id)}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}
+function deg(r){return r*180/Math.PI}
+function rad(d){return d*Math.PI/180}
+function copyState(s){return s.slice()}
+function mulberry32(a){return function(){var t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+function gaussianGenerator(seed){var r=mulberry32(seed),spare=null;return function(){if(spare!==null){var v=spare;spare=null;return v}var u=0,v=0;while(u===0)u=r();while(v===0)v=r();var m=Math.sqrt(-2*Math.log(u));spare=m*Math.sin(2*Math.PI*v);return m*Math.cos(2*Math.PI*v)}}
+function makeNoise(){var g=gaussianGenerator(noiseSeed);eps=Array.from({length:H},function(){return clamp(g(),-2.6,2.6)})}
+function alphaBar(t){var s=.008,x=(t/T+s)/(1+s),f=Math.cos(x*Math.PI/2);var f0=Math.cos((s/(1+s))*Math.PI/2);return clamp((f*f)/(f0*f0),0,1)}
+function sampleAt(t){var ab=alphaBar(t),sa=Math.sqrt(ab),sn=Math.sqrt(1-ab);return clean.map(function(a,i){return clamp(sa*a+sn*eps[i],-1.35,1.35)})}
+function teacher(s){var u=1.0*s[0]+1.0*s[1]+35*s[2]+6*s[3];return clamp(u,-MAX_FORCE,MAX_FORCE)}
+function physics(s,force){var x=s[0],xd=s[1],th=s[2],thd=s[3],g=9.8,mc=1,mp=.1,total=1.1,length=.5,pml=.05,tau=.02;force=clamp(force,-MAX_FORCE,MAX_FORCE);var c=Math.cos(th),si=Math.sin(th),temp=(force+pml*thd*thd*si)/total;var thacc=(g*si-c*temp)/(length*(4/3-mp*c*c/total));var xacc=temp-pml*thacc*c/total;return[x+tau*xd,xd+tau*xacc,th+tau*thd,thd+tau*thacc]}
+function plan(){var s=copyState(state);clean=[];for(var i=0;i<H;i++){var u=teacher(s);clean.push(u/MAX_FORCE);s=physics(s,u)}shown=sampleAt(Number(el("tSlider").value));renderAll()}
+function syncControls(){el("x").value=state[0];el("xdot").value=state[1];el("theta").value=deg(state[2]);el("omega").value=deg(state[3])}
+function updateScene(){var cx=310+state[0]*150,th=state[2],len=137,x2=cx+Math.sin(th)*len,y2=207-Math.cos(th)*len;el("cart").setAttribute("x",cx-55);el("wheel1").setAttribute("cx",cx-30);el("wheel2").setAttribute("cx",cx+30);el("pivot").setAttribute("cx",cx);el("pole").setAttribute("x1",cx);el("pole").setAttribute("x2",x2);el("pole").setAttribute("y2",y2);el("sceneTheta").textContent="θ = "+fmt(deg(th),1)+"°";el("sceneOmega").textContent="θ̇ = "+fmt(deg(state[3]),0)+"°/s"}
+function updateStateText(){el("xVal").textContent=fmt(state[0],2)+" m";el("xdotVal").textContent=fmt(state[1],2)+" m/s";el("thetaVal").textContent=fmt(deg(state[2]),1)+"°";el("omegaVal").textContent=fmt(deg(state[3]),0)+"°/s";el("sx").textContent=fmt(state[0],2)+" m";el("sv").textContent=fmt(state[1],2)+" m/s";el("st").textContent=fmt(deg(state[2]),1)+"°";el("sw").textContent=fmt(deg(state[3]),0)+"°/s";el("conditionText").textContent="c = ["+fmt(state[0],2)+", "+fmt(state[1],2)+", "+fmt(state[2],3)+", "+fmt(state[3],2)+"]";el("teacherForce").textContent=(clean[0]>=0?"+":"")+fmt(clean[0]*MAX_FORCE,2)+" N";el("pipeCondition").textContent="["+fmt(state[0],2)+", "+fmt(state[1],2)+", "+fmt(deg(state[2]),1)+"°, "+fmt(deg(state[3]),0)+"°/s]"}
+function drawPlot(){var c=el("actionPlot"),ctx=c.getContext("2d"),w=c.width,h=c.height,p={l:46,r:16,t:18,b:34};ctx.clearRect(0,0,w,h);ctx.fillStyle="#fcfcfd";ctx.fillRect(0,0,w,h);ctx.strokeStyle="#e4e7ec";ctx.lineWidth=1;for(var y=-1;y<=1;y+=.5){var py=p.t+(1-(y+1)/2)*(h-p.t-p.b);ctx.beginPath();ctx.moveTo(p.l,py);ctx.lineTo(w-p.r,py);ctx.stroke();ctx.fillStyle="#98a2b3";ctx.font="11px system-ui";ctx.fillText(fmt(y,1),8,py+4)}for(var i=0;i<H;i++){var px=p.l+i*(w-p.l-p.r)/(H-1);ctx.fillStyle="#98a2b3";ctx.fillText(String(i),px-3,h-10)}
+function path(arr,color,width,dash){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash||[]);ctx.beginPath();arr.forEach(function(v,i){var x=p.l+i*(w-p.l-p.r)/(H-1),y=p.t+(1-(clamp(v,-1.2,1.2)+1.2)/2.4)*(h-p.t-p.b);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke();ctx.setLineDash([])}
+path(eps.map(function(v){return clamp(v/2.6,-1,1)}),"#8a6bd1",1.6,[5,5]);path(clean,"#3e9d75",3);path(shown,"#e66b6b",3.2)}
+function renderBars(){var root=el("chunkBars");root.innerHTML="";shown.forEach(function(v,i){var cell=document.createElement("div");cell.className="barcell";var z=document.createElement("div");z.className="barzero";var bar=document.createElement("div");bar.className="barv";var q=clamp(v,-1,1),half=50*Math.abs(q);if(q>=0){bar.style.top=(50-half)+"%";bar.style.height=half+"%"}else{bar.style.top="50%";bar.style.height=half+"%"}var lab=document.createElement("div");lab.className="barlabel";lab.textContent=i;cell.title="step "+i+": "+fmt(v*MAX_FORCE,2)+" N";cell.appendChild(z);cell.appendChild(bar);cell.appendChild(lab);root.appendChild(cell)})}
+var lessons=[
+["왜 diffusion을 제어에 쓰나요?","한 상태에서 가능한 좋은 행동이 하나뿐이라고 가정하면 direct policy가 자연스럽습니다. 하지만 demonstration에는 여러 해결 경로가 있을 수 있고, 로봇 행동은 한 순간보다 짧은 미래 시퀀스로 보는 편이 유용할 때가 있습니다.","direct: c → a\n\ndiffusion: c + random noise → [a₀, a₁, …, aH−1]"],
+["Forward diffusion","학습할 때 clean action sequence에 Gaussian noise를 섞습니다. t가 0이면 거의 원본이고, t가 T에 가까울수록 noise가 지배합니다.","aₜ = √ᾱₜ · a₀ + √(1−ᾱₜ) · ε\nε ~ N(0, I)"],
+["Reverse denoising","생성할 때는 반대로 random action noise에서 시작해 조금씩 clean action 쪽으로 이동합니다. 실제 모델은 매 step에서 어떤 noise를 빼야 할지 신경망으로 예측합니다.","εθ(aₜ, t, c) ≈ ε\nscheduler(aₜ, εθ, t) → aₜ₋₁"],
+["Conditioning","같은 noise seed라도 Cart-Pole이 왼쪽으로 기울었는지 오른쪽으로 기울었는지에 따라 필요한 행동은 달라집니다. 그래서 denoiser는 현재 관측 c를 함께 봅니다.","c = [x, ẋ, θ, θ̇]\nεθ(noisy actions, timestep, condition)"],
+["Action chunk + receding horizon","한 번에 미래 H개의 action을 생성하되, 실제로는 앞부분만 실행하고 다시 관측합니다. 그러면 긴 계획의 일관성과 새 정보에 대한 반응성을 절충할 수 있습니다.","observe → generate H actions → execute K actions\n→ observe again → replan    (K < H)"],
+["이 데모에서 무엇이 가짜인가?","forward noise 식과 Cart-Pole dynamics는 실제 계산을 합니다. 하지만 denoiser는 학습된 network가 아니라 정답 ε를 아는 oracle입니다. 이 구분이 중요합니다.","v0.1: εpred = εtrue  (teaching oracle)\nnext: train εθ on demonstration action chunks"]
+];
+function renderLesson(){var L=lessons[currentStep];el("lessonTitle").textContent=L[0];el("lessonText").textContent=L[1];el("lessonFormula").textContent=L[2];document.querySelectorAll(".step").forEach(function(b,i){b.classList.toggle("active",i===currentStep)})}
+function renderDiffusion(){var t=Number(el("tSlider").value),ab=alphaBar(t),sa=Math.sqrt(ab),sn=Math.sqrt(1-ab);shown=sampleAt(t);el("tValue").textContent=t;el("signalWeight").textContent=fmt(sa,3);el("noiseWeight").textContent=fmt(sn,3);el("shownForce").textContent=(shown[0]>=0?"+":"")+fmt(shown[0]*MAX_FORCE,2)+" N";el("pipeNoisy").textContent="t = "+t+" / "+T+" · signal "+fmt(sa,2)+" · noise "+fmt(sn,2);el("forwardFormula").textContent="aₜ = "+fmt(sa,3)+" · a₀ + "+fmt(sn,3)+" · ε";drawPlot();renderBars()}
+function renderAll(){updateScene();updateStateText();renderDiffusion();renderLesson()}
+function setPreset(name){state=copyState(presets[name]);execInitial=copyState(state);syncControls();plan();el("execStatus").textContent="아직 실행하지 않음";el("execDelta").textContent="Δθ = 0.0°"}
+function stopAnimation(){if(animation){cancelAnimationFrame(animation);animation=null}el("denoise").disabled=false}
+function animateDenoise(){stopAnimation();var start=Number(el("tSlider").value),last=performance.now();if(start<=0)return;el("denoise").disabled=true;function tick(now){if(now-last>28){start=Math.max(0,start-2);el("tSlider").value=start;renderDiffusion();last=now}if(start>0)animation=requestAnimationFrame(tick);else{animation=null;el("denoise").disabled=false}}animation=requestAnimationFrame(tick)}
+function execute(n){stopAnimation();var before=copyState(state),seq=sampleAt(Number(el("tSlider").value));for(var i=0;i<n;i++)state=physics(state,seq[i]*MAX_FORCE);syncControls();plan();var d=deg(state[2]-before[2]);el("execStatus").textContent=n+" step 실행 + replan 완료";el("execDelta").textContent="Δθ = "+(d>=0?"+":"")+fmt(d,2)+"° · now θ "+fmt(deg(state[2]),2)+"°"}
+["x","xdot","theta","omega"].forEach(function(id){el(id).addEventListener("input",function(){if(id==="x")state[0]=Number(this.value);if(id==="xdot")state[1]=Number(this.value);if(id==="theta")state[2]=rad(Number(this.value));if(id==="omega")state[3]=rad(Number(this.value));execInitial=copyState(state);plan()})});
+document.querySelectorAll(".step").forEach(function(b,i){b.addEventListener("click",function(){currentStep=i;renderLesson()})});
+el("preset").addEventListener("change",function(){setPreset(this.value)});
+el("resetState").addEventListener("click",function(){el("preset").value="right";setPreset("right")});
+el("replan").addEventListener("click",function(){plan();el("execStatus").textContent="현재 상태에서 clean chunk 재생성";el("execDelta").textContent="condition c 갱신됨"});
+el("tSlider").addEventListener("input",function(){stopAnimation();renderDiffusion()});
+el("resample").addEventListener("click",function(){noiseSeed++;makeNoise();renderDiffusion()});
+el("denoise").addEventListener("click",animateDenoise);
+el("execute").addEventListener("click",function(){execute(4)});
+el("executeOne").addEventListener("click",function(){execute(1)});
+el("restore").addEventListener("click",function(){state=copyState(execInitial||presets.right);syncControls();plan();el("execStatus").textContent="처음 상태로 복원";el("execDelta").textContent="Δθ = 0.0°"});
+execInitial=copyState(state);makeNoise();plan();
+})();
+</script>
+</body>
+</html>
