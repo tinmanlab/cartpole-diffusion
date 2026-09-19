@@ -22,7 +22,10 @@ async function inspect(page,name){
   if(d.document.scrollWidth>d.viewport.width+2)err(name+': page-level horizontal overflow '+d.document.scrollWidth+' > '+d.viewport.width);
   if(d.minCoreFont!==null&&d.minCoreFont<10.5)err(name+': core text too small '+d.minCoreFont+'px');
   if(d.plantControllerOverlap>4)err(name+': plant/controller overlap '+Math.round(d.plantControllerOverlap));
-  if(d.sequencePaths!==3)err(name+': expected 3 denoising sequence paths, got '+d.sequencePaths);
+  if(name==='desktop'&&d.sequencePaths!==3)err(name+': expected 3 desktop denoising paths, got '+d.sequencePaths);
+  if(name==='mobile'&&d.sequencePaths!==0)err(name+': hidden desktop denoising paths are still visible ('+d.sequencePaths+')');
+  if(name==='desktop'&&d.mobileSequencePaths!==0)err(name+': hidden mobile denoising paths are visible ('+d.mobileSequencePaths+')');
+  if(name==='mobile'&&d.mobileSequencePaths!==3)err(name+': expected 3 mobile denoising paths, got '+d.mobileSequencePaths);
   if(d.executePoints!==4||d.executeBands!==1)err(name+': execute-region markers incorrect');
   if(d.obsValues!==4)err(name+': observation card count '+d.obsValues);
   if(d.execActions!==4)err(name+': execution card count '+d.execActions);
