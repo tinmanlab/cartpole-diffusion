@@ -161,37 +161,39 @@ function renderDenoiseTimeline(rootEl,history,stepIndex,actionIndex,onSelect){
   if(prev)prev.addEventListener("click",function(){if(onSelect)onSelect(Math.max(0,stepIndex-1),actionIndex)});
   if(nxt)nxt.addEventListener("click",function(){if(onSelect)onSelect(Math.min(transitions-1,stepIndex+1),actionIndex)});
 }
-function renderDenoiseUpdate(rootEl,history,targetT){
+function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
   if(!rootEl)return;
   if(targetT===null||targetT===undefined||!history||!history.length){rootEl.hidden=true;rootEl.innerHTML="";return}
   var stage=pick(history,targetT);
   if(!stage||!stage.pred||!stage.next){rootEl.hidden=true;rootEl.innerHTML="";return}
   var idx=history.indexOf(stage),nextT=(idx>=0&&history[idx+1])?history[idx+1].t:Math.max(0,stage.t-5);
-  var actionIndex=0,before=stage.latent[actionIndex],noise=stage.pred[actionIndex],after=stage.next[actionIndex];
+  actionIndex=clamp(Math.round(actionIndex||0),0,stage.latent.length-1);
+  var before=stage.latent[actionIndex],noise=stage.pred[actionIndex],after=stage.next[actionIndex];
   var x0=24,y0=8,width=652,height=104,limit=1.6;
   var beforePath=normalizedPath(stage.latent,x0,y0,width,height,limit);
   var afterPath=normalizedPath(stage.next,x0,y0,width,height,limit);
   rootEl.hidden=false;
-  rootEl.dataset.currentT=String(stage.t);rootEl.dataset.nextT=String(nextT);
-  rootEl.dataset.before0=String(before);rootEl.dataset.noise0=String(noise);rootEl.dataset.after0=String(after);
+  rootEl.dataset.currentT=String(stage.t);rootEl.dataset.nextT=String(nextT);rootEl.dataset.actionIndex=String(actionIndex);
+  rootEl.dataset.beforeValue=String(before);rootEl.dataset.noiseValue=String(noise);rootEl.dataset.afterValue=String(after);
+  if(actionIndex===0){rootEl.dataset.before0=String(before);rootEl.dataset.noise0=String(noise);rootEl.dataset.after0=String(after)}else{delete rootEl.dataset.before0;delete rootEl.dataset.noise0;delete rootEl.dataset.after0}
   rootEl.innerHTML=
     '<div class="denoise-update-head"><div><b>한 번의 denoise update</b><span>실제 plan의 t='+stage.t+' → t='+nextT+'</span></div><em>이 구조를 반복</em></div>'
     +'<div class="denoise-update-flow">'
-    +'<div class="update-card before"><span>① 현재 후보</span><b>a'+stage.t+'[0]</b><strong>'+fmt(before,3)+'</strong><small>내부 action 값</small></div>'
+    +'<div class="update-card before"><span>① 현재 후보</span><b>a'+stage.t+'['+actionIndex+']</b><strong>'+fmt(before,3)+'</strong><small>내부 action 값</small></div>'
     +'<i>→</i>'
-    +'<div class="update-card predict"><span>② denoiser 예측</span><b>εθ[0]</b><strong>'+fmt(noise,3)+'</strong><small>noise 예측 · force 아님</small></div>'
+    +'<div class="update-card predict"><span>② denoiser 예측</span><b>εθ['+actionIndex+']</b><strong>'+fmt(noise,3)+'</strong><small>noise 예측 · force 아님</small></div>'
     +'<i>→</i>'
     +'<div class="update-card sampler"><span>③ sampler</span><b>DDIM update</b><strong>schedule 사용</strong><small>εθ를 그대로 빼는 것이 아님</small></div>'
     +'<i>→</i>'
-    +'<div class="update-card after"><span>④ 다음 후보</span><b>a'+nextT+'[0]</b><strong>'+fmt(after,3)+'</strong><small>다음 denoise 입력</small></div>'
+    +'<div class="update-card after"><span>④ 다음 후보</span><b>a'+nextT+'['+actionIndex+']</b><strong>'+fmt(after,3)+'</strong><small>다음 denoise 입력</small></div>'
     +'</div>'
     +'<div class="denoise-update-chart"><div class="update-chart-title"><b>16개 전체도 같은 방식으로 조금씩 이동</b><span><i class="before-key"></i>t='+stage.t+' <i class="after-key"></i>t='+nextT+'</span></div>'
     +'<svg viewBox="0 0 700 124" role="img" aria-label="one denoising update across sixteen internal action candidates">'
     +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="update-zero"/>'
     +'<path d="'+beforePath+'" class="update-before" fill="none"/>'
     +'<path d="'+afterPath+'" class="update-after" fill="none"/>'
-    +'<circle cx="'+x0+'" cy="'+(y0+height/2-(clamp(before,-limit,limit)/limit)*(height*.42)).toFixed(1)+'" r="5" class="update-before-dot"/>'
-    +'<circle cx="'+x0+'" cy="'+(y0+height/2-(clamp(after,-limit,limit)/limit)*(height*.42)).toFixed(1)+'" r="5" class="update-after-dot"/>'
+    +'<circle cx="'+(x0+actionIndex/(stage.latent.length-1)*width).toFixed(1)+'" cy="'+(y0+height/2-(clamp(before,-limit,limit)/limit)*(height*.42)).toFixed(1)+'" r="5" class="update-before-dot"/>'
+    +'<circle cx="'+(x0+actionIndex/(stage.latent.length-1)*width).toFixed(1)+'" cy="'+(y0+height/2-(clamp(after,-limit,limit)/limit)*(height*.42)).toFixed(1)+'" r="5" class="update-after-dot"/>'
     +'<text x="'+x0+'" y="121" class="update-axis">a[0]</text><text x="'+(x0+width)+'" y="121" text-anchor="end" class="update-axis">a[15]</text>'
     +'</svg></div>'
     +'<p class="denoise-update-note"><b>중요:</b> denoiser의 출력 εθ는 cart에 보내는 force가 아닙니다. sampler가 이 noise 예측과 diffusion schedule을 이용해 다음 action 후보를 계산합니다.</p>';
