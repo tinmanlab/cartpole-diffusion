@@ -107,7 +107,7 @@ button,input,select{font:inherit}.wrap{max-width:1180px;margin:auto;padding:26px
 <input id="tSlider" type="range" min="0" max="100" value="70" step="1" aria-label="Diffusion timestep">
 <div class="metric"><span>signal weight √ᾱₜ</span><strong id="signalWeight">0.44</strong></div>
 <div class="metric"><span>noise weight √(1−ᾱₜ)</span><strong id="noiseWeight">0.90</strong></div>
-<div class="metric"><span>first shown action</span><strong id="shownForce">—</strong></div>
+<div class="metric"><span>first shown action</span><strong id="shownForce">—</strong></div><div class="tiny muted" style="margin-top:8px">aₜ는 diffusion latent라 ±1을 넘을 수 있습니다. 실제 Cart-Pole 입력은 ±10 N에서 clip합니다.</div>
 <div class="actions"><button id="resample" type="button">새 noise ε</button><button id="denoise" class="primary" type="button">t → 0 재생</button></div>
 <div class="formula" id="forwardFormula">aₜ = √ᾱₜ · a₀ + √(1−ᾱₜ) · ε</div>
 </div>
@@ -117,8 +117,8 @@ button,input,select{font:inherit}.wrap{max-width:1180px;margin:auto;padding:26px
 <div class="grid" style="margin-top:16px">
 <section class="panel">
 <h2>4. 행동을 실제 Cart-Pole에 넣어보기</h2>
-<p class="muted">현재 화면의 <span class="mono">aₜ</span>에서 앞 4개 action만 실행합니다. t가 크면 noise가 많아 제어가 나빠질 수 있습니다.</p>
-<div class="actions"><button id="execute" class="primary" type="button">앞 4 action 실행</button><button id="executeOne" type="button">1 action 실행</button><button id="restore" type="button">처음 상태로</button></div>
+<p class="muted">현재 화면의 <span class="mono">aₜ</span>에서 앞 4개 action만 실행한 뒤, 갱신된 상태에서 새 clean chunk를 replan합니다. t가 크면 noise가 많아 제어가 나빠질 수 있습니다.</p>
+<div class="actions"><button id="execute" class="primary" type="button">앞 4 action 실행 + replan</button><button id="executeOne" type="button">1 action 실행</button><button id="restore" type="button">처음 상태로</button></div>
 <div class="force"><div><span class="tiny muted">execution result</span><br><strong id="execStatus">아직 실행하지 않음</strong></div><div class="mono" id="execDelta">Δθ = 0.0°</div></div>
 <div class="note"><b>Receding horizon의 핵심:</b> 실제 시스템은 긴 시퀀스를 전부 맹목적으로 실행하지 않습니다. 일부만 실행하고 새 관측을 받아 다시 action chunk를 생성합니다.</div>
 </section>
@@ -192,7 +192,7 @@ function renderAll(){updateScene();updateStateText();renderDiffusion();renderLes
 function setPreset(name){state=copyState(presets[name]);execInitial=copyState(state);syncControls();plan();el("execStatus").textContent="아직 실행하지 않음";el("execDelta").textContent="Δθ = 0.0°"}
 function stopAnimation(){if(animation){cancelAnimationFrame(animation);animation=null}el("denoise").disabled=false}
 function animateDenoise(){stopAnimation();var start=Number(el("tSlider").value),last=performance.now();if(start<=0)return;el("denoise").disabled=true;function tick(now){if(now-last>28){start=Math.max(0,start-2);el("tSlider").value=start;renderDiffusion();last=now}if(start>0)animation=requestAnimationFrame(tick);else{animation=null;el("denoise").disabled=false}}animation=requestAnimationFrame(tick)}
-function execute(n){stopAnimation();var before=copyState(state),seq=sampleAt(Number(el("tSlider").value));for(var i=0;i<n;i++)state=physics(state,seq[i]*MAX_FORCE);syncControls();plan();var d=deg(state[2]-before[2]);el("execStatus").textContent=n+" step 실행 완료";el("execDelta").textContent="Δθ = "+(d>=0?"+":"")+fmt(d,2)+"° · now θ "+fmt(deg(state[2]),2)+"°"}
+function execute(n){stopAnimation();var before=copyState(state),seq=sampleAt(Number(el("tSlider").value));for(var i=0;i<n;i++)state=physics(state,seq[i]*MAX_FORCE);syncControls();plan();var d=deg(state[2]-before[2]);el("execStatus").textContent=n+" step 실행 + replan 완료";el("execDelta").textContent="Δθ = "+(d>=0?"+":"")+fmt(d,2)+"° · now θ "+fmt(deg(state[2]),2)+"°"}
 ["x","xdot","theta","omega"].forEach(function(id){el(id).addEventListener("input",function(){if(id==="x")state[0]=Number(this.value);if(id==="xdot")state[1]=Number(this.value);if(id==="theta")state[2]=rad(Number(this.value));if(id==="omega")state[3]=rad(Number(this.value));execInitial=copyState(state);plan()})});
 document.querySelectorAll(".step").forEach(function(b,i){b.addEventListener("click",function(){currentStep=i;renderLesson()})});
 el("preset").addEventListener("change",function(){setPreset(this.value)});
