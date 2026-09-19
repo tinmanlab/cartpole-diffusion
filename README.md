@@ -41,6 +41,29 @@ After executing the four commands, the walkthrough shows the before → after va
 
 The guided mode does not synthesize separate teaching data: it freezes and reveals the same observation, denoising history, final plan, and physics update used by the live policy.
 
+## Full 19-step denoise scrubber
+
+Guided step **3/6 · Denoise** now exposes the entire deterministic DDIM path used by the current plan.
+
+The planning history contains 20 candidate states and 19 adjacent updates:
+
+```text
+t=95 → 90 → 85 → ... → 10 → 5 → 0
+  1      2                  18    19
+```
+
+The scrubber selects one of those 19 real updates. The one-step panel underneath is not a separate example: it follows the selected adjacent pair from the same history.
+
+A tracked action index can also be changed from `a[0]` to any of `a[0]...a[15]`. The trajectory plot then shows that action slot across all 20 candidate states while the one-step view reports the same selected action index.
+
+Claim boundary:
+
+- values before `t=0` are internal action-space candidates, not physical Newton commands;
+- the final `t=0` sequence is the executable normalized action plan;
+- the browser still executes only the first four actions before re-observing and replanning.
+
+Browser QA scrubs from the first update `95→90`, through `50→45`, to the final update `5→0`, changes the tracked action index, and verifies that the one-step view follows the same selection on desktop and mobile.
+
 ## One real denoising update
 
 Guided step **3/6 · Denoise** now opens one actual reverse-diffusion update from the current planning history.

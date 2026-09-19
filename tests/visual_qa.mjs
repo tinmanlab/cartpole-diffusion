@@ -12,7 +12,7 @@ async function inspect(page,name){
     const pick=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};
     const sels=['[data-qa="plant"]','[data-qa="controller"]','[data-qa="observe"]','[data-qa="plan"]','[data-qa="act"]','[data-qa="replan"]'];
     const boxes=Object.fromEntries(sels.map(s=>[s,pick(s)]));
-    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.exec-rest,.loop-back')];
+    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.timeline-head b,.timeline-head span,.timeline-status strong,.timeline-status span,.timeline-controls button,.timeline-controls label,.timeline-controls select,.timeline-scale,.timeline-caption,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.exec-rest,.loop-back')];
     const fonts=core.filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
     const overlap=(a,b)=>{if(!a||!b)return 0;return Math.max(0,Math.min(a.right,b.right)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y))};
     const visibleCount=s=>[...document.querySelectorAll(s)].filter(e=>e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden').length;
@@ -60,26 +60,55 @@ async function desktop(browser){
   await next.click();await page.waitForTimeout(80);
   if(!(await page.locator('#guideStep').innerText()).includes('2/6'))err('guided cycle: random-start step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-noise"].guide-focus').count()!==1)err('guided cycle: random sequence not focused');
+  if(await page.locator('[data-qa="denoise-timeline"]').isVisible())err('guided cycle: denoise timeline should be hidden at random-start');
   if(await page.locator('[data-qa="denoise-one-step"]').isVisible())err('guided cycle: one-step denoise panel should be hidden at random-start');
 
-  await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
+  await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(100);
   if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('guided cycle: denoise step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-mid"].guide-focus').count()!==1)err('guided cycle: mid sequence not focused');
+  const timeline=page.locator('[data-qa="denoise-timeline"]');
   const oneStep=page.locator('[data-qa="denoise-one-step"]');
+  if(!(await timeline.isVisible()))err('guided cycle: 19-step denoise timeline is hidden');
   if(!(await oneStep.isVisible()))err('guided cycle: one-step denoise panel is hidden');
-  const oneData=await oneStep.evaluate(el=>({currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),before0:Number(el.dataset.before0),noise0:Number(el.dataset.noise0),after0:Number(el.dataset.after0),paths:el.querySelectorAll('.update-before,.update-after').length,note:el.querySelector('.denoise-update-note')?.textContent||''}));
-  if(oneData.currentT!==50||oneData.nextT!==45)err('guided cycle: expected representative denoise update t=50→45');
-  if(![oneData.before0,oneData.noise0,oneData.after0].every(Number.isFinite))err('guided cycle: non-finite one-step denoise values');
-  if(Math.abs(oneData.before0-oneData.after0)<1e-12)err('guided cycle: one-step denoise did not change a[0]');
-  if(oneData.paths!==2)err('guided cycle: one-step before/after paths missing');
-  if(!oneData.note.includes('force가 아닙니다'))err('guided cycle: epsilon claim boundary missing');
+
+  const readTimeline=()=>timeline.evaluate(el=>({stepIndex:Number(el.dataset.stepIndex),actionIndex:Number(el.dataset.actionIndex),currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),transitions:Number(el.dataset.transitions),points:el.querySelectorAll('.timeline-point').length,status:el.querySelector('.timeline-status')?.textContent||''}));
+  const readOne=()=>oneStep.evaluate(el=>({currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),actionIndex:Number(el.dataset.actionIndex),before:Number(el.dataset.beforeValue),noise:Number(el.dataset.noiseValue),after:Number(el.dataset.afterValue),paths:el.querySelectorAll('.update-before,.update-after').length,note:el.querySelector('.denoise-update-note')?.textContent||''}));
+  const firstTimeline=await readTimeline(),firstOne=await readOne();
+  if(firstTimeline.transitions!==19||firstTimeline.points!==20)err('guided denoise: expected 19 transitions and 20 candidate states');
+  if(firstTimeline.stepIndex!==0||firstTimeline.currentT!==95||firstTimeline.nextT!==90)err('guided denoise: scrubber should start at t=95→90');
+  if(firstOne.currentT!==95||firstOne.nextT!==90||firstOne.actionIndex!==0)err('guided denoise: one-step view is not linked to first scrubber update');
+
+  const slider=timeline.locator('[data-denoise-scrubber]');
+  const actionSelect=timeline.locator('[data-denoise-action]');
+  const sliderMeta=await slider.evaluate(el=>({min:Number(el.min),max:Number(el.max),value:Number(el.value)}));
+  if(sliderMeta.min!==0||sliderMeta.max!==18||sliderMeta.value!==0)err('guided denoise: scrubber range should be 0..18');
+
+  await slider.evaluate(el=>{el.value='9';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(100);
+  const midTimeline=await readTimeline(),midOne=await readOne();
+  if(midTimeline.stepIndex!==9||midTimeline.currentT!==50||midTimeline.nextT!==45)err('guided denoise: scrubber step 10/19 should be t=50→45');
+  if(midOne.currentT!==50||midOne.nextT!==45||midOne.actionIndex!==0)err('guided denoise: one-step view did not follow scrubber to t=50→45');
+
+  await actionSelect.selectOption('3');await page.waitForTimeout(100);
+  const actionTimeline=await readTimeline(),actionOne=await readOne();
+  if(actionTimeline.actionIndex!==3||actionOne.actionIndex!==3)err('guided denoise: tracked action selection did not propagate to one-step view');
+  if(![actionOne.before,actionOne.noise,actionOne.after].every(Number.isFinite))err('guided denoise: selected action contains non-finite values');
+  if(Math.abs(actionOne.before-actionOne.after)<1e-12)err('guided denoise: selected action did not change across one update');
+  if(actionOne.paths!==2||!actionOne.note.includes('force가 아닙니다'))err('guided denoise: one-step claim boundary or before/after paths missing');
+
+  await slider.evaluate(el=>{el.value='18';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(100);
+  const lastTimeline=await readTimeline(),lastOne=await readOne();
+  if(lastTimeline.stepIndex!==18||lastTimeline.currentT!==5||lastTimeline.nextT!==0)err('guided denoise: final scrubber update should be t=5→0');
+  if(lastOne.currentT!==5||lastOne.nextT!==0||lastOne.actionIndex!==3)err('guided denoise: one-step view did not follow final scrubber update');
+
+  await slider.evaluate(el=>{el.value='9';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(80);
   await page.screenshot({path:path.join(outDir,'desktop-denoise-update.jpg'),type:'jpeg',quality:84,fullPage:true});
+  report.interactions.denoiseScrubber={first:firstTimeline,mid:midTimeline,trackedAction:actionTimeline,last:lastTimeline,oneStep:actionOne};
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
   if(!(await page.locator('#guideStep').innerText()).includes('4/6'))err('guided cycle: final-plan step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-final"].guide-focus').count()!==1)err('guided cycle: final sequence not focused');
+  if(await timeline.isVisible())err('guided cycle: denoise timeline should hide after denoise step');
   if(await oneStep.isVisible())err('guided cycle: one-step denoise panel should hide after denoise step');
-  report.interactions.oneStepDenoise=oneData;
 
   await page.getByRole('button',{name:'앞 4개 실제 적용'}).click();await page.waitForTimeout(80);
   const guideAppliedText=await page.locator('#guideStep').innerText();
@@ -145,27 +174,41 @@ async function mobile(browser){
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(60);
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(100);
   const mobileGuideStep=await page.locator('#guideStep').innerText();
+  const mobileTimeline=page.locator('[data-qa="denoise-timeline"]');
   const mobileOne=page.locator('[data-qa="denoise-one-step"]');
   if(!mobileGuideStep.includes('3/6'))err('mobile: guided denoise step did not reach 3/6');
+  if(!(await mobileTimeline.isVisible()))err('mobile: denoise timeline is hidden');
   if(!(await mobileOne.isVisible()))err('mobile: one-step denoise panel is hidden');
   const mobileGuided=await page.evaluate(()=>{
-    const panel=document.querySelector('[data-qa="denoise-one-step"]'),flow=document.querySelector('.denoise-update-flow');
-    const r=panel?.getBoundingClientRect();
+    const timeline=document.querySelector('[data-qa="denoise-timeline"]'),panel=document.querySelector('[data-qa="denoise-one-step"]'),flow=document.querySelector('.denoise-update-flow');
+    const tr=timeline?.getBoundingClientRect(),r=panel?.getBoundingClientRect();
+    const minFont=el=>el?Math.min(...[...el.querySelectorAll('b,span,strong,small,p,label,button,select')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite)):null;
     return {
       scrollWidth:document.documentElement.scrollWidth,
       viewport:innerWidth,
+      timeline:tr?{x:tr.x,width:tr.width,right:tr.right}:null,
       panel:r?{x:r.x,width:r.width,right:r.right}:null,
       cards:panel?.querySelectorAll('.update-card').length||0,
       gridTemplateColumns:flow?getComputedStyle(flow).gridTemplateColumns:'',
-      panelFont:panel?Math.min(...[...panel.querySelectorAll('b,span,strong,small,p')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite)):null
+      timelineFont:minFont(timeline),
+      panelFont:minFont(panel),
+      transitions:Number(timeline?.dataset.transitions),
+      points:timeline?.querySelectorAll('.timeline-point').length||0
     };
   });
   report.interactions.mobileGuidedDenoise={step:mobileGuideStep,...mobileGuided};
   if(mobileGuided.scrollWidth>mobileGuided.viewport+2)err('mobile guided denoise: page overflow '+mobileGuided.scrollWidth+' > '+mobileGuided.viewport);
-  if(!mobileGuided.panel||mobileGuided.panel.right>mobileGuided.viewport+2)err('mobile guided denoise: panel escapes viewport');
+  if(!mobileGuided.timeline||mobileGuided.timeline.right>mobileGuided.viewport+2)err('mobile guided denoise: timeline escapes viewport');
+  if(!mobileGuided.panel||mobileGuided.panel.right>mobileGuided.viewport+2)err('mobile guided denoise: one-step panel escapes viewport');
+  if(mobileGuided.transitions!==19||mobileGuided.points!==20)err('mobile guided denoise: timeline should show 19 transitions / 20 points');
   if(mobileGuided.cards!==4)err('mobile guided denoise: expected four update cards');
   if(mobileGuided.gridTemplateColumns.trim().split(/\s+/).length!==1)err('mobile guided denoise: update cards are not vertically stacked');
-  if(mobileGuided.panelFont!==null&&mobileGuided.panelFont<10.5)err('mobile guided denoise: text too small '+mobileGuided.panelFont+'px');
+  if(mobileGuided.timelineFont!==null&&mobileGuided.timelineFont<10.5)err('mobile guided denoise: timeline text too small '+mobileGuided.timelineFont+'px');
+  if(mobileGuided.panelFont!==null&&mobileGuided.panelFont<10.5)err('mobile guided denoise: panel text too small '+mobileGuided.panelFont+'px');
+  const mobileSlider=mobileTimeline.locator('[data-denoise-scrubber]');
+  await mobileSlider.evaluate(el=>{el.value='18';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(80);
+  const mobileLast=await mobileTimeline.evaluate(el=>({stepIndex:Number(el.dataset.stepIndex),currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT)}));
+  if(mobileLast.stepIndex!==18||mobileLast.currentT!==5||mobileLast.nextT!==0)err('mobile guided denoise: scrubber failed to reach final update');
   await page.screenshot({path:path.join(outDir,'mobile-denoise-update.jpg'),type:'jpeg',quality:82,fullPage:true});
   await page.getByRole('button',{name:'Live로 돌아가기'}).click();await page.waitForTimeout(80);
 
