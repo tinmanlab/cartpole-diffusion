@@ -90,6 +90,37 @@ Important claim boundary:
 
 The browser QA checks that this panel appears only at guided step 3/6, reads the actual t=50 → 45 history entry, contains finite model values, changes the action candidate, and remains readable without horizontal overflow on mobile.
 
+## Where observation conditioning enters the denoise path
+
+The same-noise comparison now preserves both complete 20-state candidate histories, not only the final plans.
+
+For the tracked `a[0]` slot:
+
+```text
+t=95
+A and B start at exactly the same candidate
+        ↓ first learned denoiser call sees different observations
+t=90
+the two candidates have already diverged
+        ↓
+t≈50
+the separation has grown
+        ↓
+t=0
+the two final action plans remain different
+```
+
+In the deterministic QA run:
+
+- initial `a[0]` difference at `t=95`: `0.000`
+- after the first `95→90` reverse update: about `0.007`
+- around `t=50`: about `0.449`
+- final normalized `a[0]` difference at `t=0`: about `0.907`
+
+The full-model runtime check also compares all 16 action slots and requires the two histories to start identically and diverge immediately after the first reverse update.
+
+This visualization still has a narrow claim boundary: it demonstrates where the changed observation affects this fixed model/sampler computation. It does not by itself establish general causal structure outside that controlled computation.
+
 ## Observation conditioning: same noise, different state
 
 Guided step **1/6 · 관측** now includes a controlled sensitivity experiment that isolates the observation input.

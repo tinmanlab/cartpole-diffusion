@@ -25,13 +25,15 @@ function fixedGaussian16(seed){
   }
   return out;
 }
-function planFromFixedLatent(model,obs,initial){
-  let x=initial.slice(),cur=95;
+function planHistoryFromFixedLatent(model,obs,initial){
+  let x=initial.slice(),cur=95,history=[{t:cur,latent:x.slice()}];
   while(cur>0){
     const prev=Math.max(0,cur-5),pred=model.predict(x,cur,obs);
-    x=ddim(x,cur,prev,pred);cur=prev;
+    x=ddim(x,cur,prev,pred);cur=prev;history.push({t:cur,latent:x.slice()});
   }
-  return x.map(v=>clamp(v,-1,1));
+  const plan=x.map(v=>clamp(v,-1,1));
+  history[history.length-1]={t:0,latent:plan.slice()};
+  return {plan,history};
 }
 server.listen(8130,"127.0.0.1",async()=>{
   try{
@@ -56,8 +58,17 @@ server.listen(8130,"127.0.0.1",async()=>{
     const seed=424242,initial=fixedGaussian16(seed),initialCopy=initial.slice();
     assert(maxDiff(initial,initialCopy)===0,"fixed-latent comparison must start from identical noise");
     const plusObs=[0,0,5*Math.PI/180,0],minusObs=[0,0,-5*Math.PI/180,0];
-    const plusPlan=planFromFixedLatent(model,plusObs,initial),minusPlan=planFromFixedLatent(model,minusObs,initial);
+    const plus=planHistoryFromFixedLatent(model,plusObs,initial),minus=planHistoryFromFixedLatent(model,minusObs,initial);
+    const plusPlan=plus.plan,minusPlan=minus.plan;
     const conditionMax=maxDiff(plusPlan,minusPlan),conditionMean=meanAbsDiff(plusPlan,minusPlan);
+    assert(plus.history.length===20&&minus.history.length===20,"conditioning histories must contain 20 candidate states");
+    assert(plus.history[0].t===95&&minus.history[0].t===95&&plus.history.at(-1).t===0&&minus.history.at(-1).t===0,"conditioning history timestep endpoints incorrect");
+    const initialHistoryDelta=maxDiff(plus.history[0].latent,minus.history[0].latent);
+    const firstHistoryDelta=maxDiff(plus.history[1].latent,minus.history[1].latent);
+    const midHistoryDelta=maxDiff(plus.history[9].latent,minus.history[9].latent);
+    assert(initialHistoryDelta<1e-12,"fixed-noise conditioning histories do not start identically");
+    assert(firstHistoryDelta>1e-5,"conditioning histories do not diverge after first reverse update");
+    assert(midHistoryDelta>firstHistoryDelta*0.1,"conditioning divergence vanished unexpectedly by mid trajectory");
     assert(conditionMax>1e-4,"full DDIM plan is insensitive to theta sign under fixed noise");
     assert(conditionMean>1e-5,"full DDIM plan mean difference too small under fixed noise");
     assert(plusPlan.every(Number.isFinite)&&minusPlan.every(Number.isFinite),"conditioning comparison produced non-finite actions");
@@ -67,7 +78,7 @@ server.listen(8130,"127.0.0.1",async()=>{
     const avg=(performance.now()-t0)/runs;
     assert(avg<10,"browser denoiser unexpectedly slow: "+avg.toFixed(3)+" ms");
     assert(m.training.validation_epsilon_mse<0.06,"validation metric regressed");
-    console.log("MODEL_RUNTIME_CHECK_OK avgMs="+avg.toFixed(4)+" stateDelta="+maxDiff(a,byState).toFixed(4)+" timeDelta="+maxDiff(a,byTime).toFixed(4)+" fixedNoisePlanMaxDelta="+conditionMax.toFixed(4)+" fixedNoisePlanMeanDelta="+conditionMean.toFixed(4));
+    console.log("MODEL_RUNTIME_CHECK_OK avgMs="+avg.toFixed(4)+" stateDelta="+maxDiff(a,byState).toFixed(4)+" timeDelta="+maxDiff(a,byTime).toFixed(4)+" fixedNoisePlanMaxDelta="+conditionMax.toFixed(4)+" fixedNoisePlanMeanDelta="+conditionMean.toFixed(4)+" initialHistoryDelta="+initialHistoryDelta.toFixed(6)+" firstHistoryDelta="+firstHistoryDelta.toFixed(4)+" midHistoryDelta="+midHistoryDelta.toFixed(4));
     server.close(()=>process.exit(0));
   }catch(e){console.error(e);server.close(()=>process.exit(1))}
 });

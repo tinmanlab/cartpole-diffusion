@@ -12,7 +12,7 @@ async function inspect(page,name){
     const pick=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};
     const sels=['[data-qa="plant"]','[data-qa="controller"]','[data-qa="observe"]','[data-qa="plan"]','[data-qa="act"]','[data-qa="replan"]'];
     const boxes=Object.fromEntries(sels.map(s=>[s,pick(s)]));
-    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.conditioning-head b,.conditioning-head span,.conditioning-head em,.cond-obs span,.cond-obs b,.cond-obs small,.cond-arrow,.conditioning-legend,.conditioning-summary span,.conditioning-summary b,.conditioning-note,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.timeline-head b,.timeline-head span,.timeline-status strong,.timeline-status span,.timeline-controls button,.timeline-controls label,.timeline-controls select,.timeline-scale,.timeline-caption,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.horizon-head b,.horizon-head span,.horizon-metrics strong,.horizon-metrics em,.horizon-labels,.horizon-groups b,.horizon-groups span,.horizon-note,.loop-back')];
+    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.conditioning-head b,.conditioning-head span,.conditioning-head em,.cond-obs span,.cond-obs b,.cond-obs small,.cond-arrow,.conditioning-legend,.conditioning-summary span,.conditioning-summary b,.conditioning-note,.divergence-head b,.divergence-head span,.divergence-head strong,.divergence-legend,.divergence-metrics span,.divergence-metrics b,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.timeline-head b,.timeline-head span,.timeline-status strong,.timeline-status span,.timeline-controls button,.timeline-controls label,.timeline-controls select,.timeline-scale,.timeline-caption,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.horizon-head b,.horizon-head span,.horizon-metrics strong,.horizon-metrics em,.horizon-labels,.horizon-groups b,.horizon-groups span,.horizon-note,.loop-back')];
     const fonts=core.filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
     const overlap=(a,b)=>{if(!a||!b)return 0;return Math.max(0,Math.min(a.right,b.right)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y))};
     const visibleCount=s=>[...document.querySelectorAll(s)].filter(e=>e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden').length;
@@ -90,7 +90,11 @@ async function desktop(browser){
     plusTheta:Number(el.dataset.plusTheta),minusTheta:Number(el.dataset.minusTheta),
     meanAbsDiffN:Number(el.dataset.meanAbsDiffN),maxAbsDiffN:Number(el.dataset.maxAbsDiffN),
     plusFirstN:Number(el.dataset.plusFirstN),minusFirstN:Number(el.dataset.minusFirstN),
+    historyStates:Number(el.dataset.historyStates),initialDelta:Number(el.dataset.initialDelta),
+    firstUpdateDelta:Number(el.dataset.firstUpdateDelta),midDelta:Number(el.dataset.midDelta),
+    finalDelta:Number(el.dataset.finalDelta),firstAfterT:Number(el.dataset.firstAfterT),
     paths:el.querySelectorAll('.conditioning-plus,.conditioning-minus').length,
+    historyPaths:el.querySelectorAll('.conditioning-plus-history,.conditioning-minus-history').length,
     text:el.textContent||''
   }));
   if(!conditioningData.sameNoise||conditioningData.seed!==424242)err('guided conditioning: comparison does not use the fixed same-noise experiment');
@@ -98,6 +102,11 @@ async function desktop(browser){
   if(![conditioningData.meanAbsDiffN,conditioningData.maxAbsDiffN,conditioningData.plusFirstN,conditioningData.minusFirstN].every(Number.isFinite))err('guided conditioning: non-finite comparison values');
   if(conditioningData.meanAbsDiffN<=1e-4||conditioningData.maxAbsDiffN<=1e-4)err('guided conditioning: final plans did not differ under theta intervention');
   if(conditioningData.paths!==2)err('guided conditioning: expected two final-plan curves');
+  if(conditioningData.historyStates!==20||conditioningData.historyPaths!==2)err('guided conditioning: expected two 20-state denoise trajectories');
+  if(Math.abs(conditioningData.initialDelta)>1e-12)err('guided conditioning: fixed-noise trajectories do not start identically');
+  if(conditioningData.firstAfterT!==90||conditioningData.firstUpdateDelta<=1e-6)err('guided conditioning: trajectories did not diverge after first t=95→90 update');
+  if(!Number.isFinite(conditioningData.midDelta)||!Number.isFinite(conditioningData.finalDelta)||conditioningData.finalDelta<=1e-6)err('guided conditioning: divergence metrics invalid');
+  if(!conditioningData.text.includes('첫 reverse update'))err('guided conditioning: first-update divergence explanation missing');
   if(!conditioningData.text.includes('condition'))err('guided conditioning: conditioning explanation missing');
   report.interactions.conditioning=conditioningData;
   await page.screenshot({path:path.join(outDir,'desktop-conditioning.jpg'),type:'jpeg',quality:84,fullPage:true});
@@ -236,6 +245,9 @@ async function mobile(browser){
       viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,
       seed:Number(el.dataset.seed),sameNoise:el.dataset.sameNoise==='true',
       meanAbsDiffN:Number(el.dataset.meanAbsDiffN),paths:el.querySelectorAll('.conditioning-plus,.conditioning-minus').length,
+      historyStates:Number(el.dataset.historyStates),initialDelta:Number(el.dataset.initialDelta),
+      firstUpdateDelta:Number(el.dataset.firstUpdateDelta),firstAfterT:Number(el.dataset.firstAfterT),
+      historyPaths:el.querySelectorAll('.conditioning-plus-history,.conditioning-minus-history').length,
       minFont:fonts.length?Math.min(...fonts):null
     };
   });
@@ -244,7 +256,9 @@ async function mobile(browser){
   if(mobileConditioning.scrollWidth>mobileConditioning.viewport+2||mobileConditioning.right>mobileConditioning.viewport+2)err('mobile conditioning: panel escapes viewport');
   if(!mobileConditioning.sameNoise||mobileConditioning.seed!==424242)err('mobile conditioning: same-noise contract missing');
   if(!Number.isFinite(mobileConditioning.meanAbsDiffN)||mobileConditioning.meanAbsDiffN<=1e-4)err('mobile conditioning: plan difference missing');
-  if(mobileConditioning.paths!==2)err('mobile conditioning: expected two curves');
+  if(mobileConditioning.paths!==2)err('mobile conditioning: expected two final-plan curves');
+  if(mobileConditioning.historyStates!==20||mobileConditioning.historyPaths!==2)err('mobile conditioning: expected two 20-state denoise trajectories');
+  if(Math.abs(mobileConditioning.initialDelta)>1e-12||mobileConditioning.firstAfterT!==90||mobileConditioning.firstUpdateDelta<=1e-6)err('mobile conditioning: first-update divergence contract failed');
   if(mobileConditioning.minFont!==null&&mobileConditioning.minFont<10.5)err('mobile conditioning: text too small '+mobileConditioning.minFont+'px');
   await page.screenshot({path:path.join(outDir,'mobile-conditioning.jpg'),type:'jpeg',quality:82,fullPage:true});
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(60);
