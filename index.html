@@ -102,7 +102,8 @@ function ddim(x,cur,prev,pred){var ac=ab(cur),ap=ab(prev),sc=Math.sqrt(ac),nc=Ma
 function buildTarget(){var s=state.slice();clean=[];for(var i=0;i<H;i++){var u=teacher(s);clean.push(u/MAXF);s=physics(s,u)}}
 function buildHistory(kind){
   if(!model&&E("mode").value==="learned")return;
-  var mode=E("mode").value,start=kind==="generation"?95:+E("t").value;
+  var mode=E("mode").value;if(kind==="generation"&&mode!=="learned")kind="forward";
+  var start=kind==="generation"?95:+E("t").value;
   startKind=kind;startLatent=kind==="generation"?eps.slice():forwardLatent(start);
   var x=startLatent.slice(),cur=start,out=[];
   while(cur>0){
@@ -129,7 +130,7 @@ function renderScene(){var cx=300+state[0]*145,th=state[2],len=139,x2=cx+Math.si
 function refresh(kind){stopPlay();buildTarget();if(kind==="generation"){buildHistory("generation")}else{startKind="forward";startLatent=forwardLatent(+E("t").value);recovered=null;history=[];selectedT=+E("t").value;if(model||E("mode").value==="oracle")buildHistory("forward");else renderScene()}}
 function stopPlay(){if(playTimer){clearInterval(playTimer);playTimer=null}E("denoiseBtn").textContent="Play denoise"}
 function play(){if(!history.length)return;if(playTimer){stopPlay();return}var representative=(function(){var count=Math.min(5,history.length),arr=[];for(var i=0;i<count;i++)arr.push(history[Math.round(i*(history.length-1)/(count-1))].t);return arr})();var i=0;selectedT=representative[0];renderDiffusion();E("denoiseBtn").textContent="Pause";playTimer=setInterval(function(){i++;if(i>=representative.length){stopPlay();return}selectedT=representative[i];renderDiffusion()},650)}
-function execute(){if(!recovered)return;for(var i=0;i<4;i++)state=physics(state,recovered[i]*MAXF);sync();seed++;makeNoise();E("cycleStatus").textContent="executed + replanned";refresh("generation")}
+function execute(){if(!recovered)return;for(var i=0;i<4;i++)state=physics(state,recovered[i]*MAXF);sync();seed++;makeNoise();E("cycleStatus").textContent="executed + replanned";refresh(E("mode").value==="learned"?"generation":"forward")}
 function sync(){E("x").value=state[0];E("xdot").value=state[1];E("theta").value=deg(state[2]);E("omega").value=deg(state[3])}
 ["x","xdot","theta","omega"].forEach(function(id){E(id).addEventListener("input",function(){if(id==="x")state[0]=+this.value;if(id==="xdot")state[1]=+this.value;if(id==="theta")state[2]=rad(+this.value);if(id==="omega")state[3]=rad(+this.value);refresh("forward")})});
 E("preset").addEventListener("change",function(){state=presets[this.value].slice();sync();seed++;makeNoise();refresh("forward")});E("reset").addEventListener("click",function(){E("preset").value="right";state=presets.right.slice();sync();seed=7;makeNoise();E("cycleStatus").textContent="ready";refresh("forward")});
