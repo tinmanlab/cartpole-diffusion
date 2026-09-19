@@ -10,6 +10,11 @@ const required=[
   '.step-head b{display:block;font-size:16px',
   '.obs-values b{display:block;font:17px',
   '.obs-values small{font-size:11px',
+  '.conditioning-head b{display:block;font-size:14px',
+  '.conditioning-head span{display:block;font-size:11px',
+  '.cond-obs b{display:block;font:700 15px',
+  '.conditioning-summary b{display:block;font:700 14px',
+  '.conditioning-note{margin:8px 0 0'
   '.policy-plain{border-left:4px',
   'font-size:13px;line-height:1.65',
   '.sequence-title{font:700 15px',
