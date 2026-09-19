@@ -29,6 +29,7 @@ jobs:
       - run: node --check app/diffusion_viz.js
       - run: node --check app/control_loop_viz.js
       - run: node tests/index_script_smoke.cjs
+      - run: node tests/readability_smoke.cjs
       - name: Browser-model and visualization smoke contract
         if: hashFiles('artifacts/model.json') != ''
         run: node tests/model_smoke.cjs
