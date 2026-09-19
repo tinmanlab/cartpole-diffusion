@@ -60,11 +60,16 @@ function renderLadder(rootEl,history,selectedT,onSelect){
 }
 function renderInspector(rootEl,stage){
   if(!stage){rootEl.innerHTML='<div class="empty-inspector">Denoise를 실행하면 각 step 내부가 여기에 보입니다.</div>';return}
+  if(stage.t===0){
+    rootEl.innerHTML='<div class="inspector-title"><b>Final action · t = 0</b><span>더 이상 noise prediction step을 수행하지 않습니다.</span></div>'
+      +'<div class="inspect-row"><div class="inspect-label"><b>final a₀</b><span>reverse process의 최종 action chunk</span></div>'+vectorHTML(stage.latent,"target",false)+'</div>';
+    wire(rootEl);return;
+  }
   var rows=[
     ["current aₜ",stage.latent,"latent","현재 noisy action"],
-    ["predicted ε",stage.pred||new Array(stage.latent.length).fill(0),"noise","모델이 noise라고 판단한 부분"],
-    ["estimated a₀",stage.x0||stage.latent,"target","noise를 빼고 추정한 clean action"],
-    ["next a",stage.next||stage.latent,"latent",stage.t===0?"최종 action":"다음 timestep으로 이동"]
+    ["predicted ε",stage.pred,"noise","모델이 noise라고 판단한 부분"],
+    ["estimated a₀",stage.x0,"target","noise를 빼고 추정한 clean action"],
+    ["next a",stage.next,"latent","다음 timestep으로 이동"]
   ];
   rootEl.innerHTML='<div class="inspector-title"><b>'+(stage.t===0?"Final action":"Inside t = "+stage.t)+'</b><span>셀에 마우스를 올리면 같은 action index가 모든 단계에서 함께 강조됩니다.</span></div>'
     +rows.map(function(r){return '<div class="inspect-row"><div class="inspect-label"><b>'+r[0]+'</b><span>'+r[3]+'</span></div>'+vectorHTML(r[1],r[2],false)+'</div>'}).join("");
