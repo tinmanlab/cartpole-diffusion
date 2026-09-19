@@ -49,9 +49,39 @@ function rowSvg(stage,finalPlan,rowY,title,subtitle,color,kind){
     +executeBand
     +'<path d="'+path+'" fill="none" stroke="'+color+'" class="sequence-path"/>'
     +points
-    +'<text x="'+(x0+width+12)+'" y="'+(rowY+20)+'" class="sequence-scale">+10 N</text>'
-    +'<text x="'+(x0+width+12)+'" y="'+(rowY+height-8)+'" class="sequence-scale">−10 N</text>'
+    +'<text x="'+(x0+width+12)+'" y="'+(rowY+20)+'" class="sequence-scale">+10'+unit+'</text>'
+    +'<text x="'+(x0+width+12)+'" y="'+(rowY+height-8)+'" class="sequence-scale">−10'+unit+'</text>'
     +'</g>';
+}
+function mobileRow(stage,finalPlan,title,subtitle,color,kind){
+  if(!stage)return "";
+  var values=stageValues(stage,finalPlan),x0=14,width=302,y0=8,height=70,limit=10;
+  var path=sequencePath(values,x0,y0,width,height,limit);
+  var band=kind==="final"
+    ? '<rect x="'+x0+'" y="'+y0+'" width="'+(width*3.5/15).toFixed(1)+'" height="'+height+'" rx="7" class="execute-band"/>'
+    : '';
+  var points=values.map(function(v,i){
+    if(kind!=="final"||i>3)return "";
+    var x=x0+i/(values.length-1)*width,shown=clamp(v*10,-limit,limit),y=y0+height/2-(shown/limit)*(height*.42);
+    return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.5" class="execute-point"/>';
+  }).join("");
+  return '<article class="mobile-seq-card '+kind+'">'
+    +'<div class="mobile-seq-head"><b>'+title+'</b><span>'+subtitle+'</span></div>'
+    +'<svg viewBox="0 0 330 86" role="img" aria-label="'+title+'">'
+    +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="sequence-zero"/>'
+    +band+'<path d="'+path+'" fill="none" stroke="'+color+'" class="mobile-sequence-path"/>'+points
+    +'</svg>'
+    +'<div class="mobile-seq-axis"><span>a[0] · 먼저</span><span>a[15] · 나중</span></div>'
+    +'</article>';
+}
+function renderMobileStages(start,mid,final,finalPlan){
+  return '<div class="mobile-sequence" data-qa="mobile-sequence">'
+    +mobileRow(start,finalPlan,'A · 랜덤 후보','내부 후보 · 아직 실행 안 함','#8968ca','noise')
+    +'<div class="mobile-seq-arrow">↓ 관측에 맞게 수정</div>'
+    +mobileRow(mid,finalPlan,'B · 정리 중','반복해서 action pattern을 만듦','#5476df','mid')
+    +'<div class="mobile-seq-arrow">↓ 최종 계획으로 수렴</div>'
+    +mobileRow(final,finalPlan,'C · 최종 force plan','초록 영역 a[0]–a[3]만 먼저 실행','#3c9a73','final')
+    +'</div>';
 }
 function renderStages(rootEl,history,finalPlan){
   var start=pick(history,95),mid=pick(history,45),final=pick(history,0);
@@ -64,6 +94,7 @@ function renderStages(rootEl,history,finalPlan){
     +'<text x="530" y="188" class="sequence-down">↓ 실행 가능한 action pattern으로 수렴</text>'
     +rowSvg(final,finalPlan,200,'C · 최종 force plan','이제 실행 가능 · t=0','#3c9a73','final')
     +'</svg>'
+    +renderMobileStages(start,mid,final,finalPlan)
     +'<div class="sequence-plain"><b>핵심:</b> Diffusion은 16개 force를 한 번에 결정하지 않습니다. 랜덤한 미래 action 후보를 현재 관측에 맞게 여러 번 고친 뒤, 마지막 C만 실제 force plan으로 사용합니다.</div>';
 }
 function renderObservation(rootEl,obs,planCount){
