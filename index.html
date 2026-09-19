@@ -4,27 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f6f7f9">
-<meta name="description" content="Live Cart-Pole beside an interactive action-diffusion denoising explainer">
+<meta name="description" content="A simple live Cart-Pole beside an empirical action-distribution view of diffusion denoising">
 <title>Cart-Pole Diffusion Lab</title>
 <style>
-:root{--bg:#f6f7f9;--panel:#fff;--text:#172033;--muted:#667085;--line:#e3e7ee;--ink:#273247;--red:#df6767;--green:#3c9a73;--blue:#5476df;--purple:#8968ca;--orange:#d97706;--soft:#f2f4f7;--radius:15px}
+:root{--bg:#f6f7f9;--panel:#fff;--text:#172033;--muted:#667085;--line:#e3e7ee;--ink:#273247;--green:#3c9a73;--blue:#5476df;--purple:#8968ca;--red:#df6767;--soft:#f2f4f7;--radius:15px}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#fafbfc,#f4f5f7);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.42}
-button{font:inherit}.wrap{max-width:1580px;margin:auto;padding:11px 14px 48px}.topbar{height:34px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;padding:0 2px}.topbar strong{font-size:14px}.topbar span{font-size:10px;color:var(--muted)}
-.lab-grid{display:grid;grid-template-columns:clamp(255px,27vw,350px) minmax(0,1fr);gap:10px;align-items:stretch}.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px;min-width:0}.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.card-head b{font-size:12px}.card-head span{font-size:9px;color:var(--muted)}.sim-card{display:flex;flex-direction:column}.diff-card{overflow:hidden}
-.scene{border:1px solid #edf0f4;border-radius:10px;background:linear-gradient(180deg,#fdfefe,#f7f8fa);overflow:hidden}.scene svg{display:block;width:100%;height:auto}.scene text{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#697386}
-.readout{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}.readout span{display:flex;justify-content:space-between;gap:5px;background:#fafbfc;border:1px solid #e7e9ee;border-radius:6px;padding:5px 6px;font:8px ui-monospace,SFMono-Regular,Menlo,monospace;color:#596273}.readout b{font-family:Inter,ui-sans-serif,system-ui;color:#8b93a1}
-.controls{display:flex;align-items:center;gap:5px;margin-top:7px}.controls button{min-height:31px;border:1px solid #d9dde5;border-radius:7px;background:#fff;padding:5px 8px;cursor:pointer;font-size:9px}.controls .primary{background:var(--ink);color:#fff;border-color:var(--ink)}.controls .push{background:#fffaf2;border-color:#eadcc8}.controls .spacer{flex:1}.sim-status{margin-top:6px;font-size:9px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
-.diff-intro{display:flex;align-items:center;gap:8px;padding:2px 1px 8px}.diff-intro strong{font-size:13px}.diff-intro span{font-size:10px;color:var(--muted)}
-.flow{display:grid;grid-template-columns:auto 24px auto 24px auto 24px auto 24px auto;align-items:center;justify-content:center;gap:4px;margin-bottom:8px}.flow-node{border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px 9px;text-align:center;min-width:86px}.flow-node b{display:block;font-size:10px}.flow-node small{font-size:8px;color:var(--muted)}.flow-node.noise{background:#f8f4fd}.flow-node.model{background:#f3f6ff}.flow-node.out{background:#f1faf6}.flow-arrow{color:#a8b0bd;text-align:center}
-.ladder-shell{border:1px solid var(--line);border-radius:11px;background:#fcfcfd;padding:8px;overflow-x:auto}.ladder{display:flex;align-items:stretch;min-width:720px}.ladder-stage{flex:1 1 0;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px;cursor:pointer;outline:none;transition:opacity .15s,border-color .15s,background .15s}.ladder-stage.active{border-color:var(--blue);background:#f5f7ff}.stage-top{display:flex;justify-content:space-between;gap:4px;align-items:center;margin-bottom:5px}.stage-top b{font-size:10px}.stage-top span{font-size:8px;color:var(--muted)}.ladder-arrow{width:30px;flex:0 0 30px;display:flex;align-items:center;justify-content:center;color:#a8b0bd}.ladder-arrow svg{width:26px;height:18px}
-.vector-strip{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}.vector-strip.compact{gap:1px}.vector-cell{border:0;padding:0;border-radius:2px;height:23px;min-width:0;cursor:crosshair;transition:opacity .12s,outline .12s}.vector-strip.compact .vector-cell{height:42px}.vector-cell.linked-dim{opacity:.11}.vector-cell.linked-highlight{outline:2px solid var(--ink);outline-offset:1px;opacity:1}.vector-cell:focus-visible{outline:2px solid var(--ink)}
-.inspect-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(220px,.55fr);gap:8px;margin-top:8px}.inspector{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px;min-width:0}.inspector-title{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}.inspector-title b{font-size:11px}.inspector-title span{font-size:8px;color:var(--muted);text-align:right}.inspect-row{display:grid;grid-template-columns:112px minmax(0,1fr);align-items:center;gap:7px;margin:4px 0}.inspect-label b{display:block;font-size:9px}.inspect-label span{display:block;font-size:7px;color:var(--muted)}.empty-inspector{font-size:10px;color:var(--muted);padding:8px}
-.side-info{display:flex;flex-direction:column;gap:6px}.plain{border-left:3px solid var(--blue);background:#f8f9fd;border-radius:0 8px 8px 0;padding:7px 8px;font-size:10px;color:#485467}.plain b{color:#405fc3}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:5px}.metric{background:var(--soft);border-radius:8px;padding:6px}.metric span{display:block;font-size:7px;color:var(--muted);text-transform:uppercase}.metric strong{font-size:9px}.hover-readout{min-height:31px;border:1px dashed #dfe3e8;border-radius:8px;padding:6px;font:8px ui-monospace,SFMono-Regular,Menlo,monospace;color:#667085}
-details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-top:9px;padding:0 11px}summary{cursor:pointer;font-weight:650;font-size:11px;padding:9px 0}details>div{padding:0 0 10px;color:#465163;font-size:10px;line-height:1.55}.formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:7px;padding:7px 8px;overflow:auto}.foot{margin-top:10px;text-align:center;color:#9299a5;font-size:8px}.foot a{color:inherit}
-@media(max-width:980px){.lab-grid{grid-template-columns:clamp(240px,33vw,310px) minmax(0,1fr)}.flow-node{min-width:72px;padding:5px 6px}.inspect-grid{grid-template-columns:1fr}.side-info{display:grid;grid-template-columns:1fr 1fr}.hover-readout{grid-column:1/3}}
-@media(orientation:portrait), (max-width:760px){.wrap{padding:9px 9px 36px}.topbar span{display:none}.lab-grid{grid-template-columns:1fr}.sim-card{max-width:none}.scene svg{max-height:300px}.readout{grid-template-columns:repeat(4,1fr)}.diff-card{min-height:0}.inspect-grid{grid-template-columns:1fr}.side-info{display:grid;grid-template-columns:1fr 1fr}.hover-readout{grid-column:1/3}}
-@media(max-width:520px){.readout{grid-template-columns:1fr 1fr}.flow{grid-template-columns:1fr 18px 1fr 18px 1fr}.flow .flow-hide-mobile{display:none}.ladder{min-width:0;flex-direction:column}.ladder-arrow{width:100%;height:24px;flex:0 0 24px}.ladder-arrow svg{transform:rotate(90deg)}.vector-strip.compact .vector-cell{height:25px}.inspect-row{grid-template-columns:1fr}.inspector-title{display:block}.inspector-title span{display:block;text-align:left;margin-top:2px}.side-info{grid-template-columns:1fr}.hover-readout{grid-column:auto}.controls{flex-wrap:wrap}}
-@media(orientation:landscape) and (max-height:620px) and (min-width:761px){.wrap{padding-top:7px}.topbar{height:26px}.scene svg{max-height:310px}.vector-strip.compact .vector-cell{height:30px}.inspect-row{margin:3px 0}.controls button{min-height:28px}}
+button{font:inherit}.wrap{max-width:1580px;margin:auto;padding:10px 13px 46px}.topbar{height:34px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;padding:0 2px}.topbar strong{font-size:14px}.topbar span{font-size:9px;color:var(--muted)}
+.lab-grid{display:grid;grid-template-columns:clamp(220px,22vw,300px) minmax(0,1fr);gap:10px;align-items:start}.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px;min-width:0}.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.card-head b{font-size:11px}.card-head span{font-size:8px;color:var(--muted)}.sim-card{display:flex;flex-direction:column}
+.scene{border:1px solid #edf0f4;border-radius:10px;background:#fbfcfd;overflow:hidden}.scene svg{display:block;width:100%;height:auto}.scene text{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#697386}
+.sim-readout{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}.sim-readout span{display:flex;justify-content:space-between;gap:5px;background:#fafbfc;border:1px solid #e7e9ee;border-radius:6px;padding:5px 6px;font:8px ui-monospace,SFMono-Regular,Menlo,monospace;color:#596273}.sim-readout b{font-family:Inter,ui-sans-serif,system-ui;color:#8b93a1}.controls{display:flex;align-items:center;gap:5px;margin-top:7px;flex-wrap:wrap}.controls button{min-height:30px;border:1px solid #d9dde5;border-radius:7px;background:#fff;padding:5px 8px;cursor:pointer;font-size:9px}.controls .primary{background:var(--ink);color:#fff;border-color:var(--ink)}.controls .push{background:#fffaf2;border-color:#eadcc8}.controls .spacer{flex:1}.sim-status{margin-top:6px;font:8px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.diff-intro{padding:1px 1px 8px}.diff-intro strong{display:block;font-size:14px;letter-spacing:-.015em}.diff-intro span{display:block;margin-top:2px;font-size:9px;color:var(--muted)}
+.beginner-main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(290px,.65fr);gap:8px}.viz-panel{border:1px solid var(--line);border-radius:11px;background:#fcfcfd;padding:8px;min-width:0}.viz-title{display:flex;justify-content:space-between;gap:8px;align-items:end;margin-bottom:5px}.viz-title b{font-size:10px}.viz-title span{font-size:8px;color:var(--muted)}canvas{display:block;width:100%}.distribution-canvas{height:230px}.trace-canvas{height:145px}
+.right-stack{display:flex;flex-direction:column;gap:8px}.chunk-panel{border:1px solid var(--line);border-radius:11px;background:#fff;padding:8px}.chunk{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;height:118px;margin-top:4px}.chunk-cell{position:relative;border:0;border-radius:4px;background:#f5f6f8;padding:0;cursor:pointer;overflow:hidden;outline:none}.chunk-cell.selected{box-shadow:inset 0 0 0 2px var(--ink);background:#eef1f7}.chunk-zero{position:absolute;left:0;right:0;top:50%;height:1px;background:#cfd4dc}.chunk-bar{position:absolute;left:24%;right:24%;background:var(--blue);border-radius:3px 3px 0 0;min-height:2px}.chunk-bar.negative{background:var(--red);border-radius:0 0 3px 3px}.chunk-cell small{position:absolute;bottom:2px;left:0;right:0;text-align:center;color:#8b93a1;font-size:7px}.selected-note{margin-top:6px;border-left:3px solid var(--blue);background:#f7f9ff;border-radius:0 7px 7px 0;padding:6px 8px;font-size:9px;color:#526078}.selected-note b{color:#405fc3}
+.legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:5px;font-size:8px;color:var(--muted)}.legend i{display:inline-block;width:10px;height:2px;margin-right:3px;vertical-align:middle}.legend .l95{background:var(--purple)}.legend .l45{background:var(--blue)}.legend .l0{background:var(--green)}
+.disclaimer{margin-top:7px;font-size:8px;color:#7b8492}.disclaimer b{color:#4b5563}
+details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-top:9px;padding:0 11px}summary{cursor:pointer;font-weight:650;font-size:10px;padding:9px 0}details>div{padding:0 0 10px;color:#465163;font-size:9px;line-height:1.55}.formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:7px;padding:7px 8px;overflow:auto}
+.advanced-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(240px,.5fr);gap:8px}.ladder-shell{border:1px solid var(--line);border-radius:10px;background:#fcfcfd;padding:7px;overflow-x:auto}.ladder{display:flex;align-items:stretch;min-width:720px}.ladder-stage{flex:1 1 0;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px;cursor:pointer;outline:none}.ladder-stage.active{border-color:var(--blue);background:#f5f7ff}.stage-top{display:flex;justify-content:space-between;gap:4px;align-items:center;margin-bottom:5px}.stage-top b{font-size:9px}.stage-top span{font-size:7px;color:var(--muted)}.ladder-arrow{width:28px;flex:0 0 28px;display:flex;align-items:center;justify-content:center;color:#a8b0bd}.ladder-arrow svg{width:24px;height:18px}
+.vector-strip{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}.vector-strip.compact{gap:1px}.vector-cell{border:0;padding:0;border-radius:2px;height:21px;min-width:0;cursor:crosshair}.vector-strip.compact .vector-cell{height:28px}.vector-cell.linked-dim{opacity:.11}.vector-cell.linked-highlight{outline:2px solid var(--ink);outline-offset:1px;opacity:1}.inspector{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px;min-width:0}.inspector-title{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px}.inspector-title b{font-size:10px}.inspector-title span{font-size:7px;color:var(--muted);text-align:right}.inspect-row{display:grid;grid-template-columns:105px minmax(0,1fr);align-items:center;gap:6px;margin:4px 0}.inspect-label b{display:block;font-size:8px}.inspect-label span{display:block;font-size:7px;color:var(--muted)}.empty-inspector{font-size:9px;color:var(--muted);padding:7px}
+.hover-readout{margin-top:5px;font:8px ui-monospace,SFMono-Regular,Menlo,monospace;color:#667085}.foot{margin-top:10px;text-align:center;color:#9299a5;font-size:8px}.foot a{color:inherit}
+@media(max-width:1060px){.lab-grid{grid-template-columns:clamp(215px,26vw,270px) minmax(0,1fr)}.beginner-main{grid-template-columns:1fr}.right-stack{display:grid;grid-template-columns:1fr 1fr}.selected-note{grid-column:1/3}.advanced-grid{grid-template-columns:1fr}}
+@media(orientation:portrait), (max-width:760px){.wrap{padding:8px 8px 34px}.topbar span{display:none}.lab-grid{grid-template-columns:1fr}.scene svg{max-height:250px}.sim-readout{grid-template-columns:1fr 1fr}.beginner-main{grid-template-columns:1fr}.right-stack{grid-template-columns:1fr}.selected-note{grid-column:auto}.distribution-canvas{height:210px}.trace-canvas{height:150px}}
+@media(max-width:520px){.topbar{height:29px}.scene svg{max-height:210px}.chunk{height:95px;gap:2px}.advanced-grid{grid-template-columns:1fr}.ladder{min-width:0;flex-direction:column}.ladder-arrow{width:100%;height:22px;flex:0 0 22px}.ladder-arrow svg{transform:rotate(90deg)}.inspect-row{grid-template-columns:1fr}.inspector-title{display:block}.inspector-title span{display:block;text-align:left;margin-top:2px}}
 </style>
 </head>
 <body>
@@ -33,73 +33,84 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
 
 <section class="lab-grid">
 <aside class="card sim-card">
-  <div class="card-head"><b>LIVE CONDITION</b><span>physics 50 Hz · replan every 4 actions</span></div>
-  <div class="scene"><svg viewBox="0 0 600 330" role="img" aria-label="live Cart-Pole controlled by diffusion action chunks">
-    <defs>
-      <marker id="arrowPolicy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#8968ca"/></marker>
-      <marker id="arrowPush" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#d97706"/></marker>
-    </defs>
-    <rect x="38" y="246" width="524" height="38" rx="9" fill="#f7f8fa"/>
-    <line x1="54" y1="264" x2="546" y2="264" stroke="#c7ced8" stroke-width="6" stroke-linecap="round"/>
-    <line x1="54" y1="239" x2="54" y2="293" stroke="#d36a6a" stroke-width="2" stroke-dasharray="4 4"/><line x1="546" y1="239" x2="546" y2="293" stroke="#d36a6a" stroke-width="2" stroke-dasharray="4 4"/>
-    <line x1="300" y1="50" x2="300" y2="291" stroke="#e7eaf0" stroke-width="1" stroke-dasharray="3 5"/>
-    <rect id="cart" x="250" y="210" width="100" height="38" rx="8" fill="#35445c"/><circle id="wheel1" cx="272" cy="264" r="12" fill="#182333"/><circle id="wheel2" cx="328" cy="264" r="12" fill="#182333"/>
-    <line id="pole" x1="300" y1="210" x2="300" y2="66" stroke="#df6767" stroke-width="13" stroke-linecap="round"/><circle id="pivot" cx="300" cy="210" r="9" fill="#182333"/>
-    <line id="policyArrow" x1="300" y1="305" x2="300" y2="305" stroke="#8968ca" stroke-width="4" marker-end="url(#arrowPolicy)"/>
-    <line id="pushArrow" x1="300" y1="324" x2="300" y2="324" stroke="#d97706" stroke-width="4" marker-end="url(#arrowPush)" opacity="0"/>
-    <text id="stateLabel" x="16" y="25">θ 5.0° · θ̇ 0°/s</text><text id="planLabel" x="16" y="44">plan #0 · action —</text>
+  <div class="card-head"><b>LIVE CONDITION</b><span>simple rail · 50 Hz</span></div>
+  <div class="scene"><svg viewBox="0 0 600 270" role="img" aria-label="simple live Cart-Pole condition">
+    <rect x="34" y="217" width="532" height="25" rx="6" fill="#f3f5f7"/>
+    <line x1="54" y1="219" x2="546" y2="219" stroke="#cbd1da" stroke-width="4" stroke-linecap="round"/>
+    <line x1="54" y1="231" x2="546" y2="231" stroke="#d9dee6" stroke-width="3" stroke-linecap="round"/>
+    <line x1="300" y1="39" x2="300" y2="245" stroke="#e7eaf0" stroke-width="1" stroke-dasharray="3 5"/>
+    <rect id="cart" x="252" y="188" width="96" height="38" rx="5" fill="#3d4b60"/>
+    <line id="pole" x1="300" y1="188" x2="300" y2="60" stroke="#d95e5e" stroke-width="12" stroke-linecap="round"/>
+    <circle id="pivot" cx="300" cy="188" r="8" fill="#1d2838"/>
+    <text id="stateLabel" x="17" y="24">x 0.00 m · θ 5.0°</text>
   </svg></div>
-  <div class="readout"><span><b>x</b><i id="rx">0.00 m</i></span><span><b>ẋ</b><i id="rv">0.00 m/s</i></span><span><b>θ</b><i id="rt">5.0°</i></span><span><b>θ̇</b><i id="rw">0°/s</i></span></div>
-  <div class="controls"><button id="runBtn" class="primary">Pause</button><button id="resetBtn">Reset</button><span class="spacer"></span><button id="pushL" class="push">← Push</button><button id="pushR" class="push">Push →</button></div>
-  <div class="sim-status"><span id="simStatus">balancing</span><span id="elapsed">0.0 s</span></div>
+  <div class="sim-readout"><span><b>x</b><i id="rx">0.00 m</i></span><span><b>θ</b><i id="rt">5.0°</i></span></div>
+  <div class="controls"><button id="runBtn" class="primary">Pause</button><button id="resetBtn">Reset</button><span class="spacer"></span><button id="pushL" class="push">Push left</button><button id="pushR" class="push">Push right</button></div>
+  <div class="sim-status"><span id="simStatus">policy 0.00 N · push 0 N</span><span id="elapsed">0.0 s</span></div>
 </aside>
 
 <section class="card diff-card">
-  <div class="card-head"><b>DIFFUSION · LATEST ACTION PLAN</b><span>actual intermediate values from the learned model</span></div>
-  <div class="diff-intro"><strong>Gaussian noise → predict ε → remove a little → repeat → action</strong><span>한 번에 action을 찍지 않고 noise를 여러 번 줄입니다.</span></div>
-  <div class="flow" aria-label="diffusion generation flow">
-    <div class="flow-node noise"><b>Gaussian</b><small>start latent</small></div><div class="flow-arrow">→</div>
-    <div class="flow-node model"><b>εθ(aₜ,t,c)</b><small>predict noise</small></div><div class="flow-arrow">→</div>
-    <div class="flow-node model"><b>DDIM step</b><small>remove a little</small></div><div class="flow-arrow flow-hide-mobile">→</div>
-    <div class="flow-node model flow-hide-mobile"><b>repeat ×19</b><small>t 95 → 0</small></div><div class="flow-arrow">→</div>
-    <div class="flow-node out"><b>16 actions</b><small>execute first 4</small></div>
-  </div>
+  <div class="card-head"><b>DIFFUSION</b><span>current state → many possible samples → current action plan</span></div>
+  <div class="diff-intro"><strong>Noise samples are transformed into actions.</strong><span>먼저 “여러 noise seed가 어떤 action 분포를 만드는가”를 보고, 필요하면 Advanced에서 내부 denoising을 펼쳐봅니다.</span></div>
 
-  <div class="ladder-shell"><div id="ladder" class="ladder" aria-label="representative denoising steps"></div></div>
+  <div class="beginner-main">
+    <div class="viz-panel">
+      <div class="viz-title"><b>1 · Same state, many noise seeds</b><span id="sampleStatus">sampling…</span></div>
+      <canvas id="distributionCanvas" class="distribution-canvas" aria-label="empirical action distribution across diffusion timesteps"></canvas>
+      <div class="legend"><span><i class="l95"></i>t=95 noise</span><span><i class="l45"></i>t=45</span><span><i class="l0"></i>t=0 action</span></div>
+      <div class="disclaimer"><b>주의:</b> 이 곡선은 같은 condition에서 여러 noise seed를 생성한 <b>empirical sample distribution</b>입니다. 모델의 calibrated uncertainty를 의미하지 않습니다.</div>
+    </div>
 
-  <div class="inspect-grid">
-    <div id="inspector" class="inspector"></div>
-    <div class="side-info">
-      <div class="plain"><b>읽는 법</b><br>한 세로 칸 = 같은 action index. 셀에 마우스를 올리면 noise가 action으로 변하는 동안 같은 index가 전 단계에서 함께 강조됩니다.</div>
-      <div class="metrics"><div class="metric"><span>plan</span><strong id="metricPlan">#0</strong></div><div class="metric"><span>selected t</span><strong id="metricT">95</strong></div><div class="metric"><span>first action</span><strong id="metricAction">—</strong></div><div class="metric"><span>model</span><strong id="metricModel">loading</strong></div></div>
-      <div id="hoverReadout" class="hover-readout">hover a cell → follow action[i] through denoising</div>
+    <div class="right-stack">
+      <div class="viz-panel">
+        <div class="viz-title"><b>2 · One sample path</b><span>latest control plan</span></div>
+        <canvas id="traceCanvas" class="trace-canvas" aria-label="one action value through denoising"></canvas>
+      </div>
+      <div class="chunk-panel">
+        <div class="viz-title"><b>3 · Final 16-action chunk</b><span>hover / tap one bar</span></div>
+        <div id="actionChunk" class="chunk" aria-label="final action chunk"></div>
+      </div>
+      <div class="selected-note"><b id="selectedLabel">action[0]</b>을 보고 있습니다. 최종 bar를 바꾸면 위 두 그래프가 같은 action index로 즉시 바뀝니다.</div>
     </div>
   </div>
 </section>
 </section>
 
-<details open><summary>왜 이렇게 구성했나?</summary><div>왼쪽은 환경입니다. 50 Hz로 계속 움직이고, Diffusion policy는 현재 상태 <code>c=[x,ẋ,θ,θ̇]</code>를 조건으로 16개의 미래 force를 생성합니다. 그중 앞 4개만 실행한 뒤 새 상태에서 다시 Gaussian noise부터 plan을 만듭니다. 오른쪽은 최신 plan에서 모델이 실제 계산한 <code>aₜ</code>, <code>εθ</code>, 추정 <code>a₀</code>, 다음 latent를 보여줄 뿐이며 제어 계산을 다시 구현하지 않습니다.</div></details>
-<details><summary>Forward diffusion은 어디 갔나?</summary><div>실제 실행 시에는 Gaussian noise에서 시작해 reverse diffusion만 사용합니다. Forward diffusion <span class="formula">aₜ = √ᾱₜ a₀ + √(1−ᾱₜ)ε</span> 은 학습할 때 clean demonstration에 known noise를 섞어 <code>εθ</code>의 정답을 만드는 과정입니다. 실행 화면에서 forward 과정을 항상 보여주면 “정답 action을 알고 생성한다”는 오해가 생길 수 있어 아래 설명으로 내렸습니다.</div></details>
-<details><summary>Transformer 버전과 같은 설계 원칙</summary><div><code>cartpole-transformer</code>도 Environment → Model → Explainer를 분리합니다. 50 Hz simulation이 history를 만들고, learned Transformer가 실제 intermediate tensor를 내며, explainer가 그것을 시각화합니다. 여기서는 history token 대신 최신 Diffusion action plan과 denoising history를 시각화합니다. 화면도 가로에서는 좁은 simulation + 넓은 explainer, 세로에서는 위 simulation + 아래 explainer로 자동 전환합니다.</div></details>
-<details><summary>범위</summary><div>현재 모델은 upright 근방 Cart-Pole demonstration으로 학습한 작은 교육용 denoiser입니다. 목적은 Diffusion의 iterative denoising을 이해하는 것이며, Cart-Pole SOTA나 manipulation-scale Diffusion Policy 성능을 주장하지 않습니다.</div></details>
+<details><summary>Advanced · 실제 denoising 내부 보기</summary><div>
+  <div class="advanced-grid">
+    <div class="ladder-shell"><div id="ladder" class="ladder" aria-label="representative denoising steps"></div></div>
+    <div id="inspector" class="inspector"></div>
+  </div>
+  <div id="hoverReadout" class="hover-readout">hover a cell → follow action[i] through denoising</div>
+</div></details>
 
-<footer class="foot">Linked highlighting and staged inspection patterns adapted from Polo Club Transformer Explainer; diffusion concept inspired by Polo Club Diffusion Explainer · <a href="https://github.com/tinmanlab/cartpole-diffusion">source</a></footer>
+<details><summary>Forward diffusion은 학습에서 무엇을 하나?</summary><div>실제 제어 실행은 Gaussian noise에서 시작해 reverse diffusion으로 action을 생성합니다. Forward diffusion은 demonstration action <code>a₀</code>에 known Gaussian noise를 넣어 학습 target을 만드는 과정입니다. <span class="formula">aₜ = √ᾱₜ a₀ + √(1−ᾱₜ)ε</span></div></details>
+
+<details><summary>좌측 simulation은 왜 이렇게 단순한가?</summary><div>Diffusion을 배우는 데 wheel, force arrow, 장식은 필요하지 않습니다. MuJoCo Playground의 공식 CartpoleBalance asset처럼 rail, box cart, capsule-like pole만 남기는 시각 언어를 참고했습니다. 브라우저 physics와 learned policy는 기존 구현을 유지하며 MuJoCo runtime이나 XML을 직접 포함하지 않습니다.</div></details>
+
+<footer class="foot">Cart-Pole visual simplification informed by MuJoCo Playground CartpoleBalance; linked highlighting adapted from Polo Club Transformer Explainer · <a href="https://github.com/tinmanlab/cartpole-diffusion">source</a></footer>
 </main>
+
 <script src="app/tiny_denoiser.js"></script>
 <script src="app/diffusion_viz.js"></script>
+<script src="app/beginner_viz.js"></script>
 <script>
 (function(){
 "use strict";
-var H=16,MAXF=10,S=.008,T=100,TAU=.02,EXECUTE=4,START_T=95,STRIDE=5;
-var model=null,state=null,running=true,disturbance=0,elapsed=0,policyForce=0,plan=[],planCursor=0,planCount=0,noiseSeed=11,history=[],selectedT=95,raf=0,lastNow=0,acc=0,status="balancing";
+var H=16,MAXF=10,S=.008,T=100,TAU=.02,EXECUTE=4,START_T=95,STRIDE=5,DIST_SAMPLES=24;
+var model=null,state=null,running=true,disturbance=0,elapsed=0,policyForce=0,plan=[],planCursor=0,planCount=0,noiseSeed=11,history=[],selectedT=95,selectedAction=0,raf=0,lastNow=0,acc=0,status="balancing";
+var distData={t95:[],t45:[],t0:[]},lastDistAt=0,distPending=false,distributionSeed=9001;
+
 function E(id){return document.getElementById(id)}function clamp(x,a,b){return Math.max(a,Math.min(b,x))}function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}function deg(x){return x*180/Math.PI}
 function resetState(){return{x:0,xDot:0,theta:5*Math.PI/180,thetaDot:0}}
-function stateArray(){return[state.x,state.xDot,state.theta,state.thetaDot]}
+function stateArray(s){s=s||state;return[s.x,s.xDot,s.theta,s.thetaDot]}
 function random(){var a=noiseSeed+=0x6D2B79F5;a=Math.imul(a^a>>>15,a|1);a^=a+Math.imul(a^a>>>7,a|61);return((a^a>>>14)>>>0)/4294967296}
 function gaussian16(){var out=[],sp=null;while(out.length<H){if(sp!==null){out.push(sp);sp=null;continue}var u=0,v=0;while(!u)u=random();while(!v)v=random();var m=Math.sqrt(-2*Math.log(u));out.push(m*Math.cos(2*Math.PI*v));sp=m*Math.sin(2*Math.PI*v)}return out}
+function gaussianFrom(seed){var s=seed>>>0;function r(){s+=0x6D2B79F5;var a=s;a=Math.imul(a^a>>>15,a|1);a^=a+Math.imul(a^a>>>7,a|61);return((a^a>>>14)>>>0)/4294967296}var out=[],sp=null;while(out.length<H){if(sp!==null){out.push(sp);sp=null;continue}var u=0,v=0;while(!u)u=r();while(!v)v=r();var m=Math.sqrt(-2*Math.log(u));out.push(m*Math.cos(2*Math.PI*v));sp=m*Math.sin(2*Math.PI*v)}return out}
 function ab(t){var x=(t/T+S)/(1+S),f=Math.cos(x*Math.PI/2),f0=Math.cos((S/(1+S))*Math.PI/2);return clamp(f*f/(f0*f0),1e-5,1)}
 function physics(s,u,push){var x=s.x,xd=s.xDot,th=s.theta,thd=s.thetaDot,c=Math.cos(th),sn=Math.sin(th),total=1.1,tmp=(clamp(u,-MAXF,MAXF)+push+.05*thd*thd*sn)/total,tha=(9.8*sn-c*tmp)/(.5*(4/3-.1*c*c/total)),xa=tmp-.05*tha*c/total;return{x:x+TAU*xd,xDot:xd+TAU*xa,theta:th+TAU*thd,thetaDot:thd+TAU*tha}}
 function ddim(x,cur,prev,pred){var ac=ab(cur),ap=ab(prev),sc=Math.sqrt(ac),nc=Math.sqrt(1-ac),sp=Math.sqrt(ap),np=Math.sqrt(1-ap);var x0=x.map(function(v,i){return clamp((v-nc*pred[i])/sc,-1.2,1.2)}),next=x0.map(function(v,i){return sp*v+np*pred[i]});return{x0:x0,next:next}}
+
 function makePlan(){
   if(!model)return;
   var x=gaussian16(),cur=START_T,out=[];
@@ -111,31 +122,69 @@ function makePlan(){
   out.push({t:0,latent:x.slice(),pred:null,x0:x.slice(),next:x.slice(),caption:"action"});
   plan=x.map(function(v){return clamp(v,-1,1)});planCursor=0;planCount++;history=out;
   if(!history.some(function(s){return s.t===selectedT}))selectedT=START_T;
-  renderDiffusion();
+  renderExplainer();scheduleDistribution();
 }
 function stage(){for(var i=0;i<history.length;i++)if(history[i].t===selectedT)return history[i];return history[0]||null}
-function renderDiffusion(){
-  DiffusionViz.renderLadder(E("ladder"),history,selectedT,function(t){selectedT=t;renderDiffusion()});
+function updateChunkSelection(){
+  E("selectedLabel").textContent="action["+selectedAction+"]";
+  E("actionChunk").querySelectorAll(".chunk-cell").forEach(function(el,i){el.classList.toggle("selected",i===selectedAction)});
+}
+function chooseAction(i){
+  selectedAction=i;updateChunkSelection();renderBeginnerCharts();
+}
+function renderBeginnerCharts(){
+  if(distData.t0.length)BeginnerDiffusionViz.drawDistribution(E("distributionCanvas"),distData,selectedAction);
+  BeginnerDiffusionViz.drawTrace(E("traceCanvas"),history,selectedAction);
+}
+function renderExplainer(){
+  BeginnerDiffusionViz.renderChunk(E("actionChunk"),plan,selectedAction,function(i){chooseAction(i)});
+  updateChunkSelection();renderBeginnerCharts();
+  DiffusionViz.renderLadder(E("ladder"),history,selectedT,function(t){selectedT=t;renderAdvanced()});
+  renderAdvanced();
+}
+function renderAdvanced(){
+  DiffusionViz.renderLadder(E("ladder"),history,selectedT,function(t){selectedT=t;renderAdvanced()});
   DiffusionViz.renderInspector(E("inspector"),stage());
-  E("metricPlan").textContent="#"+planCount;E("metricT").textContent=selectedT;E("metricAction").textContent=plan.length?(plan[0]>=0?"+":"")+fmt(plan[0]*MAXF,2)+" N":"—";E("metricModel").textContent=model?"εθ":"loading";
+}
+function computeDistribution(snapshot){
+  if(!model)return;
+  var next={t95:[],t45:[],t0:[]};
+  for(var n=0;n<DIST_SAMPLES;n++){
+    var x=gaussianFrom(distributionSeed+n*7919),cur=START_T;
+    next.t95.push(x.slice());
+    while(cur>0){
+      if(cur===45)next.t45.push(x.slice());
+      var prev=Math.max(0,cur-STRIDE),pred=model.predict(x,cur,snapshot),step=ddim(x,cur,prev,pred);x=step.next;cur=prev;
+    }
+    next.t0.push(x.slice());
+  }
+  distData=next;distributionSeed+=100003;lastDistAt=performance.now();distPending=false;
+  E("sampleStatus").textContent=DIST_SAMPLES+" empirical samples · refreshed from live state";
+  renderBeginnerCharts();
+}
+function scheduleDistribution(){
+  if(!model||distPending)return;
+  var now=performance.now();if(now-lastDistAt<1200)return;
+  distPending=true;var snapshot=stateArray().slice();E("sampleStatus").textContent="sampling "+DIST_SAMPLES+" seeds…";
+  setTimeout(function(){computeDistribution(snapshot)},0);
 }
 function renderSim(){
-  var cx=300+state.x*103,th=state.theta,len=144,x2=cx+Math.sin(th)*len,y2=210-Math.cos(th)*len;
-  E("cart").setAttribute("x",cx-50);E("wheel1").setAttribute("cx",cx-28);E("wheel2").setAttribute("cx",cx+28);E("pivot").setAttribute("cx",cx);E("pole").setAttribute("x1",cx);E("pole").setAttribute("x2",x2);E("pole").setAttribute("y2",y2);
-  E("stateLabel").textContent="θ "+fmt(deg(th),1)+"° · θ̇ "+fmt(deg(state.thetaDot),0)+"°/s";E("planLabel").textContent="plan #"+planCount+" · action "+(policyForce>=0?"+":"")+fmt(policyForce,2)+" N";
-  var plen=Math.min(75,Math.abs(policyForce)*6),px=cx+Math.sign(policyForce||1)*plen;E("policyArrow").setAttribute("x1",cx);E("policyArrow").setAttribute("x2",px);E("policyArrow").setAttribute("opacity",Math.abs(policyForce)>.05?1:0);
-  var dlen=Math.min(60,Math.abs(disturbance)*9),dx=cx+Math.sign(disturbance||1)*dlen;E("pushArrow").setAttribute("x1",cx);E("pushArrow").setAttribute("x2",dx);E("pushArrow").setAttribute("opacity",Math.abs(disturbance)>.05?1:0);
-  E("rx").textContent=fmt(state.x,2)+" m";E("rv").textContent=fmt(state.xDot,2)+" m/s";E("rt").textContent=fmt(deg(th),1)+"°";E("rw").textContent=fmt(deg(state.thetaDot),0)+"°/s";E("simStatus").textContent=status;E("elapsed").textContent=fmt(elapsed,1)+" s";
+  var cx=300+state.x*103,th=state.theta,len=128,x2=cx+Math.sin(th)*len,y2=188-Math.cos(th)*len;
+  E("cart").setAttribute("x",cx-48);E("pivot").setAttribute("cx",cx);E("pole").setAttribute("x1",cx);E("pole").setAttribute("x2",x2);E("pole").setAttribute("y2",y2);
+  E("stateLabel").textContent="x "+fmt(state.x,2)+" m · θ "+fmt(deg(th),1)+"°";
+  E("rx").textContent=fmt(state.x,2)+" m";E("rt").textContent=fmt(deg(th),1)+"°";
+  E("simStatus").textContent="policy "+(policyForce>=0?"+":"")+fmt(policyForce,2)+" N · push "+(disturbance>=0?"+":"")+fmt(disturbance,0)+" N";
+  E("elapsed").textContent=fmt(elapsed,1)+" s";
 }
 function reset(){
-  state=resetState();elapsed=0;status="balancing";running=true;disturbance=0;plan=[];planCursor=0;planCount=0;policyForce=0;noiseSeed=11;selectedT=START_T;E("runBtn").textContent="Pause";if(model)makePlan();renderSim();
+  state=resetState();elapsed=0;status="balancing";running=true;disturbance=0;plan=[];planCursor=0;planCount=0;policyForce=0;noiseSeed=11;selectedT=START_T;selectedAction=0;distData={t95:[],t45:[],t0:[]};lastDistAt=0;
+  E("runBtn").textContent="Pause";if(model)makePlan();renderSim();
 }
 function step(){
   if(!model)return;
   if(!plan.length||planCursor>=EXECUTE)makePlan();
-  policyForce=(plan[planCursor]||0)*MAXF;
-  state=physics(state,policyForce,disturbance);planCursor++;elapsed+=TAU;
-  if(Math.abs(state.theta)>18*Math.PI/180||Math.abs(state.x)>2.4){status="fell · reset to continue";running=false;disturbance=0;E("runBtn").textContent="Run"}
+  policyForce=(plan[planCursor]||0)*MAXF;state=physics(state,policyForce,disturbance);planCursor++;elapsed+=TAU;
+  if(Math.abs(state.theta)>18*Math.PI/180||Math.abs(state.x)>2.4){status="fell";running=false;disturbance=0;E("runBtn").textContent="Run"}
 }
 function frame(now){
   if(!lastNow)lastNow=now;var delta=Math.min(.08,(now-lastNow)/1000);lastNow=now;
@@ -143,12 +192,17 @@ function frame(now){
   renderSim();raf=requestAnimationFrame(frame);
 }
 function push(v){disturbance=v}function pushEnd(){disturbance=0}
-E("runBtn").addEventListener("click",function(){running=!running;this.textContent=running?"Pause":"Run";if(running&&status.indexOf("fell")===0)reset()});
+E("runBtn").addEventListener("click",function(){if(status==="fell")reset();else{running=!running;this.textContent=running?"Pause":"Run"}});
 E("resetBtn").addEventListener("click",reset);
 [["pushL",-4],["pushR",4]].forEach(function(pair){var b=E(pair[0]);b.addEventListener("pointerdown",function(){push(pair[1])});["pointerup","pointerleave","pointercancel"].forEach(function(ev){b.addEventListener(ev,pushEnd)})});
 DiffusionViz.subscribe(function(index){if(index===null){E("hoverReadout").textContent="hover a cell → follow action[i] through denoising";return}var s=stage(),parts=["action["+index+"]"];if(s){parts.push("a_t="+fmt(s.latent[index],3));if(s.pred)parts.push("εθ="+fmt(s.pred[index],3));if(s.x0)parts.push("â0="+fmt(s.x0[index],3));}E("hoverReadout").textContent=parts.join("  ·  ")});
+window.addEventListener("resize",function(){renderBeginnerCharts()});
+
 state=resetState();renderSim();DiffusionViz.renderInspector(E("inspector"),null);
-CartPoleTinyDenoiser.load("artifacts/model.json").then(function(m){model=m;var tr=m.metadata.training;E("modelTag").textContent="learned εθ · "+tr.steps+" train steps · val MSE "+fmt(tr.validation_epsilon_mse,4);makePlan();raf=requestAnimationFrame(frame)}).catch(function(err){status="model load failed";E("modelTag").textContent=String(err);renderSim()});
+CartPoleTinyDenoiser.load("artifacts/model.json").then(function(m){
+  model=m;var tr=m.metadata.training;E("modelTag").textContent="learned εθ · val MSE "+fmt(tr.validation_epsilon_mse,4);
+  makePlan();raf=requestAnimationFrame(frame);
+}).catch(function(err){status="model load failed";E("modelTag").textContent=String(err);renderSim()});
 })();
 </script>
 </body>

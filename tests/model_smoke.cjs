@@ -12,13 +12,16 @@ server.listen(8123,"127.0.0.1",async()=>{
     const out=model.predict(new Array(16).fill(0),50,[0,0,0,0]);
     if(out.length!==16||out.some(x=>!Number.isFinite(x)))throw new Error("bad inference");
     if(model.metadata.training.validation_epsilon_mse>0.06)throw new Error("metric threshold");
-    const vizSource=fs.readFileSync(path.join(root,"app/diffusion_viz.js"),"utf8");
-    vm.runInThisContext(vizSource,{filename:"diffusion_viz.js"});
-    if(!globalThis.DiffusionViz||typeof globalThis.DiffusionViz.renderLadder!=="function")throw new Error("viz api missing");
+
+    vm.runInThisContext(fs.readFileSync(path.join(root,"app/diffusion_viz.js"),"utf8"),{filename:"diffusion_viz.js"});
+    vm.runInThisContext(fs.readFileSync(path.join(root,"app/beginner_viz.js"),"utf8"),{filename:"beginner_viz.js"});
+    if(!globalThis.DiffusionViz||typeof globalThis.DiffusionViz.renderLadder!=="function")throw new Error("advanced viz api missing");
+    if(!globalThis.BeginnerDiffusionViz||typeof globalThis.BeginnerDiffusionViz.drawDistribution!=="function"||typeof globalThis.BeginnerDiffusionViz.drawTrace!=="function"||typeof globalThis.BeginnerDiffusionViz.renderChunk!=="function")throw new Error("beginner viz api missing");
+
     const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
-    for(const id of ["ladder","inspector","runBtn","resetBtn","pushL","pushR","metricPlan"])if(!html.includes('id="'+id+'"'))throw new Error("missing "+id);
-    if(!html.includes("physics 50 Hz")||!html.includes("replan every 4 actions"))throw new Error("live loop contract missing");
-    console.log("MODEL_AND_LIVE_UI_SMOKE_OK",model.metadata.training.validation_epsilon_mse.toFixed(6));
+    for(const id of ["distributionCanvas","traceCanvas","actionChunk","ladder","inspector","runBtn","resetBtn","pushL","pushR"])if(!html.includes('id="'+id+'"'))throw new Error("missing "+id);
+    if(html.includes("policyArrow")||html.includes("pushArrow")||html.includes("arrowPolicy")||html.includes("arrowPush"))throw new Error("on-canvas force arrows must stay removed");
+    console.log("MODEL_AND_BEGINNER_UI_SMOKE_OK",model.metadata.training.validation_epsilon_mse.toFixed(6));
     server.close(()=>process.exit(0));
   }catch(e){console.error(e);server.close(()=>process.exit(1))}
 });
