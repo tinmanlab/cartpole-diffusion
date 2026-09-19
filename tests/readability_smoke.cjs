@@ -5,7 +5,7 @@ const required=[
   '.topbar strong{font-size:18px',
   '.card-head b{font-size:15px',
   '.card-head span i{font-style:normal;font:700 11px',
-  '.controls button:disabled{opacity:.38'
+  '.controls button:disabled{opacity:.38',
   '.guide-copy b{display:block;font-size:13px',
   '.guide-copy span{display:block;font-size:12px',
   '.guide-step{min-width:118px',

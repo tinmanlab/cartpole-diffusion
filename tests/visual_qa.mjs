@@ -142,7 +142,7 @@ async function desktop(browser){
   else await runAtomic.click();
   await page.waitForTimeout(120);
 
-  const x0=await page.locator('#rx').innerText();const push=page.getByRole('button',{name:'Push right'});await push.dispatchEvent('pointerdown');await page.waitForTimeout(260);await push.dispatchEvent('pointerup');await page.waitForTimeout(100);const x1=await page.locator('#rx').innerText();report.interactions.push={before:x0,after:x1,changed:x0!==x1};if(x0===x1)err('desktop: Push right did not change visible cart position');
+  const pushBefore=await readAtomicSnapshot(page);const push=page.getByRole('button',{name:'Push right'});await push.dispatchEvent('pointerdown');await page.waitForTimeout(260);await push.dispatchEvent('pointerup');await page.waitForTimeout(100);const pushAfter=await readAtomicSnapshot(page);const pushDelta=Math.max(...pushAfter.sim.map((v,i)=>Math.abs(v-pushBefore.sim[i])));report.interactions.push={before:pushBefore.sim,after:pushAfter.sim,maxStateDelta:pushDelta,changed:pushDelta>1e-6};if(!(pushDelta>1e-6))err('desktop: Push right did not change full-precision plant state');
 
   // Guided one-cycle walkthrough must freeze live control, expose each semantic stage,
   // apply exactly the first four forces, then resume live control on exit.
