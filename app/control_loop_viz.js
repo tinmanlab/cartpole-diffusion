@@ -13,32 +13,58 @@ function pick(history,target){
   }
   return best;
 }
-function forceBar(value,finalStage,index){
-  var raw=value*10,shown=clamp(raw,-12,12),mag=Math.max(2,Math.abs(shown)/12*44);
-  var bottom=shown>=0?50:50-mag;
-  return '<div class="force-col" title="a['+index+'] = '+fmt(raw,2)+(finalStage?' N':' candidate')+'">'
-    +'<i class="force-zero"></i>'
-    +'<span class="force-bar '+(shown<0?'neg':'')+'" style="height:'+mag+'%;bottom:'+bottom+'%"></span>'
-    +'<small>'+(index%4===0||index===15?index:'')+'</small>'
-    +'</div>';
+function sequencePath(values,x0,y0,width,height,limit){
+  if(!values||!values.length)return "";
+  var pts=values.map(function(v,i){
+    var x=x0+i/(values.length-1)*width;
+    var raw=v*10,shown=clamp(raw,-limit,limit);
+    var y=y0+height/2-(shown/limit)*(height*.42);
+    return [x,y];
+  });
+  return pts.map(function(p,i){return (i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)}).join(" ");
 }
-function stageCard(stage,title,subtitle,kind){
-  if(!stage)return '';
-  var finalStage=stage.t===0;
-  return '<article class="denoise-stage '+kind+'">'
-    +'<div class="denoise-head"><b>'+title+'</b><span>'+subtitle+'</span></div>'
-    +'<div class="force-bars">'+stage.latent.map(function(v,i){return forceBar(v,finalStage,i)}).join('')+'</div>'
-    +'<div class="stage-foot">'+(finalStage?'now this is an executable force plan':'not executed yet · internal action-space candidate')+'</div>'
-    +'</article>';
+function stageValues(stage,finalPlan){
+  if(!stage)return [];
+  if(stage.t===0&&finalPlan&&finalPlan.length)return finalPlan;
+  return stage.latent;
 }
-function renderStages(rootEl,history){
+function rowSvg(stage,finalPlan,rowY,title,subtitle,color,kind){
+  if(!stage)return "";
+  var x0=170,width=720,height=66,limit=10,values=stageValues(stage,finalPlan);
+  var path=sequencePath(values,x0,rowY,width,height,limit);
+  var executeBand=kind==="final"
+    ? '<rect x="'+x0+'" y="'+rowY+'" width="'+(width*3.5/15).toFixed(1)+'" height="'+height+'" rx="8" class="execute-band"/>'
+      +'<text x="'+(x0+8)+'" y="'+(rowY+16)+'" class="execute-label">EXECUTE a[0]–a[3]</text>'
+    : '';
+  var points=values.map(function(v,i){
+    if(kind!=="final"||i>3)return "";
+    var x=x0+i/(values.length-1)*width,shown=clamp(v*10,-limit,limit),y=rowY+height/2-(shown/limit)*(height*.42);
+    return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.2" class="execute-point"/>';
+  }).join("");
+  var unit=kind==="final"?" N":"";
+  return '<g class="sequence-row '+kind+'">'
+    +'<text x="8" y="'+(rowY+20)+'" class="sequence-title">'+title+'</text>'
+    +'<text x="8" y="'+(rowY+39)+'" class="sequence-sub">'+subtitle+'</text>'
+    +'<line x1="'+x0+'" y1="'+(rowY+height/2)+'" x2="'+(x0+width)+'" y2="'+(rowY+height/2)+'" class="sequence-zero"/>'
+    +executeBand
+    +'<path d="'+path+'" fill="none" stroke="'+color+'" class="sequence-path"/>'
+    +points
+    +'<text x="'+(x0+width+12)+'" y="'+(rowY+20)+'" class="sequence-scale">+10 N</text>'
+    +'<text x="'+(x0+width+12)+'" y="'+(rowY+height-8)+'" class="sequence-scale">−10 N</text>'
+    +'</g>';
+}
+function renderStages(rootEl,history,finalPlan){
   var start=pick(history,95),mid=pick(history,45),final=pick(history,0);
   rootEl.innerHTML=
-    stageCard(start,'A · Start from random candidates','t = '+(start?start.t:'—'),'noise')
-    +'<div class="stage-arrow" aria-hidden="true">→</div>'
-    +stageCard(mid,'B · Denoise repeatedly','t ≈ '+(mid?mid.t:'—'),'mid')
-    +'<div class="stage-arrow" aria-hidden="true">→</div>'
-    +stageCard(final,'C · Final action plan','t = 0','final');
+    '<div class="sequence-guide"><b>같은 16개 미래 action 자리</b><span>A/B는 내부 후보값, C만 실제 force(N)입니다. 왼쪽이 먼저 실행될 action입니다.</span></div>'
+    +'<svg class="sequence-svg" viewBox="0 0 980 282" role="img" aria-label="random future-force candidates becoming the final force plan">'
+    +rowSvg(start,finalPlan,12,'A · 랜덤 후보','내부 action 후보 · 아직 실행 안 함 · t='+(start?start.t:'—'),'#8968ca','noise')
+    +'<text x="530" y="94" class="sequence-down">↓ 관측값을 조건으로 반복 수정</text>'
+    +rowSvg(mid,finalPlan,106,'B · 정리 중','관측 상태에 맞게 반복 수정 · t≈'+(mid?mid.t:'—'),'#5476df','mid')
+    +'<text x="530" y="188" class="sequence-down">↓ 실행 가능한 action pattern으로 수렴</text>'
+    +rowSvg(final,finalPlan,200,'C · 최종 force plan','이제 실행 가능 · t=0','#3c9a73','final')
+    +'</svg>'
+    +'<div class="sequence-plain"><b>핵심:</b> Diffusion은 16개 force를 한 번에 결정하지 않습니다. 랜덤한 미래 action 후보를 현재 관측에 맞게 여러 번 고친 뒤, 마지막 C만 실제 force plan으로 사용합니다.</div>';
 }
 function renderObservation(rootEl,obs,planCount){
   if(!obs){rootEl.innerHTML='';return}
