@@ -90,6 +90,29 @@ Important claim boundary:
 
 The browser QA checks that this panel appears only at guided step 3/6, reads the actual t=50 → 45 history entry, contains finite model values, changes the action candidate, and remains readable without horizontal overflow on mobile.
 
+## Observation conditioning: same noise, different state
+
+Guided step **1/6 · 관측** now includes a controlled sensitivity experiment that isolates the observation input.
+
+Both comparison runs use:
+
+- the same learned denoiser,
+- the same fixed Gaussian latent generated from seed `424242`,
+- the same DDIM schedule and 19 reverse updates.
+
+Only the observation changes:
+
+```text
+A = [x=0, x_dot=0, theta=+5 deg, theta_dot=0]
+B = [x=0, x_dot=0, theta=-5 deg, theta_dot=0]
+```
+
+The two final 16-action plans are plotted on the same force axis. Because the starting noise is held fixed, any difference between the two generated plans comes from the changed observation condition inside this model/sampler computation.
+
+This is a model-input sensitivity demonstration, not a claim that the two plans must be exact sign mirrors or that the visualization establishes a broader causal interpretation outside this controlled computation.
+
+Runtime QA independently reconstructs the same fixed-noise experiment and requires the full DDIM plans to differ when only the pole-angle sign changes. Browser QA verifies the comparison is shown only at guided step 1/6, uses seed 424242, uses ±5 degree theta inputs, produces finite differing plans, remains readable on mobile, and disappears at step 2/6.
+
 ## What diffusion does
 
 The default denoising visualization now uses one shared force-sequence axis instead of three dense bar grids.

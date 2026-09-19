@@ -198,6 +198,49 @@ function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
     +'</svg></div>'
     +'<p class="denoise-update-note"><b>중요:</b> denoiser의 출력 εθ는 cart에 보내는 force가 아닙니다. sampler가 이 noise 예측과 diffusion schedule을 이용해 다음 action 후보를 계산합니다.</p>';
 }
+function conditioningPlanPath(values,x0,y0,width,height,limit){
+  if(!values||!values.length)return "";
+  return values.map(function(v,i){
+    var x=x0+i/(values.length-1)*width,shown=clamp(v*10,-limit,limit);
+    var y=y0+height/2-(shown/limit)*(height*.42);
+    return (i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
+  }).join(" ");
+}
+function renderConditioningCompare(rootEl,data){
+  if(!rootEl)return;
+  if(!data){rootEl.hidden=true;rootEl.innerHTML="";return}
+  var plus=data.plusPlan,minus=data.minusPlan,x0=34,y0=10,width=692,height=118,limit=10;
+  var plusPath=conditioningPlanPath(plus,x0,y0,width,height,limit),minusPath=conditioningPlanPath(minus,x0,y0,width,height,limit);
+  var diff=0,maxDiff=0;
+  for(var i=0;i<plus.length;i++){var d=Math.abs((plus[i]-minus[i])*10);diff+=d;maxDiff=Math.max(maxDiff,d)}
+  var meanDiff=diff/plus.length;
+  rootEl.hidden=false;
+  rootEl.dataset.sameNoise=data.sameNoise?"true":"false";rootEl.dataset.seed=String(data.seed);
+  rootEl.dataset.plusTheta=String(data.plusObs[2]);
+  rootEl.dataset.minusTheta=String(data.minusObs[2]);
+  rootEl.dataset.meanAbsDiffN=String(meanDiff);
+  rootEl.dataset.maxAbsDiffN=String(maxDiff);
+  rootEl.dataset.plusFirstN=String(plus[0]*10);
+  rootEl.dataset.minusFirstN=String(minus[0]*10);
+  rootEl.innerHTML=
+    '<div class="conditioning-head"><div><b>같은 noise, observation만 바꿔보기</b><span>통제 실험: model · initial Gaussian latent · sampler는 동일</span></div><em>θ만 +5° ↔ −5°</em></div>'
+    +'<div class="conditioning-observations">'
+    +'<div class="cond-obs plus"><span>Observation A</span><b>[0, 0, +5°, 0]</b><small>x, ẋ, θ, θ̇</small></div>'
+    +'<div class="cond-arrow">같은 noise →</div>'
+    +'<div class="cond-obs minus"><span>Observation B</span><b>[0, 0, −5°, 0]</b><small>오직 θ만 변경</small></div>'
+    +'</div>'
+    +'<div class="conditioning-chart"><div class="conditioning-legend"><span><i class="plus-key"></i>θ=+5° plan</span><span><i class="minus-key"></i>θ=−5° plan</span></div>'
+    +'<svg viewBox="0 0 760 146" role="img" aria-label="same-noise final action plans under positive and negative pole angle observations">'
+    +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="conditioning-zero"/>'
+    +'<path d="'+plusPath+'" class="conditioning-plus" fill="none"/>'
+    +'<path d="'+minusPath+'" class="conditioning-minus" fill="none"/>'
+    +'<text x="'+x0+'" y="143" class="conditioning-axis">a[0]</text><text x="'+(x0+width)+'" y="143" text-anchor="end" class="conditioning-axis">a[15]</text>'
+    +'</svg></div>'
+    +'<div class="conditioning-summary"><div><span>첫 force A</span><b>'+(plus[0]>=0?"+":"")+fmt(plus[0]*10,2)+' N</b></div>'
+    +'<div><span>첫 force B</span><b>'+(minus[0]>=0?"+":"")+fmt(minus[0]*10,2)+' N</b></div>'
+    +'<div><span>16개 평균 차이</span><b>'+fmt(meanDiff,2)+' N</b></div></div>'
+    +'<p class="conditioning-note"><b>의미:</b> 시작 noise가 같아도 observation이 달라지면 denoiser의 매 step 출력이 달라지고 최종 16-action plan도 달라집니다. 이 toy에서 observation은 단순 표시값이 아니라 policy의 조건(condition)입니다.</p>';
+}
 function renderObservation(rootEl,obs,planCount){
   if(!obs){rootEl.innerHTML='';return}
   rootEl.innerHTML=
@@ -269,5 +312,5 @@ function renderStateDelta(rootEl,before,after){
     }).join("")
     +'</div>';
 }
-root.ControlLoopViz={renderStages:renderStages,renderDenoiseTimeline:renderDenoiseTimeline,renderDenoiseUpdate:renderDenoiseUpdate,renderObservation:renderObservation,renderExecution:renderExecution,renderStateDelta:renderStateDelta};
+root.ControlLoopViz={renderStages:renderStages,renderDenoiseTimeline:renderDenoiseTimeline,renderDenoiseUpdate:renderDenoiseUpdate,renderConditioningCompare:renderConditioningCompare,renderObservation:renderObservation,renderExecution:renderExecution,renderStateDelta:renderStateDelta};
 })(typeof window!=="undefined"?window:globalThis);
