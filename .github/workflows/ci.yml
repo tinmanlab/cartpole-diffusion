@@ -2,7 +2,7 @@ name: Validate interactive lab
 on:
   pull_request:
   push:
-    branches: [feat/v0.2-learned-denoiser, main]
+    branches: [feat/v0.2-learned-denoiser, feat/v0.3-diffusion-focus, main]
     paths:
       - "index.html"
       - "app/**"
@@ -26,6 +26,7 @@ jobs:
       - run: python -m pip install --disable-pip-version-check numpy
       - run: python -m unittest training.test_core
       - run: node --check app/tiny_denoiser.js
-      - name: Browser-model smoke contract
+      - run: node --check app/diffusion_viz.js
+      - name: Browser-model and visualization smoke contract
         if: hashFiles('artifacts/model.json') != ''
         run: node tests/model_smoke.cjs

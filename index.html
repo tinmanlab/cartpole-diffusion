@@ -3,76 +3,92 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Cart-Pole로 diffusion model과 Diffusion Policy를 배우는 interactive robotics lab">
+<meta name="description" content="Cart-Pole action diffusion을 noise부터 denoise까지 직관적으로 보여주는 interactive lab">
 <title>Cart-Pole Diffusion Lab</title>
 <style>
 :root{--bg:#f6f7f9;--panel:#fff;--text:#172033;--muted:#667085;--line:#e3e7ee;--ink:#273247;--red:#df6767;--green:#3c9a73;--blue:#5476df;--purple:#8968ca;--soft:#f2f4f7;--radius:16px}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.45}
-button,input,select{font:inherit}.wrap{max-width:1220px;margin:auto;padding:20px 16px 56px}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:14px}.head h1{margin:0;font-size:clamp(27px,4vw,40px);letter-spacing:-.035em;line-height:1}.head p{margin:7px 0 0;color:var(--muted)}.tag{border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:#fff;color:var(--muted);font-size:12px;white-space:nowrap}
-.workbench{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:14px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px;min-width:0}.panel h2{font-size:16px;margin:0 0 10px;letter-spacing:-.01em}.scene,.plot{border:1px solid var(--line);background:#fbfcfd;border-radius:13px;padding:8px}.scene svg,.plot canvas{display:block;width:100%;height:auto}.state-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-top:11px}.ctl label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}.ctl strong{color:var(--text)}.ctl input{width:100%}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}.row button,.row select{min-height:38px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:7px 10px}.row button{cursor:pointer}.row .primary{background:var(--ink);border-color:var(--ink);color:#fff}.row button:disabled{opacity:.45;cursor:not-allowed}
-.status{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}.stat{background:var(--soft);border-radius:10px;padding:8px;min-width:0}.stat span{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.stat strong{display:block;margin-top:2px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.plot canvas{height:278px}.legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:6px}.key{display:inline-flex;align-items:center;gap:5px}.dot{width:8px;height:8px;border-radius:99px;display:inline-block}.clean{background:var(--green)}.noisy{background:var(--red)}.denoised{background:var(--blue)}.noise{background:var(--purple)}
-.diff-controls{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:end;margin-top:10px}.diff-controls input{width:100%}.tline{display:flex;justify-content:space-between;font-size:12px}.model-line{font-size:12px;color:var(--muted);margin-top:7px}.model-line b{color:var(--text)}
-details{background:#fff;border:1px solid var(--line);border-radius:13px;margin-top:10px;padding:0 13px}summary{cursor:pointer;font-weight:650;padding:12px 0}details>div{padding:0 0 13px;color:#344054;font-size:14px}.formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:9px;padding:9px 10px;overflow:auto}.mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.mini{border:1px solid var(--line);border-radius:10px;padding:10px}.mini b{display:block;margin-bottom:3px}.foot{margin-top:14px;text-align:center;color:var(--muted);font-size:11px}.foot a{color:inherit}
-@media(max-width:860px){.workbench{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.status{grid-template-columns:1fr 1fr}}@media(max-width:520px){.wrap{padding:14px 10px 40px}.panel{padding:12px}.state-controls,.mini-grid{grid-template-columns:1fr}.diff-controls{grid-template-columns:1fr}.plot canvas{height:230px}}
+button,input,select{font:inherit}.wrap{max-width:1240px;margin:auto;padding:18px 14px 56px}.head{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;margin-bottom:12px}.head h1{margin:0;font-size:clamp(28px,4vw,40px);letter-spacing:-.035em;line-height:1}.head p{margin:7px 0 0;color:var(--muted);max-width:780px}.tag{border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:#fff;color:var(--muted);font-size:12px;white-space:nowrap}
+.one-line{border-left:3px solid var(--blue);padding:8px 11px;margin:0 0 12px;background:#fff;border-radius:0 10px 10px 0;font-size:14px}.one-line b{color:var(--blue)}
+.workbench{display:grid;grid-template-columns:minmax(290px,.7fr) minmax(0,1.3fr);gap:12px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;min-width:0}.panel h2{font-size:15px;margin:0 0 8px;letter-spacing:-.01em}.subtle{font-size:12px;color:var(--muted)}
+.scene{border:1px solid var(--line);background:#fbfcfd;border-radius:12px;padding:7px}.scene svg{display:block;width:100%;height:auto}.state-controls{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;margin-top:9px}.ctl label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}.ctl strong{color:var(--text)}.ctl input{width:100%}
+.row{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:9px}.row button,.row select{min-height:36px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:6px 9px}.row button{cursor:pointer}.row .primary{background:var(--ink);border-color:var(--ink);color:#fff}.row button:disabled{opacity:.45;cursor:not-allowed}
+.status{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.stat{background:var(--soft);border-radius:9px;padding:7px;min-width:0}.stat span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.stat strong{display:block;margin-top:2px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flow{display:grid;grid-template-columns:repeat(11,auto);align-items:center;justify-content:space-between;gap:5px;padding:8px 2px 10px}.flow-node{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 8px;min-width:74px;text-align:center}.flow-node b{display:block;font-size:11px}.flow-node span{display:block;font-size:9px;color:var(--muted);margin-top:1px}.flow-arrow{color:#a8b0bd;font-size:16px}.flow-node.noise-node{background:#f7f3fd}.flow-node.learn-node{background:#f3f6ff}.flow-node.out-node{background:#f1faf6}
+.diff-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;align-items:end}.diff-controls input{width:100%}.tline{display:flex;justify-content:space-between;font-size:11px}.mode-note{font-size:10px;color:var(--muted);margin-top:5px}
+.ladder-wrap{border:1px solid var(--line);border-radius:12px;background:#fcfcfd;padding:9px;margin-top:9px;overflow-x:auto}.ladder{display:flex;align-items:stretch;min-width:610px}.ladder-stage{flex:1 1 0;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px;cursor:pointer;outline:none;transition:opacity .15s,border-color .15s,background .15s}.ladder-stage.active{border-color:var(--blue);background:#f5f7ff}.ladder-stage:focus-visible{box-shadow:0 0 0 2px rgba(84,118,223,.2)}.stage-top{display:flex;justify-content:space-between;gap:5px;align-items:center;margin-bottom:6px}.stage-top b{font-size:11px}.stage-top span{font-size:9px;color:var(--muted)}.ladder-arrow{width:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;color:#a8b0bd}.ladder-arrow svg{width:30px;height:18px}
+.vector-strip{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}.vector-strip.compact{gap:1px}.vector-cell{border:0;padding:0;border-radius:2px;height:24px;min-width:0;transition:opacity .12s,outline .12s;cursor:crosshair}.vector-strip.compact .vector-cell{height:34px}.vector-cell.linked-dim{opacity:.12}.vector-cell.linked-highlight{outline:2px solid var(--ink);outline-offset:1px;opacity:1}.vector-cell:focus-visible{outline:2px solid var(--ink)}
+.inspector{margin-top:10px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}.inspector-title{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}.inspector-title b{font-size:13px}.inspector-title span{font-size:10px;color:var(--muted);text-align:right}.inspect-row{display:grid;grid-template-columns:128px 1fr;align-items:center;gap:8px;margin:5px 0}.inspect-label b{display:block;font-size:11px}.inspect-label span{display:block;font-size:9px;color:var(--muted)}.empty-inspector{color:var(--muted);font-size:12px;padding:10px}
+.hover-readout{margin-top:6px;font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);min-height:16px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}.metric{background:var(--soft);border-radius:9px;padding:7px}.metric span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase}.metric strong{font-size:11px}
+details{background:#fff;border:1px solid var(--line);border-radius:12px;margin-top:9px;padding:0 12px}summary{cursor:pointer;font-weight:650;padding:11px 0}details>div{padding:0 0 12px;color:#344054;font-size:13px}.formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:8px;padding:8px 9px;overflow:auto}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stepbox{border:1px solid var(--line);border-radius:9px;padding:9px}.stepbox b{display:block;margin-bottom:2px}.foot{margin-top:13px;text-align:center;color:var(--muted);font-size:10px}.foot a{color:inherit}
+@media(max-width:900px){.workbench{grid-template-columns:1fr}.head{flex-direction:column;align-items:flex-start}.flow{grid-template-columns:1fr auto 1fr auto 1fr;grid-auto-rows:auto}.flow .optional{display:none}.metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:540px){.wrap{padding:12px 9px 40px}.panel{padding:11px}.state-controls,.steps{grid-template-columns:1fr}.inspect-row{grid-template-columns:1fr}.inspector-title{display:block}.inspector-title span{display:block;text-align:left;margin-top:3px}.diff-controls{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <main class="wrap">
-<header class="head"><div><h1>Cart-Pole Diffusion Lab</h1><p>상태를 바꾸고, action noise가 실제 learned denoiser로 제어 시퀀스로 바뀌는 과정을 바로 봅니다.</p></div><span class="tag" id="modelTag">v0.2 model loading</span></header>
+<header class="head"><div><h1>Cart-Pole Diffusion Lab</h1><p>Diffusion만 봅니다. 모델이 noisy action에서 “무엇이 noise인가?”를 반복해서 추정하며 action을 정리하는 과정을 단계별로 추적하세요.</p></div><span class="tag" id="modelTag">model loading</span></header>
+<div class="one-line"><b>Diffusion = noise를 한 번에 없애는 모델이 아니라,</b> 현재 값에서 noise를 조금 추정하고 → 조금 빼고 → 다시 반복하는 생성 과정입니다.</div>
 
 <section class="workbench">
 <div class="panel">
-<h2>Simulation</h2>
-<div class="scene"><svg viewBox="0 0 600 330" role="img" aria-label="Cart-Pole simulation">
-<line x1="28" y1="265" x2="572" y2="265" stroke="#c9ced7" stroke-width="4"/>
-<rect id="cart" x="245" y="222" width="110" height="42" rx="9" fill="#4d5f78"/>
-<circle id="wheel1" cx="270" cy="274" r="12" fill="#273247"/><circle id="wheel2" cx="330" cy="274" r="12" fill="#273247"/>
-<line id="pole" x1="300" y1="222" x2="300" y2="70" stroke="#df6767" stroke-width="14" stroke-linecap="round"/><circle id="pivot" cx="300" cy="222" r="10" fill="#172033"/>
-<text id="sceneLabel" x="18" y="28" font-size="14" fill="#667085">θ 8.0° · θ̇ 0°/s</text>
-<text id="forceLabel" x="18" y="50" font-size="14" fill="#667085">planned force —</text>
+<h2>Condition · Cart-Pole state</h2>
+<div class="subtle">이 패널은 Diffusion에 “지금 어떤 action이 필요한가?”라는 조건만 줍니다. 제어 이론 설명은 여기서 다루지 않습니다.</div>
+<div class="scene"><svg viewBox="0 0 600 305" role="img" aria-label="Cart-Pole condition state">
+<line x1="28" y1="246" x2="572" y2="246" stroke="#c9ced7" stroke-width="4"/>
+<rect id="cart" x="245" y="205" width="110" height="40" rx="9" fill="#4d5f78"/><circle id="wheel1" cx="270" cy="255" r="11" fill="#273247"/><circle id="wheel2" cx="330" cy="255" r="11" fill="#273247"/>
+<line id="pole" x1="300" y1="205" x2="300" y2="66" stroke="#df6767" stroke-width="13" stroke-linecap="round"/><circle id="pivot" cx="300" cy="205" r="9" fill="#172033"/>
+<text id="sceneLabel" x="18" y="27" font-size="13" fill="#667085">θ 8.0° · θ̇ 0°/s</text><text id="forceLabel" x="18" y="47" font-size="13" fill="#667085">generated action —</text>
 </svg></div>
 <div class="state-controls">
-<div class="ctl"><label><span>cart x</span><strong id="xv">0.00 m</strong></label><input id="x" type="range" min="-0.8" max="0.8" step="0.02" value="0"></div>
+<div class="ctl"><label><span>x</span><strong id="xv">0.00 m</strong></label><input id="x" type="range" min="-0.8" max="0.8" step="0.02" value="0"></div>
 <div class="ctl"><label><span>ẋ</span><strong id="vv">0.00 m/s</strong></label><input id="xdot" type="range" min="-1.2" max="1.2" step="0.04" value="0"></div>
-<div class="ctl"><label><span>pole θ</span><strong id="tv">8.0°</strong></label><input id="theta" type="range" min="-11" max="11" step="1" value="8"></div>
+<div class="ctl"><label><span>θ</span><strong id="tv">8.0°</strong></label><input id="theta" type="range" min="-11" max="11" step="1" value="8"></div>
 <div class="ctl"><label><span>θ̇</span><strong id="wv">0°/s</strong></label><input id="omega" type="range" min="-100" max="100" step="5" value="0"></div>
 </div>
-<div class="row"><select id="preset"><option value="right">right lean</option><option value="left">left lean</option><option value="moving">moving recovery</option><option value="center">near center</option></select><button id="reset">Reset</button><button id="execute" class="primary" disabled>Execute 4 + replan</button></div>
-<div class="status">
-<div class="stat"><span>x</span><strong id="sx">0.00</strong></div><div class="stat"><span>θ</span><strong id="st">8.0°</strong></div><div class="stat"><span>first action</span><strong id="firstAction">—</strong></div><div class="stat"><span>cycle</span><strong id="cycleStatus">ready</strong></div>
-</div>
+<div class="row"><select id="preset"><option value="right">right lean</option><option value="left">left lean</option><option value="moving">moving</option><option value="center">near center</option></select><button id="reset">Reset</button><button id="execute" class="primary" disabled>Execute 4 + replan</button></div>
+<div class="status"><div class="stat"><span>condition</span><strong id="conditionText">[0,0,8°,0]</strong></div><div class="stat"><span>first action</span><strong id="firstAction">—</strong></div><div class="stat"><span>cycle</span><strong id="cycleStatus">ready</strong></div></div>
 </div>
 
 <div class="panel">
-<h2>Diffusion</h2>
-<div class="plot"><canvas id="plot" width="760" height="278" aria-label="Action diffusion plot"></canvas><div class="legend"><span class="key"><i class="dot clean"></i>teacher target</span><span class="key"><i class="dot noisy"></i>start latent</span><span class="key"><i class="dot denoised"></i>denoised action</span><span class="key"><i class="dot noise"></i>noise guide</span></div></div>
+<h2>Diffusion · noise → action</h2>
+<div class="flow" aria-label="Diffusion flow">
+<div class="flow-node out-node"><b>clean a₀</b><span>reference</span></div><div class="flow-arrow">→</div>
+<div class="flow-node noise-node"><b>add noise</b><span>choose t</span></div><div class="flow-arrow">→</div>
+<div class="flow-node"><b>noisy aₜ</b><span>start</span></div><div class="flow-arrow optional">→</div>
+<div class="flow-node learn-node optional"><b>εθ</b><span>guess noise</span></div><div class="flow-arrow optional">→</div>
+<div class="flow-node learn-node optional"><b>DDIM</b><span>remove a little</span></div><div class="flow-arrow">→</div>
+<div class="flow-node out-node"><b>action</b><span>repeat to t=0</span></div>
+</div>
+
 <div class="diff-controls">
-<div><div class="tline"><span>forward timestep</span><strong>t = <span id="tValue">70</span></strong></div><input id="t" type="range" min="1" max="95" step="1" value="70"></div>
+<div><div class="tline"><span>How noisy? forward timestep</span><strong>t = <span id="tValue">70</span></strong></div><input id="t" type="range" min="5" max="95" step="5" value="70"><div class="mode-note">t가 클수록 원래 action보다 noise 비중이 큽니다.</div></div>
 <select id="mode"><option value="learned">Learned εθ</option><option value="oracle">Oracle ε</option></select>
 </div>
-<div class="row"><button id="noiseBtn">New noise</button><button id="denoiseBtn" class="primary" disabled>Denoise aₜ → action</button><button id="generateBtn" disabled>Pure noise → action</button></div>
-<div class="status">
-<div class="stat"><span>ε MSE</span><strong id="epsMse">—</strong></div><div class="stat"><span>action MAE</span><strong id="actionMae">—</strong></div><div class="stat"><span>signal / noise</span><strong id="mix">—</strong></div><div class="stat"><span>reverse</span><strong id="reverseStatus">idle</strong></div>
-</div>
-<div class="model-line" id="modelLine">Loading trained weights…</div>
+<div class="row"><button id="noiseBtn">New noise</button><button id="denoiseBtn" class="primary" disabled>Play denoise</button><button id="generateBtn" disabled>Pure noise → action</button></div>
+
+<div class="ladder-wrap"><div id="ladder" class="ladder" aria-label="Representative denoising timesteps"></div></div>
+<div id="inspector" class="inspector"></div>
+<div id="hoverReadout" class="hover-readout">셀에 마우스를 올리면 같은 action index가 모든 단계에서 연결됩니다.</div>
+<div class="metrics"><div class="metric"><span>start t</span><strong id="metricStart">70</strong></div><div class="metric"><span>reverse steps</span><strong id="metricSteps">14</strong></div><div class="metric"><span>ε MSE</span><strong id="epsMse">—</strong></div><div class="metric"><span>final action MAE</span><strong id="actionMae">—</strong></div></div>
+<div class="subtle" id="modelLine" style="margin-top:6px">Loading trained weights…</div>
 </div>
 </section>
 
-<details open><summary>Diffusion을 이 화면에서 읽는 법</summary><div><div class="mini-grid"><div class="mini"><b>1. condition</b>현재 Cart-Pole 상태 c = [x, ẋ, θ, θ̇].</div><div class="mini"><b>2. noisy action</b>teacher action chunk a₀에 Gaussian noise를 섞어 aₜ를 만듭니다.</div><div class="mini"><b>3. denoise + act</b>εθ가 noise를 예측해 16-step action chunk를 복원하고 앞 4 step만 실행합니다.</div></div><p class="formula">aₜ = √ᾱₜ a₀ + √(1−ᾱₜ) ε<br>εθ(aₜ,t,c) ≈ ε<br>observe → denoise action chunk → execute K → observe → replan</p></div></details>
-<details><summary>실제로 학습된 모델</summary><div><p><b>Learned εθ</b>는 손으로 만든 denoise 애니메이션이 아니라 demonstration에서 학습한 <b>36 → 64 → 64 → 16 SiLU MLP</b>입니다. 입력은 noisy 16-action, 4-state condition, 16-d timestep embedding입니다. 브라우저에서는 int16로 양자화한 weight를 읽어 순수 JavaScript matrix multiply로 추론합니다.</p><p id="trainingSummary">training metrics loading…</p></div></details>
-<details><summary>Oracle은 왜 남겨두나?</summary><div>Oracle ε는 forward corruption 때 사용한 정답 noise를 알고 있으므로 이상적인 reverse 기준입니다. Learned와 Oracle을 같은 noisy sample에서 비교하면 “diffusion 수학”과 “학습된 denoiser 오차”를 분리해서 볼 수 있습니다. Pure-noise generation은 Learned 모드에서만 제공합니다.</div></details>
-<details><summary>범위와 한계</summary><div>v0.2는 upright 근방 Cart-Pole balance 교육용입니다. teacher는 discrete LQR이며, 이 결과를 SOTA 제어 성능이나 일반 manipulation Diffusion Policy 재현으로 해석하면 안 됩니다. 다음 단계는 multimodal action 분포와 vision/history conditioning입니다.</div></details>
+<details open><summary>지금 화면에서 딱 세 가지만 이해하면 됩니다</summary><div><div class="steps"><div class="stepbox"><b>1. aₜ</b>처음에는 action이 noise와 섞여 있어서 어떤 force sequence인지 잘 보이지 않습니다.</div><div class="stepbox"><b>2. εθ</b>모델은 “현재 값 중 noise처럼 보이는 부분”을 예측합니다. 정답 action 자체를 바로 찍는 것이 아닙니다.</div><div class="stepbox"><b>3. repeat</b>예측한 noise를 조금 제거하고 다시 같은 일을 반복하면 점점 action 구조가 나타납니다.</div></div><p class="formula">aₜ → εθ(aₜ,t,c) → aₜ₋Δ → εθ(aₜ₋Δ,t−Δ,c) → … → a₀</p></div></details>
+<details><summary>Heatmap을 왜 쓰나요?</summary><div>각 세로 셀 하나는 16-step action chunk의 같은 index입니다. 위쪽 ladder에서 아무 셀이나 가리키면 모든 timestep의 같은 column이 동시에 강조됩니다. 그래서 “action[7]이 noise에서 어떻게 안정되는지”를 시간축으로 추적할 수 있습니다. 이 linked-hover 방식은 Polo Club Transformer Explainer의 <code>MatrixSvg</code>가 row/column을 강조하고 나머지를 dim 처리하는 패턴을 Diffusion action vector에 맞게 단순화한 것입니다.</div></details>
+<details><summary>Learned εθ와 Oracle ε</summary><div><b>Learned εθ</b>는 실제 6,000-step 학습 MLP가 noise를 예측합니다. <b>Oracle ε</b>는 forward 과정에서 사용한 진짜 noise를 알고 있어서 이상적인 기준입니다. 같은 start latent에서 둘을 비교하면 diffusion algorithm 자체와 model error를 분리할 수 있습니다. Pure-noise generation은 Learned에서만 가능합니다.</div></details>
+<details><summary>왜 Cart-Pole인가?</summary><div>Diffusion 자체를 설명하기 위해 action이 16개의 숫자로 짧고 눈에 보이는 문제를 택했습니다. 여기서 중요한 것은 Cart-Pole 성능이 아니라 <b>condition + noisy sequence + iterative denoising</b> 구조입니다.</div></details>
 
-<footer class="foot">Inspired by Polo Club Diffusion Explainer · robotics reference: Diffusion Policy (RSS 2023) · <a href="https://github.com/tinmanlab/cartpole-diffusion">source</a></footer>
+<footer class="foot">Visualization patterns adapted from Polo Club Transformer Explainer (MatrixSvg linked highlighting, Sankey-style flow, progressive inspection) and inspired by Polo Club Diffusion Explainer · <a href="https://github.com/tinmanlab/cartpole-diffusion">source</a></footer>
 </main>
 <script src="app/tiny_denoiser.js"></script>
+<script src="app/diffusion_viz.js"></script>
 <script>
 (function(){
 "use strict";
-var T=100,H=16,MAXF=10,S=.008,model=null,seed=7,anim=null,recovered=null,startLatent=null,startKind="forward";
-var state=[0,0,8*Math.PI/180,0],clean=[],eps=[];
+var T=100,H=16,MAXF=10,S=.008,model=null,seed=7,history=[],selectedT=null,playTimer=null,startKind="forward";
+var state=[0,0,8*Math.PI/180,0],clean=[],eps=[],startLatent=null,recovered=null;
 var presets={right:[0,0,8*Math.PI/180,0],left:[0,0,-8*Math.PI/180,0],moving:[.12,-.42,5*Math.PI/180,-35*Math.PI/180],center:[.02,.05,1.5*Math.PI/180,-4*Math.PI/180]};
 function E(id){return document.getElementById(id)}function clamp(x,a,b){return Math.max(a,Math.min(b,x))}function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}function deg(x){return x*180/Math.PI}function rad(x){return x*Math.PI/180}
 function rand(seed0){return function(){seed0+=0x6D2B79F5;var t=seed0;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
@@ -80,24 +96,48 @@ function makeNoise(){var r=rand(seed),sp=null;eps=[];for(var i=0;i<H;i++){if(sp!
 function ab(t){var x=(t/T+S)/(1+S),f=Math.cos(x*Math.PI/2),f0=Math.cos((S/(1+S))*Math.PI/2);return clamp(f*f/(f0*f0),1e-5,1)}
 function teacher(s){return clamp(3.02047836*s[0]+5.99053209*s[1]+53.60976189*s[2]+14.17379801*s[3],-MAXF,MAXF)}
 function physics(s,u){var x=s[0],xd=s[1],th=s[2],thd=s[3],c=Math.cos(th),sn=Math.sin(th),tmp=(clamp(u,-MAXF,MAXF)+.05*thd*thd*sn)/1.1,tha=(9.8*sn-c*tmp)/(.5*(4/3-.1*c*c/1.1)),xa=tmp-.05*tha*c/1.1;return[x+.02*xd,xd+.02*xa,th+.02*thd,thd+.02*tha]}
-function planTarget(){var s=state.slice();clean=[];for(var i=0;i<H;i++){var u=teacher(s);clean.push(u/MAXF);s=physics(s,u)}recovered=null;forwardLatent();render()}
-function forwardLatent(){var t=+E("t").value,a=ab(t),sa=Math.sqrt(a),sn=Math.sqrt(1-a);startLatent=clean.map(function(x,i){return sa*x+sn*eps[i]});startKind="forward";E("mix").textContent=fmt(sa,2)+" / "+fmt(sn,2);E("tValue").textContent=t}
+function forwardLatent(t){var a=ab(t),sa=Math.sqrt(a),sn=Math.sqrt(1-a);return clean.map(function(x,i){return sa*x+sn*eps[i]})}
 function mse(a,b){var s=0;for(var i=0;i<a.length;i++){var d=a[i]-b[i];s+=d*d}return s/a.length}function mae(a,b){var s=0;for(var i=0;i<a.length;i++)s+=Math.abs(a[i]-b[i]);return s/a.length}
-function ddim(x,cur,prev,pred){var ac=ab(cur),ap=ab(prev),sc=Math.sqrt(ac),nc=Math.sqrt(1-ac),sp=Math.sqrt(ap),np=Math.sqrt(1-ap);return x.map(function(v,i){var x0=clamp((v-nc*pred[i])/sc,-1.2,1.2);return sp*x0+np*pred[i]})}
-function reverseSync(initial,start,mode){var x=initial.slice(),cur=start;while(cur>0){var prev=Math.max(0,cur-5),p=mode==="oracle"?eps:model.predict(x,cur,state);x=ddim(x,cur,prev,p);cur=prev}return x}
-function animateReverse(kind){if(anim)cancelAnimationFrame(anim);var mode=E("mode").value;if(mode==="learned"&&!model)return;if(kind==="generation"&&mode!=="learned")return;var cur=kind==="generation"?95:+E("t").value;startKind=kind;if(kind==="generation"){startLatent=eps.slice()}else{forwardLatent()}recovered=startLatent.slice();E("execute").disabled=true;E("reverseStatus").textContent="t "+cur;var last=0;function tick(now){if(now-last>55){var prev=Math.max(0,cur-5),p=mode==="oracle"?eps:model.predict(recovered,cur,state);recovered=ddim(recovered,cur,prev,p);cur=prev;E("reverseStatus").textContent=cur?"t "+cur:"done";renderPlot();renderMetrics();last=now}if(cur>0)anim=requestAnimationFrame(tick);else{anim=null;E("execute").disabled=false}}anim=requestAnimationFrame(tick)}
-function execute(){if(!recovered)return;var mode=E("mode").value;for(var i=0;i<4;i++)state=physics(state,recovered[i]*MAXF);syncSliders();makeNoise();var s=state.slice();clean=[];for(var j=0;j<H;j++){var u=teacher(s);clean.push(u/MAXF);s=physics(s,u)}if(mode==="learned"&&model){startKind="generation";startLatent=eps.slice();recovered=reverseSync(startLatent,95,"learned");E("cycleStatus").textContent="executed + replanned"}else{forwardLatent();recovered=reverseSync(startLatent,+E("t").value,"oracle");E("cycleStatus").textContent="oracle replanned"}render()}
-function scene(){var cx=300+state[0]*145,th=state[2],len=152,x2=cx+Math.sin(th)*len,y2=222-Math.cos(th)*len;E("cart").setAttribute("x",cx-55);E("wheel1").setAttribute("cx",cx-30);E("wheel2").setAttribute("cx",cx+30);E("pivot").setAttribute("cx",cx);E("pole").setAttribute("x1",cx);E("pole").setAttribute("x2",x2);E("pole").setAttribute("y2",y2);E("sceneLabel").textContent="θ "+fmt(deg(th),1)+"° · θ̇ "+fmt(deg(state[3]),0)+"°/s";var seq=recovered||startLatent;E("forceLabel").textContent=seq?"planned force "+(seq[0]>=0?"+":"")+fmt(seq[0]*MAXF,2)+" N":"planned force —";E("sx").textContent=fmt(state[0],2)+" m";E("st").textContent=fmt(deg(th),1)+"°";E("xv").textContent=fmt(state[0],2)+" m";E("vv").textContent=fmt(state[1],2)+" m/s";E("tv").textContent=fmt(deg(th),1)+"°";E("wv").textContent=fmt(deg(state[3]),0)+"°/s";E("firstAction").textContent=seq?(seq[0]>=0?"+":"")+fmt(seq[0]*MAXF,2)+" N":"—"}
-function renderPlot(){var c=E("plot"),ctx=c.getContext("2d"),w=c.width,h=c.height,p={l:42,r:12,t:14,b:28};ctx.clearRect(0,0,w,h);ctx.fillStyle="#fbfcfd";ctx.fillRect(0,0,w,h);ctx.strokeStyle="#e5e7eb";ctx.lineWidth=1;for(var y=-1;y<=1;y+=.5){var py=p.t+(1-(y+1.2)/2.4)*(h-p.t-p.b);ctx.beginPath();ctx.moveTo(p.l,py);ctx.lineTo(w-p.r,py);ctx.stroke()}function line(a,color,width,dash){if(!a)return;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash||[]);ctx.beginPath();a.forEach(function(v,i){var x=p.l+i*(w-p.l-p.r)/(H-1),y=p.t+(1-(clamp(v,-1.2,1.2)+1.2)/2.4)*(h-p.t-p.b);if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke();ctx.setLineDash([])}line(eps.map(function(v){return clamp(v/2.6,-1,1)}),"#8968ca",1,[4,5]);line(clean,"#3c9a73",2.4);line(startLatent,"#df6767",2);line(recovered,"#5476df",3)}
-function renderMetrics(){if(model&&startKind==="forward"){var p=model.predict(startLatent,+E("t").value,state);E("epsMse").textContent=fmt(mse(p,eps),4)}else E("epsMse").textContent="n/a";E("actionMae").textContent=recovered?fmt(mae(recovered,clean),4):"—"}
-function render(){scene();renderPlot();renderMetrics()}
-function syncSliders(){E("x").value=state[0];E("xdot").value=state[1];E("theta").value=deg(state[2]);E("omega").value=deg(state[3])}
-["x","xdot","theta","omega"].forEach(function(id){E(id).addEventListener("input",function(){if(id==="x")state[0]=+this.value;if(id==="xdot")state[1]=+this.value;if(id==="theta")state[2]=rad(+this.value);if(id==="omega")state[3]=rad(+this.value);planTarget()})});
-E("preset").addEventListener("change",function(){state=presets[this.value].slice();syncSliders();makeNoise();planTarget()});E("reset").addEventListener("click",function(){E("preset").value="right";state=presets.right.slice();syncSliders();makeNoise();planTarget()});
-E("t").addEventListener("input",function(){recovered=null;forwardLatent();E("execute").disabled=true;E("reverseStatus").textContent="idle";render()});E("noiseBtn").addEventListener("click",function(){seed++;makeNoise();recovered=null;forwardLatent();E("execute").disabled=true;render()});
-E("mode").addEventListener("change",function(){recovered=null;E("execute").disabled=true;E("generateBtn").disabled=this.value!=="learned"||!model;render()});E("denoiseBtn").addEventListener("click",function(){animateReverse("forward")});E("generateBtn").addEventListener("click",function(){seed++;makeNoise();animateReverse("generation")});E("execute").addEventListener("click",execute);
-makeNoise();planTarget();
-CartPoleTinyDenoiser.load("artifacts/model.json").then(function(m){model=m;var tr=m.metadata.training,E70=tr.ddim_recovery["70"];E("modelTag").textContent="v0.2 learned model";E("modelLine").innerHTML="<b>trained</b> · "+tr.steps+" steps · val ε MSE "+fmt(tr.validation_epsilon_mse,4)+" · t70 action MAE "+fmt(E70.action_mae,4);E("trainingSummary").textContent="Validation ε MSE "+fmt(tr.validation_epsilon_mse,4)+", single-step x₀ MAE "+fmt(tr.single_step_x0_mae,4)+", t=70 DDIM action MAE "+fmt(E70.action_mae,4)+" (normalized force).";E("denoiseBtn").disabled=false;E("generateBtn").disabled=false;render()}).catch(function(err){E("modelTag").textContent="Oracle only";E("modelLine").textContent="trained model load failed: "+err;E("mode").value="oracle";E("mode").querySelector('option[value="learned"]').disabled=true;E("denoiseBtn").disabled=false});
+function ddim(x,cur,prev,pred){var ac=ab(cur),ap=ab(prev),sc=Math.sqrt(ac),nc=Math.sqrt(1-ac),sp=Math.sqrt(ap),np=Math.sqrt(1-ap);var x0=x.map(function(v,i){return clamp((v-nc*pred[i])/sc,-1.2,1.2)});var next=x0.map(function(v,i){return sp*v+np*pred[i]});return{x0:x0,next:next}}
+function buildTarget(){var s=state.slice();clean=[];for(var i=0;i<H;i++){var u=teacher(s);clean.push(u/MAXF);s=physics(s,u)}}
+function buildHistory(kind){
+  if(!model&&E("mode").value==="learned")return;
+  var mode=E("mode").value,start=kind==="generation"?95:+E("t").value;
+  startKind=kind;startLatent=kind==="generation"?eps.slice():forwardLatent(start);
+  var x=startLatent.slice(),cur=start,out=[];
+  while(cur>0){
+    var prev=Math.max(0,cur-5),pred=mode==="oracle"?eps:model.predict(x,cur,state),step=ddim(x,cur,prev,pred);
+    out.push({t:cur,latent:x.slice(),pred:pred.slice(),x0:step.x0.slice(),next:step.next.slice(),caption:cur===start?"start":"denoise"});
+    x=step.next;cur=prev;
+  }
+  out.push({t:0,latent:x.slice(),pred:null,x0:x.slice(),next:x.slice(),caption:"final"});
+  history=out;recovered=x.slice();selectedT=start;
+  renderDiffusion();
+}
+function selectedStage(){for(var i=0;i<history.length;i++)if(history[i].t===selectedT)return history[i];return history[0]||null}
+function renderDiffusion(){
+  DiffusionViz.renderLadder(E("ladder"),history,selectedT,function(t){selectedT=t;renderDiffusion()});
+  DiffusionViz.renderInspector(E("inspector"),selectedStage());
+  E("metricStart").textContent=startKind==="generation"?"95":E("t").value;
+  E("metricSteps").textContent=history.length?history.length-1:"—";
+  if(model&&startKind==="forward"){var p=model.predict(startLatent,+E("t").value,state);E("epsMse").textContent=fmt(mse(p,eps),4)}else E("epsMse").textContent="n/a";
+  E("actionMae").textContent=recovered?fmt(mae(recovered,clean),4):"—";
+  E("execute").disabled=!recovered;
+  renderScene();
+}
+function renderScene(){var cx=300+state[0]*145,th=state[2],len=139,x2=cx+Math.sin(th)*len,y2=205-Math.cos(th)*len;E("cart").setAttribute("x",cx-55);E("wheel1").setAttribute("cx",cx-30);E("wheel2").setAttribute("cx",cx+30);E("pivot").setAttribute("cx",cx);E("pole").setAttribute("x1",cx);E("pole").setAttribute("x2",x2);E("pole").setAttribute("y2",y2);E("sceneLabel").textContent="θ "+fmt(deg(th),1)+"° · θ̇ "+fmt(deg(state[3]),0)+"°/s";var seq=recovered||startLatent;E("forceLabel").textContent=seq?"generated action "+(seq[0]>=0?"+":"")+fmt(seq[0]*MAXF,2)+" N":"generated action —";E("firstAction").textContent=seq?(seq[0]>=0?"+":"")+fmt(seq[0]*MAXF,2)+" N":"—";E("xv").textContent=fmt(state[0],2)+" m";E("vv").textContent=fmt(state[1],2)+" m/s";E("tv").textContent=fmt(deg(th),1)+"°";E("wv").textContent=fmt(deg(state[3]),0)+"°/s";E("conditionText").textContent="["+fmt(state[0],2)+", "+fmt(state[1],2)+", "+fmt(deg(th),1)+"°, "+fmt(deg(state[3]),0)+"°/s]"}
+function refresh(kind){stopPlay();buildTarget();if(kind==="generation"){buildHistory("generation")}else{startKind="forward";startLatent=forwardLatent(+E("t").value);recovered=null;history=[];selectedT=+E("t").value;if(model||E("mode").value==="oracle")buildHistory("forward");else renderScene()}}
+function stopPlay(){if(playTimer){clearInterval(playTimer);playTimer=null}E("denoiseBtn").textContent="Play denoise"}
+function play(){if(!history.length)return;if(playTimer){stopPlay();return}var representative=(function(){var count=Math.min(5,history.length),arr=[];for(var i=0;i<count;i++)arr.push(history[Math.round(i*(history.length-1)/(count-1))].t);return arr})();var i=0;selectedT=representative[0];renderDiffusion();E("denoiseBtn").textContent="Pause";playTimer=setInterval(function(){i++;if(i>=representative.length){stopPlay();return}selectedT=representative[i];renderDiffusion()},650)}
+function execute(){if(!recovered)return;for(var i=0;i<4;i++)state=physics(state,recovered[i]*MAXF);sync();seed++;makeNoise();E("cycleStatus").textContent="executed + replanned";refresh("generation")}
+function sync(){E("x").value=state[0];E("xdot").value=state[1];E("theta").value=deg(state[2]);E("omega").value=deg(state[3])}
+["x","xdot","theta","omega"].forEach(function(id){E(id).addEventListener("input",function(){if(id==="x")state[0]=+this.value;if(id==="xdot")state[1]=+this.value;if(id==="theta")state[2]=rad(+this.value);if(id==="omega")state[3]=rad(+this.value);refresh("forward")})});
+E("preset").addEventListener("change",function(){state=presets[this.value].slice();sync();seed++;makeNoise();refresh("forward")});E("reset").addEventListener("click",function(){E("preset").value="right";state=presets.right.slice();sync();seed=7;makeNoise();E("cycleStatus").textContent="ready";refresh("forward")});
+E("t").addEventListener("input",function(){E("tValue").textContent=this.value;refresh("forward")});E("noiseBtn").addEventListener("click",function(){seed++;makeNoise();refresh("forward")});E("mode").addEventListener("change",function(){E("generateBtn").disabled=this.value!=="learned"||!model;refresh("forward")});
+E("denoiseBtn").addEventListener("click",play);E("generateBtn").addEventListener("click",function(){seed++;makeNoise();refresh("generation")});E("execute").addEventListener("click",execute);
+DiffusionViz.subscribe(function(index){if(index===null){E("hoverReadout").textContent="셀에 마우스를 올리면 같은 action index가 모든 단계에서 연결됩니다.";return}var s=selectedStage(),parts=["action["+index+"]"];if(s){parts.push("a_t="+fmt(s.latent[index],3));if(s.pred)parts.push("εθ="+fmt(s.pred[index],3));if(s.x0)parts.push("a0-hat="+fmt(s.x0[index],3));}E("hoverReadout").textContent=parts.join("  ·  ")});
+makeNoise();buildTarget();startLatent=forwardLatent(+E("t").value);renderScene();DiffusionViz.renderInspector(E("inspector"),null);
+CartPoleTinyDenoiser.load("artifacts/model.json").then(function(m){model=m;var tr=m.metadata.training;E("modelTag").textContent="v0.3 diffusion view";E("modelLine").textContent="trained εθ · "+tr.steps+" steps · validation ε MSE "+fmt(tr.validation_epsilon_mse,4);E("denoiseBtn").disabled=false;E("generateBtn").disabled=false;buildHistory("forward")}).catch(function(err){E("modelTag").textContent="Oracle only";E("modelLine").textContent="model load failed: "+err;E("mode").value="oracle";E("mode").querySelector('option[value="learned"]').disabled=true;E("denoiseBtn").disabled=false;buildHistory("forward")});
 })();
 </script>
 </body>
