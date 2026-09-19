@@ -201,7 +201,7 @@ function replayPose(s){
 function replayCardHtml(ctrl,tick){
   var p=replayPose(ctrl.state),failed=ctrl.failed,statusText=failed?"FELL":tick>=DiffusionCompare.HORIZON_STEPS?"DONE":"ACTIVE";
   var degTheta=deg(ctrl.state.theta),m=ctrl.metrics;
-  return '<article class="replay-card'+(failed?' failed':'')+'" data-controller="'+ctrl.id+'" data-disturbance="'+ctrl.disturbance+'" data-base-seed="'+ctrl.baseSeed+'" data-plan-seed="'+ctrl.planSeed+'">'
+  return '<article class="replay-card'+(failed?' failed':'')+'" data-controller="'+ctrl.id+'" data-disturbance="'+ctrl.disturbance+'" data-base-seed="'+ctrl.baseSeed+'" data-plan-seed="'+ctrl.planSeed+'" data-state="'+[ctrl.state.x,ctrl.state.xDot,ctrl.state.theta,ctrl.state.thetaDot].join(',')+'" data-next-force="'+ctrl.nextForce+'" data-plan-number="'+ctrl.planNumber+'" data-cursor="'+ctrl.cursor+'" data-failed="'+(ctrl.failed?'true':'false')+'">'
     +'<div class="replay-card-head"><div><b>'+ctrl.label+'</b><span>same policy · seed stream '+ctrl.baseSeed+'</span></div><strong>'+statusText+'</strong></div>'
     +'<svg viewBox="0 0 320 185" class="replay-mini" aria-label="'+ctrl.label+' deterministic replay">'
     +'<rect x="24" y="145" width="272" height="18" rx="6" fill="#f1f3f6"/><line x1="31" y1="154" x2="289" y2="154" stroke="#bbc3ce" stroke-width="4" stroke-linecap="round"/>'
