@@ -141,7 +141,7 @@ function renderGuidedDenoise(){
   var visible=guideMode&&guideStep===2&&history.length>1;
   if(!visible){
     ControlLoopViz.renderDenoiseTimeline(E("denoiseTimeline"),null,0,0,null);
-    ControlLoopViz.renderDenoiseUpdate(E("denoiseOneStep"),history,null);
+    ControlLoopViz.renderDenoiseUpdate(E("denoiseOneStep"),history,null,0);
     return;
   }
   denoiseStepIndex=clamp(denoiseStepIndex,0,Math.max(0,history.length-2));
@@ -150,7 +150,7 @@ function renderGuidedDenoise(){
     denoiseStepIndex=stepIndex;denoiseActionIndex=actionIndex;renderGuidedDenoise();
   });
   var current=history[denoiseStepIndex];
-  ControlLoopViz.renderDenoiseUpdate(E("denoiseOneStep"),history,current?current.t:null);
+  ControlLoopViz.renderDenoiseUpdate(E("denoiseOneStep"),history,current?current.t:null,denoiseActionIndex);
 }
 function renderController(){
   ControlLoopViz.renderObservation(E("observation"),planObservation,planCount);
