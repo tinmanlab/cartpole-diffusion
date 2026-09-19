@@ -125,6 +125,26 @@ The UI uses readable default typography instead of shrinking labels to fit:
 
 When horizontal space is insufficient, layout is allowed to reflow instead of reducing text below the readability contract.
 
+## Prediction horizon vs execution horizon
+
+The execution view now makes the receding-horizon contract explicit.
+
+At 50 Hz, each action lasts 0.02 s:
+
+```text
+prediction horizon
+16 actions × 0.02 s = 0.32 s planned
+
+execution horizon
+ 4 actions × 0.02 s = 0.08 s executed
+                         ↑
+                    re-observe here
+```
+
+The first four actions are the only commands applied before the next observation. The remaining old `a[4]...a[15]` are not continued after re-observation; they are replaced by a freshly generated 16-action plan conditioned on the changed Cart-Pole state.
+
+This is the receding-horizon behavior the visualizer is teaching. The browser QA checks the 16/4 split, the 0.32/0.08 s timing, the 25% re-observation marker, the discarded 12-action tail after execution, and the reset to a fresh horizon on the next cycle.
+
 ## Relation to Diffusion Policy
 
 This toy deliberately keeps the observation horizon at 1:
