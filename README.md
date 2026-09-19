@@ -144,6 +144,55 @@ This is a model-input sensitivity demonstration, not a claim that the two plans 
 
 Runtime QA independently reconstructs the same fixed-noise experiment and requires the full DDIM plans to differ when only the pole-angle sign changes. Browser QA verifies the comparison is shown only at guided step 1/6, uses seed 424242, uses ±5 degree theta inputs, produces finite differing plans, remains readable on mobile, and disappears at step 2/6.
 
+## Sampling diversity: same state, different noise
+
+Guided step **1/6 · 관측** now contains a second controlled experiment that isolates the stochastic starting latent.
+
+This experiment fixes:
+
+- the learned denoiser,
+- the observation at `[0, 0, +5 deg, 0]`,
+- the DDIM schedule and 19 reverse updates.
+
+Only the Gaussian seed changes:
+
+```text
+seed 10101
+seed 20202
+seed 30303
+```
+
+Because the seeds are different, the three runs already start from different candidates at `t=95`. They produce three distinct final 16-action samples under the same observation.
+
+In the deterministic browser QA example:
+
+- initial `a[0]` candidate spread: about `0.765` normalized action units,
+- first forces: about `+4.25 N`, `+3.92 N`, and `+4.63 N`,
+- mean pairwise difference over the final plans: about `0.35 N`,
+- maximum pairwise final-plan difference: about `0.77 N`.
+
+The independent runtime check also reconstructs the same three seeds and reports:
+
+- minimum pairwise initial-latent max difference: about `2.334`,
+- mean pairwise final-plan normalized difference: about `0.035`,
+- maximum pairwise final-plan normalized difference: about `0.077`.
+
+In this particular controlled toy example, the ±5 degree observation intervention produces a larger final-plan separation than these three seed changes. That is an observation about this fixed model, state, seeds and sampler configuration only; it is not a general ranking of conditioning effects versus sampling effects.
+
+Most importantly, the spread among these three samples is **sampling diversity only**. It is not a calibrated probability distribution, uncertainty estimate, confidence score, or guarantee about control robustness.
+
+Together, the two step-1 experiments separate two mechanisms:
+
+```text
+same noise + different observation
+→ same t=95 candidate
+→ paths split after the first conditioned denoiser update
+
+same observation + different noise
+→ different t=95 candidates already
+→ different sampled plans after denoising
+```
+
 ## What diffusion does
 
 The default denoising visualization now uses one shared force-sequence axis instead of three dense bar grids.
