@@ -12,7 +12,7 @@ async function inspect(page,name){
     const pick=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};
     const sels=['[data-qa="plant"]','[data-qa="controller"]','[data-qa="observe"]','[data-qa="plan"]','[data-qa="act"]','[data-qa="replan"]'];
     const boxes=Object.fromEntries(sels.map(s=>[s,pick(s)]));
-    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.exec-rest,.loop-back')];
+    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.exec-rest,.loop-back')];
     const fonts=core.filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
     const overlap=(a,b)=>{if(!a||!b)return 0;return Math.max(0,Math.min(a.right,b.right)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y))};
     const visibleCount=s=>[...document.querySelectorAll(s)].filter(e=>e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden').length;
@@ -60,14 +60,25 @@ async function desktop(browser){
   await next.click();await page.waitForTimeout(80);
   if(!(await page.locator('#guideStep').innerText()).includes('2/6'))err('guided cycle: random-start step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-noise"].guide-focus').count()!==1)err('guided cycle: random sequence not focused');
+  if(await page.locator('[data-qa="denoise-one-step"]').isVisible())err('guided cycle: one-step denoise panel should be hidden at random-start');
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
   if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('guided cycle: denoise step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-mid"].guide-focus').count()!==1)err('guided cycle: mid sequence not focused');
+  const oneStep=page.locator('[data-qa="denoise-one-step"]');
+  if(!(await oneStep.isVisible()))err('guided cycle: one-step denoise panel is hidden');
+  const oneData=await oneStep.evaluate(el=>({currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),before0:Number(el.dataset.before0),noise0:Number(el.dataset.noise0),after0:Number(el.dataset.after0),paths:el.querySelectorAll('.update-before,.update-after').length,note:el.querySelector('.denoise-update-note')?.textContent||''}));
+  if(oneData.currentT!==50||oneData.nextT!==45)err('guided cycle: expected representative denoise update t=50→45');
+  if(![oneData.before0,oneData.noise0,oneData.after0].every(Number.isFinite))err('guided cycle: non-finite one-step denoise values');
+  if(Math.abs(oneData.before0-oneData.after0)<1e-12)err('guided cycle: one-step denoise did not change a[0]');
+  if(oneData.paths!==2)err('guided cycle: one-step before/after paths missing');
+  if(!oneData.note.includes('force가 아닙니다'))err('guided cycle: epsilon claim boundary missing');
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
   if(!(await page.locator('#guideStep').innerText()).includes('4/6'))err('guided cycle: final-plan step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-final"].guide-focus').count()!==1)err('guided cycle: final sequence not focused');
+  if(await oneStep.isVisible())err('guided cycle: one-step denoise panel should hide after denoise step');
+  report.interactions.oneStepDenoise=oneData;
 
   await page.getByRole('button',{name:'앞 4개 실제 적용'}).click();await page.waitForTimeout(80);
   const guideAppliedText=await page.locator('#guideStep').innerText();
