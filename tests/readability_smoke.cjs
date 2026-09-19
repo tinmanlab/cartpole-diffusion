@@ -6,7 +6,7 @@ const required=[
   '.card-head b{font-size:15px',
   '.guide-copy b{display:block;font-size:13px',
   '.guide-copy span{display:block;font-size:12px',
-  '.guide-step{min-width:118px
+  '.guide-step{min-width:118px',
   '.step-head b{display:block;font-size:16px',
   '.obs-values b{display:block;font:17px',
   '.obs-values small{font-size:11px',
