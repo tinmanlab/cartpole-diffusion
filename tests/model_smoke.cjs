@@ -14,14 +14,15 @@ server.listen(8123,"127.0.0.1",async()=>{
     if(model.metadata.training.validation_epsilon_mse>0.06)throw new Error("metric threshold");
 
     vm.runInThisContext(fs.readFileSync(path.join(root,"app/diffusion_viz.js"),"utf8"),{filename:"diffusion_viz.js"});
-    vm.runInThisContext(fs.readFileSync(path.join(root,"app/beginner_viz.js"),"utf8"),{filename:"beginner_viz.js"});
+    vm.runInThisContext(fs.readFileSync(path.join(root,"app/control_loop_viz.js"),"utf8"),{filename:"control_loop_viz.js"});
     if(!globalThis.DiffusionViz||typeof globalThis.DiffusionViz.renderLadder!=="function")throw new Error("advanced viz api missing");
-    if(!globalThis.BeginnerDiffusionViz||typeof globalThis.BeginnerDiffusionViz.drawDistribution!=="function"||typeof globalThis.BeginnerDiffusionViz.drawTrace!=="function"||typeof globalThis.BeginnerDiffusionViz.renderChunk!=="function")throw new Error("beginner viz api missing");
+    if(!globalThis.ControlLoopViz||typeof globalThis.ControlLoopViz.renderStages!=="function"||typeof globalThis.ControlLoopViz.renderObservation!=="function"||typeof globalThis.ControlLoopViz.renderExecution!=="function")throw new Error("control-loop viz api missing");
 
     const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
-    for(const id of ["distributionCanvas","traceCanvas","actionChunk","ladder","inspector","runBtn","resetBtn","pushL","pushR"])if(!html.includes('id="'+id+'"'))throw new Error("missing "+id);
-    if(html.includes("policyArrow")||html.includes("pushArrow")||html.includes("arrowPolicy")||html.includes("arrowPush"))throw new Error("on-canvas force arrows must stay removed");
-    console.log("MODEL_AND_BEGINNER_UI_SMOKE_OK",model.metadata.training.validation_epsilon_mse.toFixed(6));
+    for(const id of ["observation","denoiseStages","execution","ladder","inspector","runBtn","resetBtn","pushL","pushR"])if(!html.includes('id="'+id+'"'))throw new Error("missing "+id);
+    if(html.includes("distributionCanvas")||html.includes("Same state, many noise seeds"))throw new Error("probability-first UI must not be default");
+    if(html.includes("policyArrow")||html.includes("pushArrow"))throw new Error("on-canvas force arrows must stay removed");
+    console.log("MODEL_AND_CONTROL_LOOP_UI_SMOKE_OK",model.metadata.training.validation_epsilon_mse.toFixed(6));
     server.close(()=>process.exit(0));
   }catch(e){console.error(e);server.close(()=>process.exit(1))}
 });
