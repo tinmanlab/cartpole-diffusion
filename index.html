@@ -167,7 +167,7 @@ function step(){
 function setStateArray(a){state={x:a[0],xDot:a[1],theta:a[2],thetaDot:a[3]}}
 function setGuideDisabled(on){["runBtn","resetBtn","pushL","pushR"].forEach(function(id){E(id).disabled=on})}
 function clearGuideClasses(){document.querySelectorAll(".guide-focus,.guide-dim").forEach(function(el){el.classList.remove("guide-focus","guide-dim")})}
-function markGuide(qa,cls){document.querySelectorAll('[data-qa="'+qa+'"]').forEach(function(el){el.classList.add(cls)})}
+function markGuide(qa,cls){document.querySelectorAll('[data-qa="'+qa+'"]').forEach(function(el){if(cls==="guide-focus")el.classList.remove("guide-dim");if(cls==="guide-dim")el.classList.remove("guide-focus");el.classList.add(cls)})}
 function guideText(){
   var labels=["1/5 · 관측","2/5 · 랜덤 시작","3/5 · Denoise","4/5 · 최종 plan","5/5 · 앞 4개 실행"];
   var force=plan.length?((plan[0]>=0?"+":"")+fmt(plan[0]*MAXF,2)+" N"):"—";
