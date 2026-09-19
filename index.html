@@ -3,142 +3,152 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Cart-Pole action diffusion을 noise부터 denoise까지 직관적으로 보여주는 interactive lab">
+<meta name="theme-color" content="#f6f7f9">
+<meta name="description" content="Live Cart-Pole beside an interactive action-diffusion denoising explainer">
 <title>Cart-Pole Diffusion Lab</title>
 <style>
-:root{--bg:#f6f7f9;--panel:#fff;--text:#172033;--muted:#667085;--line:#e3e7ee;--ink:#273247;--red:#df6767;--green:#3c9a73;--blue:#5476df;--purple:#8968ca;--soft:#f2f4f7;--radius:16px}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.45}
-button,input,select{font:inherit}.wrap{max-width:1240px;margin:auto;padding:18px 14px 56px}.head{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;margin-bottom:12px}.head h1{margin:0;font-size:clamp(28px,4vw,40px);letter-spacing:-.035em;line-height:1}.head p{margin:7px 0 0;color:var(--muted);max-width:780px}.tag{border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:#fff;color:var(--muted);font-size:12px;white-space:nowrap}
-.one-line{border-left:3px solid var(--blue);padding:8px 11px;margin:0 0 12px;background:#fff;border-radius:0 10px 10px 0;font-size:14px}.one-line b{color:var(--blue)}
-.workbench{display:grid;grid-template-columns:minmax(290px,.7fr) minmax(0,1.3fr);gap:12px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;min-width:0}.panel h2{font-size:15px;margin:0 0 8px;letter-spacing:-.01em}.subtle{font-size:12px;color:var(--muted)}
-.scene{border:1px solid var(--line);background:#fbfcfd;border-radius:12px;padding:7px}.scene svg{display:block;width:100%;height:auto}.state-controls{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;margin-top:9px}.ctl label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}.ctl strong{color:var(--text)}.ctl input{width:100%}
-.row{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:9px}.row button,.row select{min-height:36px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:6px 9px}.row button{cursor:pointer}.row .primary{background:var(--ink);border-color:var(--ink);color:#fff}.row button:disabled{opacity:.45;cursor:not-allowed}
-.status{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.stat{background:var(--soft);border-radius:9px;padding:7px;min-width:0}.stat span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.stat strong{display:block;margin-top:2px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.flow{display:grid;grid-template-columns:repeat(11,auto);align-items:center;justify-content:space-between;gap:5px;padding:8px 2px 10px}.flow-node{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 8px;min-width:74px;text-align:center}.flow-node b{display:block;font-size:11px}.flow-node span{display:block;font-size:9px;color:var(--muted);margin-top:1px}.flow-arrow{color:#a8b0bd;font-size:16px}.flow-node.noise-node{background:#f7f3fd}.flow-node.learn-node{background:#f3f6ff}.flow-node.out-node{background:#f1faf6}
-.diff-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;align-items:end}.diff-controls input{width:100%}.tline{display:flex;justify-content:space-between;font-size:11px}.mode-note{font-size:10px;color:var(--muted);margin-top:5px}
-.ladder-wrap{border:1px solid var(--line);border-radius:12px;background:#fcfcfd;padding:9px;margin-top:9px;overflow-x:auto}.ladder{display:flex;align-items:stretch;min-width:610px}.ladder-stage{flex:1 1 0;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px;cursor:pointer;outline:none;transition:opacity .15s,border-color .15s,background .15s}.ladder-stage.active{border-color:var(--blue);background:#f5f7ff}.ladder-stage:focus-visible{box-shadow:0 0 0 2px rgba(84,118,223,.2)}.stage-top{display:flex;justify-content:space-between;gap:5px;align-items:center;margin-bottom:6px}.stage-top b{font-size:11px}.stage-top span{font-size:9px;color:var(--muted)}.ladder-arrow{width:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;color:#a8b0bd}.ladder-arrow svg{width:30px;height:18px}
-.vector-strip{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}.vector-strip.compact{gap:1px}.vector-cell{border:0;padding:0;border-radius:2px;height:24px;min-width:0;transition:opacity .12s,outline .12s;cursor:crosshair}.vector-strip.compact .vector-cell{height:34px}.vector-cell.linked-dim{opacity:.12}.vector-cell.linked-highlight{outline:2px solid var(--ink);outline-offset:1px;opacity:1}.vector-cell:focus-visible{outline:2px solid var(--ink)}
-.inspector{margin-top:10px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}.inspector-title{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}.inspector-title b{font-size:13px}.inspector-title span{font-size:10px;color:var(--muted);text-align:right}.inspect-row{display:grid;grid-template-columns:128px 1fr;align-items:center;gap:8px;margin:5px 0}.inspect-label b{display:block;font-size:11px}.inspect-label span{display:block;font-size:9px;color:var(--muted)}.empty-inspector{color:var(--muted);font-size:12px;padding:10px}
-.hover-readout{margin-top:6px;font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);min-height:16px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}.metric{background:var(--soft);border-radius:9px;padding:7px}.metric span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase}.metric strong{font-size:11px}
-details{background:#fff;border:1px solid var(--line);border-radius:12px;margin-top:9px;padding:0 12px}summary{cursor:pointer;font-weight:650;padding:11px 0}details>div{padding:0 0 12px;color:#344054;font-size:13px}.formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:8px;padding:8px 9px;overflow:auto}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stepbox{border:1px solid var(--line);border-radius:9px;padding:9px}.stepbox b{display:block;margin-bottom:2px}.foot{margin-top:13px;text-align:center;color:var(--muted);font-size:10px}.foot a{color:inherit}
-@media(max-width:900px){.workbench{grid-template-columns:1fr}.head{flex-direction:column;align-items:flex-start}.flow{grid-template-columns:1fr auto 1fr auto 1fr;grid-auto-rows:auto}.flow .optional{display:none}.metrics{grid-template-columns:1fr 1fr}}
-@media(max-width:540px){.wrap{padding:12px 9px 40px}.panel{padding:11px}.state-controls,.steps{grid-template-columns:1fr}.inspect-row{grid-template-columns:1fr}.inspector-title{display:block}.inspector-title span{display:block;text-align:left;margin-top:3px}.diff-controls{grid-template-columns:1fr}}
+:root{--bg:#f6f7f9;--panel:#fff;--text:#172033;--muted:#667085;--line:#e3e7ee;--ink:#273247;--red:#df6767;--green:#3c9a73;--blue:#5476df;--purple:#8968ca;--orange:#d97706;--soft:#f2f4f7;--radius:15px}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#fafbfc,#f4f5f7);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.42}
+button{font:inherit}.wrap{max-width:1580px;margin:auto;padding:11px 14px 48px}.topbar{height:34px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;padding:0 2px}.topbar strong{font-size:14px}.topbar span{font-size:10px;color:var(--muted)}
+.lab-grid{display:grid;grid-template-columns:clamp(255px,27vw,350px) minmax(0,1fr);gap:10px;align-items:stretch}.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px;min-width:0}.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.card-head b{font-size:12px}.card-head span{font-size:9px;color:var(--muted)}.sim-card{display:flex;flex-direction:column}.diff-card{overflow:hidden}
+.scene{border:1px solid #edf0f4;border-radius:10px;background:linear-gradient(180deg,#fdfefe,#f7f8fa);overflow:hidden}.scene svg{display:block;width:100%;height:auto}.scene text{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#697386}
+.readout{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}.readout span{display:flex;justify-content:space-between;gap:5px;background:#fafbfc;border:1px solid #e7e9ee;border-radius:6px;padding:5px 6px;font:8px ui-monospace,SFMono-Regular,Menlo,monospace;color:#596273}.readout b{font-family:Inter,ui-sans-serif,system-ui;color:#8b93a1}
+.controls{display:flex;align-items:center;gap:5px;margin-top:7px}.controls button{min-height:31px;border:1px solid #d9dde5;border-radius:7px;background:#fff;padding:5px 8px;cursor:pointer;font-size:9px}.controls .primary{background:var(--ink);color:#fff;border-color:var(--ink)}.controls .push{background:#fffaf2;border-color:#eadcc8}.controls .spacer{flex:1}.sim-status{margin-top:6px;font-size:9px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.diff-intro{display:flex;align-items:center;gap:8px;padding:2px 1px 8px}.diff-intro strong{font-size:13px}.diff-intro span{font-size:10px;color:var(--muted)}
+.flow{display:grid;grid-template-columns:auto 24px auto 24px auto 24px auto 24px auto;align-items:center;justify-content:center;gap:4px;margin-bottom:8px}.flow-node{border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px 9px;text-align:center;min-width:86px}.flow-node b{display:block;font-size:10px}.flow-node small{font-size:8px;color:var(--muted)}.flow-node.noise{background:#f8f4fd}.flow-node.model{background:#f3f6ff}.flow-node.out{background:#f1faf6}.flow-arrow{color:#a8b0bd;text-align:center}
+.ladder-shell{border:1px solid var(--line);border-radius:11px;background:#fcfcfd;padding:8px;overflow-x:auto}.ladder{display:flex;align-items:stretch;min-width:720px}.ladder-stage{flex:1 1 0;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px;cursor:pointer;outline:none;transition:opacity .15s,border-color .15s,background .15s}.ladder-stage.active{border-color:var(--blue);background:#f5f7ff}.stage-top{display:flex;justify-content:space-between;gap:4px;align-items:center;margin-bottom:5px}.stage-top b{font-size:10px}.stage-top span{font-size:8px;color:var(--muted)}.ladder-arrow{width:30px;flex:0 0 30px;display:flex;align-items:center;justify-content:center;color:#a8b0bd}.ladder-arrow svg{width:26px;height:18px}
+.vector-strip{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}.vector-strip.compact{gap:1px}.vector-cell{border:0;padding:0;border-radius:2px;height:23px;min-width:0;cursor:crosshair;transition:opacity .12s,outline .12s}.vector-strip.compact .vector-cell{height:42px}.vector-cell.linked-dim{opacity:.11}.vector-cell.linked-highlight{outline:2px solid var(--ink);outline-offset:1px;opacity:1}.vector-cell:focus-visible{outline:2px solid var(--ink)}
+.inspect-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(220px,.55fr);gap:8px;margin-top:8px}.inspector{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px;min-width:0}.inspector-title{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}.inspector-title b{font-size:11px}.inspector-title span{font-size:8px;color:var(--muted);text-align:right}.inspect-row{display:grid;grid-template-columns:112px minmax(0,1fr);align-items:center;gap:7px;margin:4px 0}.inspect-label b{display:block;font-size:9px}.inspect-label span{display:block;font-size:7px;color:var(--muted)}.empty-inspector{font-size:10px;color:var(--muted);padding:8px}
+.side-info{display:flex;flex-direction:column;gap:6px}.plain{border-left:3px solid var(--blue);background:#f8f9fd;border-radius:0 8px 8px 0;padding:7px 8px;font-size:10px;color:#485467}.plain b{color:#405fc3}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:5px}.metric{background:var(--soft);border-radius:8px;padding:6px}.metric span{display:block;font-size:7px;color:var(--muted);text-transform:uppercase}.metric strong{font-size:9px}.hover-readout{min-height:31px;border:1px dashed #dfe3e8;border-radius:8px;padding:6px;font:8px ui-monospace,SFMono-Regular,Menlo,monospace;color:#667085}
+details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-top:9px;padding:0 11px}summary{cursor:pointer;font-weight:650;font-size:11px;padding:9px 0}details>div{padding:0 0 10px;color:#465163;font-size:10px;line-height:1.55}.formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:7px;padding:7px 8px;overflow:auto}.foot{margin-top:10px;text-align:center;color:#9299a5;font-size:8px}.foot a{color:inherit}
+@media(max-width:980px){.lab-grid{grid-template-columns:clamp(240px,33vw,310px) minmax(0,1fr)}.flow-node{min-width:72px;padding:5px 6px}.inspect-grid{grid-template-columns:1fr}.side-info{display:grid;grid-template-columns:1fr 1fr}.hover-readout{grid-column:1/3}}
+@media(orientation:portrait), (max-width:760px){.wrap{padding:9px 9px 36px}.topbar span{display:none}.lab-grid{grid-template-columns:1fr}.sim-card{max-width:none}.scene svg{max-height:300px}.readout{grid-template-columns:repeat(4,1fr)}.diff-card{min-height:0}.inspect-grid{grid-template-columns:1fr}.side-info{display:grid;grid-template-columns:1fr 1fr}.hover-readout{grid-column:1/3}}
+@media(max-width:520px){.readout{grid-template-columns:1fr 1fr}.flow{grid-template-columns:1fr 18px 1fr 18px 1fr}.flow .flow-hide-mobile{display:none}.ladder{min-width:0;flex-direction:column}.ladder-arrow{width:100%;height:24px;flex:0 0 24px}.ladder-arrow svg{transform:rotate(90deg)}.vector-strip.compact .vector-cell{height:25px}.inspect-row{grid-template-columns:1fr}.inspector-title{display:block}.inspector-title span{display:block;text-align:left;margin-top:2px}.side-info{grid-template-columns:1fr}.hover-readout{grid-column:auto}.controls{flex-wrap:wrap}}
+@media(orientation:landscape) and (max-height:620px) and (min-width:761px){.wrap{padding-top:7px}.topbar{height:26px}.scene svg{max-height:310px}.vector-strip.compact .vector-cell{height:30px}.inspect-row{margin:3px 0}.controls button{min-height:28px}}
 </style>
 </head>
 <body>
 <main class="wrap">
-<header class="head"><div><h1>Cart-Pole Diffusion Lab</h1><p>Diffusion만 봅니다. 모델이 noisy action에서 “무엇이 noise인가?”를 반복해서 추정하며 action을 정리하는 과정을 단계별로 추적하세요.</p></div><span class="tag" id="modelTag">model loading</span></header>
-<div class="one-line"><b>Diffusion = noise를 한 번에 없애는 모델이 아니라,</b> 현재 값에서 noise를 조금 추정하고 → 조금 빼고 → 다시 반복하는 생성 과정입니다.</div>
+<header class="topbar"><strong>Cart-Pole Diffusion</strong><span id="modelTag">learned denoiser loading…</span></header>
 
-<section class="workbench">
-<div class="panel">
-<h2>Condition · Cart-Pole state</h2>
-<div class="subtle">이 패널은 Diffusion에 “지금 어떤 action이 필요한가?”라는 조건만 줍니다. 제어 이론 설명은 여기서 다루지 않습니다.</div>
-<div class="scene"><svg viewBox="0 0 600 305" role="img" aria-label="Cart-Pole condition state">
-<line x1="28" y1="246" x2="572" y2="246" stroke="#c9ced7" stroke-width="4"/>
-<rect id="cart" x="245" y="205" width="110" height="40" rx="9" fill="#4d5f78"/><circle id="wheel1" cx="270" cy="255" r="11" fill="#273247"/><circle id="wheel2" cx="330" cy="255" r="11" fill="#273247"/>
-<line id="pole" x1="300" y1="205" x2="300" y2="66" stroke="#df6767" stroke-width="13" stroke-linecap="round"/><circle id="pivot" cx="300" cy="205" r="9" fill="#172033"/>
-<text id="sceneLabel" x="18" y="27" font-size="13" fill="#667085">θ 8.0° · θ̇ 0°/s</text><text id="forceLabel" x="18" y="47" font-size="13" fill="#667085">generated action —</text>
-</svg></div>
-<div class="state-controls">
-<div class="ctl"><label><span>x</span><strong id="xv">0.00 m</strong></label><input id="x" type="range" min="-0.8" max="0.8" step="0.02" value="0"></div>
-<div class="ctl"><label><span>ẋ</span><strong id="vv">0.00 m/s</strong></label><input id="xdot" type="range" min="-1.2" max="1.2" step="0.04" value="0"></div>
-<div class="ctl"><label><span>θ</span><strong id="tv">8.0°</strong></label><input id="theta" type="range" min="-11" max="11" step="1" value="8"></div>
-<div class="ctl"><label><span>θ̇</span><strong id="wv">0°/s</strong></label><input id="omega" type="range" min="-100" max="100" step="5" value="0"></div>
-</div>
-<div class="row"><select id="preset"><option value="right">right lean</option><option value="left">left lean</option><option value="moving">moving</option><option value="center">near center</option></select><button id="reset">Reset</button><button id="execute" class="primary" disabled>Execute 4 + replan</button></div>
-<div class="status"><div class="stat"><span>condition</span><strong id="conditionText">[0,0,8°,0]</strong></div><div class="stat"><span>first action</span><strong id="firstAction">—</strong></div><div class="stat"><span>cycle</span><strong id="cycleStatus">ready</strong></div></div>
-</div>
+<section class="lab-grid">
+<aside class="card sim-card">
+  <div class="card-head"><b>LIVE CONDITION</b><span>physics 50 Hz · replan every 4 actions</span></div>
+  <div class="scene"><svg viewBox="0 0 600 330" role="img" aria-label="live Cart-Pole controlled by diffusion action chunks">
+    <defs>
+      <marker id="arrowPolicy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#8968ca"/></marker>
+      <marker id="arrowPush" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#d97706"/></marker>
+    </defs>
+    <rect x="38" y="246" width="524" height="38" rx="9" fill="#f7f8fa"/>
+    <line x1="54" y1="264" x2="546" y2="264" stroke="#c7ced8" stroke-width="6" stroke-linecap="round"/>
+    <line x1="54" y1="239" x2="54" y2="293" stroke="#d36a6a" stroke-width="2" stroke-dasharray="4 4"/><line x1="546" y1="239" x2="546" y2="293" stroke="#d36a6a" stroke-width="2" stroke-dasharray="4 4"/>
+    <line x1="300" y1="50" x2="300" y2="291" stroke="#e7eaf0" stroke-width="1" stroke-dasharray="3 5"/>
+    <rect id="cart" x="250" y="210" width="100" height="38" rx="8" fill="#35445c"/><circle id="wheel1" cx="272" cy="264" r="12" fill="#182333"/><circle id="wheel2" cx="328" cy="264" r="12" fill="#182333"/>
+    <line id="pole" x1="300" y1="210" x2="300" y2="66" stroke="#df6767" stroke-width="13" stroke-linecap="round"/><circle id="pivot" cx="300" cy="210" r="9" fill="#182333"/>
+    <line id="policyArrow" x1="300" y1="305" x2="300" y2="305" stroke="#8968ca" stroke-width="4" marker-end="url(#arrowPolicy)"/>
+    <line id="pushArrow" x1="300" y1="324" x2="300" y2="324" stroke="#d97706" stroke-width="4" marker-end="url(#arrowPush)" opacity="0"/>
+    <text id="stateLabel" x="16" y="25">θ 5.0° · θ̇ 0°/s</text><text id="planLabel" x="16" y="44">plan #0 · action —</text>
+  </svg></div>
+  <div class="readout"><span><b>x</b><i id="rx">0.00 m</i></span><span><b>ẋ</b><i id="rv">0.00 m/s</i></span><span><b>θ</b><i id="rt">5.0°</i></span><span><b>θ̇</b><i id="rw">0°/s</i></span></div>
+  <div class="controls"><button id="runBtn" class="primary">Pause</button><button id="resetBtn">Reset</button><span class="spacer"></span><button id="pushL" class="push">← Push</button><button id="pushR" class="push">Push →</button></div>
+  <div class="sim-status"><span id="simStatus">balancing</span><span id="elapsed">0.0 s</span></div>
+</aside>
 
-<div class="panel">
-<h2>Diffusion · noise → action</h2>
-<div class="flow" aria-label="Diffusion flow">
-<div class="flow-node out-node"><b>clean a₀</b><span>reference</span></div><div class="flow-arrow">→</div>
-<div class="flow-node noise-node"><b>add noise</b><span>choose t</span></div><div class="flow-arrow">→</div>
-<div class="flow-node"><b>noisy aₜ</b><span>start</span></div><div class="flow-arrow optional">→</div>
-<div class="flow-node learn-node optional"><b>εθ</b><span>guess noise</span></div><div class="flow-arrow optional">→</div>
-<div class="flow-node learn-node optional"><b>DDIM</b><span>remove a little</span></div><div class="flow-arrow">→</div>
-<div class="flow-node out-node"><b>action</b><span>repeat to t=0</span></div>
-</div>
+<section class="card diff-card">
+  <div class="card-head"><b>DIFFUSION · LATEST ACTION PLAN</b><span>actual intermediate values from the learned model</span></div>
+  <div class="diff-intro"><strong>Gaussian noise → predict ε → remove a little → repeat → action</strong><span>한 번에 action을 찍지 않고 noise를 여러 번 줄입니다.</span></div>
+  <div class="flow" aria-label="diffusion generation flow">
+    <div class="flow-node noise"><b>Gaussian</b><small>start latent</small></div><div class="flow-arrow">→</div>
+    <div class="flow-node model"><b>εθ(aₜ,t,c)</b><small>predict noise</small></div><div class="flow-arrow">→</div>
+    <div class="flow-node model"><b>DDIM step</b><small>remove a little</small></div><div class="flow-arrow flow-hide-mobile">→</div>
+    <div class="flow-node model flow-hide-mobile"><b>repeat ×19</b><small>t 95 → 0</small></div><div class="flow-arrow">→</div>
+    <div class="flow-node out"><b>16 actions</b><small>execute first 4</small></div>
+  </div>
 
-<div class="diff-controls">
-<div><div class="tline"><span>How noisy? forward timestep</span><strong>t = <span id="tValue">70</span></strong></div><input id="t" type="range" min="5" max="95" step="5" value="70"><div class="mode-note">t가 클수록 원래 action보다 noise 비중이 큽니다.</div></div>
-<select id="mode"><option value="learned">Learned εθ</option><option value="oracle">Oracle ε</option></select>
-</div>
-<div class="row"><button id="noiseBtn">New noise</button><button id="denoiseBtn" class="primary" disabled>Play denoise</button><button id="generateBtn" disabled>Pure noise → action</button></div>
+  <div class="ladder-shell"><div id="ladder" class="ladder" aria-label="representative denoising steps"></div></div>
 
-<div class="ladder-wrap"><div id="ladder" class="ladder" aria-label="Representative denoising timesteps"></div></div>
-<div id="inspector" class="inspector"></div>
-<div id="hoverReadout" class="hover-readout">셀에 마우스를 올리면 같은 action index가 모든 단계에서 연결됩니다.</div>
-<div class="metrics"><div class="metric"><span>start t</span><strong id="metricStart">70</strong></div><div class="metric"><span>reverse steps</span><strong id="metricSteps">14</strong></div><div class="metric"><span>ε MSE</span><strong id="epsMse">—</strong></div><div class="metric"><span>final action MAE</span><strong id="actionMae">—</strong></div></div>
-<div class="subtle" id="modelLine" style="margin-top:6px">Loading trained weights…</div>
-</div>
+  <div class="inspect-grid">
+    <div id="inspector" class="inspector"></div>
+    <div class="side-info">
+      <div class="plain"><b>읽는 법</b><br>한 세로 칸 = 같은 action index. 셀에 마우스를 올리면 noise가 action으로 변하는 동안 같은 index가 전 단계에서 함께 강조됩니다.</div>
+      <div class="metrics"><div class="metric"><span>plan</span><strong id="metricPlan">#0</strong></div><div class="metric"><span>selected t</span><strong id="metricT">95</strong></div><div class="metric"><span>first action</span><strong id="metricAction">—</strong></div><div class="metric"><span>model</span><strong id="metricModel">loading</strong></div></div>
+      <div id="hoverReadout" class="hover-readout">hover a cell → follow action[i] through denoising</div>
+    </div>
+  </div>
+</section>
 </section>
 
-<details open><summary>지금 화면에서 딱 세 가지만 이해하면 됩니다</summary><div><div class="steps"><div class="stepbox"><b>1. aₜ</b>처음에는 action이 noise와 섞여 있어서 어떤 force sequence인지 잘 보이지 않습니다.</div><div class="stepbox"><b>2. εθ</b>모델은 “현재 값 중 noise처럼 보이는 부분”을 예측합니다. 정답 action 자체를 바로 찍는 것이 아닙니다.</div><div class="stepbox"><b>3. repeat</b>예측한 noise를 조금 제거하고 다시 같은 일을 반복하면 점점 action 구조가 나타납니다.</div></div><p class="formula">aₜ → εθ(aₜ,t,c) → aₜ₋Δ → εθ(aₜ₋Δ,t−Δ,c) → … → a₀</p></div></details>
-<details><summary>Heatmap을 왜 쓰나요?</summary><div>각 세로 셀 하나는 16-step action chunk의 같은 index입니다. 위쪽 ladder에서 아무 셀이나 가리키면 모든 timestep의 같은 column이 동시에 강조됩니다. 그래서 “action[7]이 noise에서 어떻게 안정되는지”를 시간축으로 추적할 수 있습니다. 이 linked-hover 방식은 Polo Club Transformer Explainer의 <code>MatrixSvg</code>가 row/column을 강조하고 나머지를 dim 처리하는 패턴을 Diffusion action vector에 맞게 단순화한 것입니다.</div></details>
-<details><summary>Learned εθ와 Oracle ε</summary><div><b>Learned εθ</b>는 실제 6,000-step 학습 MLP가 noise를 예측합니다. <b>Oracle ε</b>는 forward 과정에서 사용한 진짜 noise를 알고 있어서 이상적인 기준입니다. 같은 start latent에서 둘을 비교하면 diffusion algorithm 자체와 model error를 분리할 수 있습니다. Pure-noise generation은 Learned에서만 가능합니다.</div></details>
-<details><summary>왜 Cart-Pole인가?</summary><div>Diffusion 자체를 설명하기 위해 action이 16개의 숫자로 짧고 눈에 보이는 문제를 택했습니다. 여기서 중요한 것은 Cart-Pole 성능이 아니라 <b>condition + noisy sequence + iterative denoising</b> 구조입니다.</div></details>
+<details open><summary>왜 이렇게 구성했나?</summary><div>왼쪽은 환경입니다. 50 Hz로 계속 움직이고, Diffusion policy는 현재 상태 <code>c=[x,ẋ,θ,θ̇]</code>를 조건으로 16개의 미래 force를 생성합니다. 그중 앞 4개만 실행한 뒤 새 상태에서 다시 Gaussian noise부터 plan을 만듭니다. 오른쪽은 최신 plan에서 모델이 실제 계산한 <code>aₜ</code>, <code>εθ</code>, 추정 <code>a₀</code>, 다음 latent를 보여줄 뿐이며 제어 계산을 다시 구현하지 않습니다.</div></details>
+<details><summary>Forward diffusion은 어디 갔나?</summary><div>실제 실행 시에는 Gaussian noise에서 시작해 reverse diffusion만 사용합니다. Forward diffusion <span class="formula">aₜ = √ᾱₜ a₀ + √(1−ᾱₜ)ε</span> 은 학습할 때 clean demonstration에 known noise를 섞어 <code>εθ</code>의 정답을 만드는 과정입니다. 실행 화면에서 forward 과정을 항상 보여주면 “정답 action을 알고 생성한다”는 오해가 생길 수 있어 아래 설명으로 내렸습니다.</div></details>
+<details><summary>Transformer 버전과 같은 설계 원칙</summary><div><code>cartpole-transformer</code>도 Environment → Model → Explainer를 분리합니다. 50 Hz simulation이 history를 만들고, learned Transformer가 실제 intermediate tensor를 내며, explainer가 그것을 시각화합니다. 여기서는 history token 대신 최신 Diffusion action plan과 denoising history를 시각화합니다. 화면도 가로에서는 좁은 simulation + 넓은 explainer, 세로에서는 위 simulation + 아래 explainer로 자동 전환합니다.</div></details>
+<details><summary>범위</summary><div>현재 모델은 upright 근방 Cart-Pole demonstration으로 학습한 작은 교육용 denoiser입니다. 목적은 Diffusion의 iterative denoising을 이해하는 것이며, Cart-Pole SOTA나 manipulation-scale Diffusion Policy 성능을 주장하지 않습니다.</div></details>
 
-<footer class="foot">Visualization patterns adapted from Polo Club Transformer Explainer (MatrixSvg linked highlighting, Sankey-style flow, progressive inspection) and inspired by Polo Club Diffusion Explainer · <a href="https://github.com/tinmanlab/cartpole-diffusion">source</a></footer>
+<footer class="foot">Linked highlighting and staged inspection patterns adapted from Polo Club Transformer Explainer; diffusion concept inspired by Polo Club Diffusion Explainer · <a href="https://github.com/tinmanlab/cartpole-diffusion">source</a></footer>
 </main>
 <script src="app/tiny_denoiser.js"></script>
 <script src="app/diffusion_viz.js"></script>
 <script>
 (function(){
 "use strict";
-var T=100,H=16,MAXF=10,S=.008,model=null,seed=7,history=[],selectedT=null,playTimer=null,startKind="forward";
-var state=[0,0,8*Math.PI/180,0],clean=[],eps=[],startLatent=null,recovered=null;
-var presets={right:[0,0,8*Math.PI/180,0],left:[0,0,-8*Math.PI/180,0],moving:[.12,-.42,5*Math.PI/180,-35*Math.PI/180],center:[.02,.05,1.5*Math.PI/180,-4*Math.PI/180]};
-function E(id){return document.getElementById(id)}function clamp(x,a,b){return Math.max(a,Math.min(b,x))}function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}function deg(x){return x*180/Math.PI}function rad(x){return x*Math.PI/180}
-function rand(seed0){return function(){seed0+=0x6D2B79F5;var t=seed0;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
-function makeNoise(){var r=rand(seed),sp=null;eps=[];for(var i=0;i<H;i++){if(sp!==null){eps.push(sp);sp=null;continue}var u=0,v=0;while(!u)u=r();while(!v)v=r();var m=Math.sqrt(-2*Math.log(u));eps.push(m*Math.cos(2*Math.PI*v));sp=m*Math.sin(2*Math.PI*v)}}
+var H=16,MAXF=10,S=.008,T=100,TAU=.02,EXECUTE=4,START_T=95,STRIDE=5;
+var model=null,state=null,running=true,disturbance=0,elapsed=0,policyForce=0,plan=[],planCursor=0,planCount=0,noiseSeed=11,history=[],selectedT=95,raf=0,lastNow=0,acc=0,status="balancing";
+function E(id){return document.getElementById(id)}function clamp(x,a,b){return Math.max(a,Math.min(b,x))}function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}function deg(x){return x*180/Math.PI}
+function resetState(){return{x:0,xDot:0,theta:5*Math.PI/180,thetaDot:0}}
+function stateArray(){return[state.x,state.xDot,state.theta,state.thetaDot]}
+function random(){var a=noiseSeed+=0x6D2B79F5;a=Math.imul(a^a>>>15,a|1);a^=a+Math.imul(a^a>>>7,a|61);return((a^a>>>14)>>>0)/4294967296}
+function gaussian16(){var out=[],sp=null;while(out.length<H){if(sp!==null){out.push(sp);sp=null;continue}var u=0,v=0;while(!u)u=random();while(!v)v=random();var m=Math.sqrt(-2*Math.log(u));out.push(m*Math.cos(2*Math.PI*v));sp=m*Math.sin(2*Math.PI*v)}return out}
 function ab(t){var x=(t/T+S)/(1+S),f=Math.cos(x*Math.PI/2),f0=Math.cos((S/(1+S))*Math.PI/2);return clamp(f*f/(f0*f0),1e-5,1)}
-function teacher(s){return clamp(3.02047836*s[0]+5.99053209*s[1]+53.60976189*s[2]+14.17379801*s[3],-MAXF,MAXF)}
-function physics(s,u){var x=s[0],xd=s[1],th=s[2],thd=s[3],c=Math.cos(th),sn=Math.sin(th),tmp=(clamp(u,-MAXF,MAXF)+.05*thd*thd*sn)/1.1,tha=(9.8*sn-c*tmp)/(.5*(4/3-.1*c*c/1.1)),xa=tmp-.05*tha*c/1.1;return[x+.02*xd,xd+.02*xa,th+.02*thd,thd+.02*tha]}
-function forwardLatent(t){var a=ab(t),sa=Math.sqrt(a),sn=Math.sqrt(1-a);return clean.map(function(x,i){return sa*x+sn*eps[i]})}
-function mse(a,b){var s=0;for(var i=0;i<a.length;i++){var d=a[i]-b[i];s+=d*d}return s/a.length}function mae(a,b){var s=0;for(var i=0;i<a.length;i++)s+=Math.abs(a[i]-b[i]);return s/a.length}
-function ddim(x,cur,prev,pred){var ac=ab(cur),ap=ab(prev),sc=Math.sqrt(ac),nc=Math.sqrt(1-ac),sp=Math.sqrt(ap),np=Math.sqrt(1-ap);var x0=x.map(function(v,i){return clamp((v-nc*pred[i])/sc,-1.2,1.2)});var next=x0.map(function(v,i){return sp*v+np*pred[i]});return{x0:x0,next:next}}
-function buildTarget(){var s=state.slice();clean=[];for(var i=0;i<H;i++){var u=teacher(s);clean.push(u/MAXF);s=physics(s,u)}}
-function buildHistory(kind){
-  if(!model&&E("mode").value==="learned")return;
-  var mode=E("mode").value;if(kind==="generation"&&mode!=="learned")kind="forward";
-  var start=kind==="generation"?95:+E("t").value;
-  startKind=kind;startLatent=kind==="generation"?eps.slice():forwardLatent(start);
-  var x=startLatent.slice(),cur=start,out=[];
+function physics(s,u,push){var x=s.x,xd=s.xDot,th=s.theta,thd=s.thetaDot,c=Math.cos(th),sn=Math.sin(th),total=1.1,tmp=(clamp(u,-MAXF,MAXF)+push+.05*thd*thd*sn)/total,tha=(9.8*sn-c*tmp)/(.5*(4/3-.1*c*c/total)),xa=tmp-.05*tha*c/total;return{x:x+TAU*xd,xDot:xd+TAU*xa,theta:th+TAU*thd,thetaDot:thd+TAU*tha}}
+function ddim(x,cur,prev,pred){var ac=ab(cur),ap=ab(prev),sc=Math.sqrt(ac),nc=Math.sqrt(1-ac),sp=Math.sqrt(ap),np=Math.sqrt(1-ap);var x0=x.map(function(v,i){return clamp((v-nc*pred[i])/sc,-1.2,1.2)}),next=x0.map(function(v,i){return sp*v+np*pred[i]});return{x0:x0,next:next}}
+function makePlan(){
+  if(!model)return;
+  var x=gaussian16(),cur=START_T,out=[];
   while(cur>0){
-    var prev=Math.max(0,cur-5),pred=mode==="oracle"?eps:model.predict(x,cur,state),step=ddim(x,cur,prev,pred);
-    out.push({t:cur,latent:x.slice(),pred:pred.slice(),x0:step.x0.slice(),next:step.next.slice(),caption:cur===start?"start":"denoise"});
+    var prev=Math.max(0,cur-STRIDE),pred=model.predict(x,cur,stateArray()),step=ddim(x,cur,prev,pred);
+    out.push({t:cur,latent:x.slice(),pred:pred.slice(),x0:step.x0.slice(),next:step.next.slice(),caption:cur===START_T?"noise":"denoise"});
     x=step.next;cur=prev;
   }
-  out.push({t:0,latent:x.slice(),pred:null,x0:x.slice(),next:x.slice(),caption:"final"});
-  history=out;recovered=x.slice();selectedT=start;
+  out.push({t:0,latent:x.slice(),pred:null,x0:x.slice(),next:x.slice(),caption:"action"});
+  plan=x.map(function(v){return clamp(v,-1,1)});planCursor=0;planCount++;history=out;
+  if(!history.some(function(s){return s.t===selectedT}))selectedT=START_T;
   renderDiffusion();
 }
-function selectedStage(){for(var i=0;i<history.length;i++)if(history[i].t===selectedT)return history[i];return history[0]||null}
+function stage(){for(var i=0;i<history.length;i++)if(history[i].t===selectedT)return history[i];return history[0]||null}
 function renderDiffusion(){
   DiffusionViz.renderLadder(E("ladder"),history,selectedT,function(t){selectedT=t;renderDiffusion()});
-  DiffusionViz.renderInspector(E("inspector"),selectedStage());
-  E("metricStart").textContent=startKind==="generation"?"95":E("t").value;
-  E("metricSteps").textContent=history.length?history.length-1:"—";
-  if(model&&startKind==="forward"){var p=model.predict(startLatent,+E("t").value,state);E("epsMse").textContent=fmt(mse(p,eps),4)}else E("epsMse").textContent="n/a";
-  E("actionMae").textContent=recovered?fmt(mae(recovered,clean),4):"—";
-  E("execute").disabled=!recovered;
-  renderScene();
+  DiffusionViz.renderInspector(E("inspector"),stage());
+  E("metricPlan").textContent="#"+planCount;E("metricT").textContent=selectedT;E("metricAction").textContent=plan.length?(plan[0]>=0?"+":"")+fmt(plan[0]*MAXF,2)+" N":"—";E("metricModel").textContent=model?"εθ":"loading";
 }
-function renderScene(){var cx=300+state[0]*145,th=state[2],len=139,x2=cx+Math.sin(th)*len,y2=205-Math.cos(th)*len;E("cart").setAttribute("x",cx-55);E("wheel1").setAttribute("cx",cx-30);E("wheel2").setAttribute("cx",cx+30);E("pivot").setAttribute("cx",cx);E("pole").setAttribute("x1",cx);E("pole").setAttribute("x2",x2);E("pole").setAttribute("y2",y2);E("sceneLabel").textContent="θ "+fmt(deg(th),1)+"° · θ̇ "+fmt(deg(state[3]),0)+"°/s";var seq=recovered||startLatent;E("forceLabel").textContent=seq?"generated action "+(seq[0]>=0?"+":"")+fmt(seq[0]*MAXF,2)+" N":"generated action —";E("firstAction").textContent=seq?(seq[0]>=0?"+":"")+fmt(seq[0]*MAXF,2)+" N":"—";E("xv").textContent=fmt(state[0],2)+" m";E("vv").textContent=fmt(state[1],2)+" m/s";E("tv").textContent=fmt(deg(th),1)+"°";E("wv").textContent=fmt(deg(state[3]),0)+"°/s";E("conditionText").textContent="["+fmt(state[0],2)+", "+fmt(state[1],2)+", "+fmt(deg(th),1)+"°, "+fmt(deg(state[3]),0)+"°/s]"}
-function refresh(kind){stopPlay();buildTarget();if(kind==="generation"){buildHistory("generation")}else{startKind="forward";startLatent=forwardLatent(+E("t").value);recovered=null;history=[];selectedT=+E("t").value;if(model||E("mode").value==="oracle")buildHistory("forward");else renderScene()}}
-function stopPlay(){if(playTimer){clearInterval(playTimer);playTimer=null}E("denoiseBtn").textContent="Play denoise"}
-function play(){if(!history.length)return;if(playTimer){stopPlay();return}var representative=(function(){var count=Math.min(5,history.length),arr=[];for(var i=0;i<count;i++)arr.push(history[Math.round(i*(history.length-1)/(count-1))].t);return arr})();var i=0;selectedT=representative[0];renderDiffusion();E("denoiseBtn").textContent="Pause";playTimer=setInterval(function(){i++;if(i>=representative.length){stopPlay();return}selectedT=representative[i];renderDiffusion()},650)}
-function execute(){if(!recovered)return;for(var i=0;i<4;i++)state=physics(state,recovered[i]*MAXF);sync();seed++;makeNoise();E("cycleStatus").textContent="executed + replanned";refresh(E("mode").value==="learned"?"generation":"forward")}
-function sync(){E("x").value=state[0];E("xdot").value=state[1];E("theta").value=deg(state[2]);E("omega").value=deg(state[3])}
-["x","xdot","theta","omega"].forEach(function(id){E(id).addEventListener("input",function(){if(id==="x")state[0]=+this.value;if(id==="xdot")state[1]=+this.value;if(id==="theta")state[2]=rad(+this.value);if(id==="omega")state[3]=rad(+this.value);refresh("forward")})});
-E("preset").addEventListener("change",function(){state=presets[this.value].slice();sync();seed++;makeNoise();refresh("forward")});E("reset").addEventListener("click",function(){E("preset").value="right";state=presets.right.slice();sync();seed=7;makeNoise();E("cycleStatus").textContent="ready";refresh("forward")});
-E("t").addEventListener("input",function(){E("tValue").textContent=this.value;refresh("forward")});E("noiseBtn").addEventListener("click",function(){seed++;makeNoise();refresh("forward")});E("mode").addEventListener("change",function(){E("generateBtn").disabled=this.value!=="learned"||!model;refresh("forward")});
-E("denoiseBtn").addEventListener("click",play);E("generateBtn").addEventListener("click",function(){seed++;makeNoise();refresh("generation")});E("execute").addEventListener("click",execute);
-DiffusionViz.subscribe(function(index){if(index===null){E("hoverReadout").textContent="셀에 마우스를 올리면 같은 action index가 모든 단계에서 연결됩니다.";return}var s=selectedStage(),parts=["action["+index+"]"];if(s){parts.push("a_t="+fmt(s.latent[index],3));if(s.pred)parts.push("εθ="+fmt(s.pred[index],3));if(s.x0)parts.push("a0-hat="+fmt(s.x0[index],3));}E("hoverReadout").textContent=parts.join("  ·  ")});
-makeNoise();buildTarget();startLatent=forwardLatent(+E("t").value);renderScene();DiffusionViz.renderInspector(E("inspector"),null);
-CartPoleTinyDenoiser.load("artifacts/model.json").then(function(m){model=m;var tr=m.metadata.training;E("modelTag").textContent="v0.3 diffusion view";E("modelLine").textContent="trained εθ · "+tr.steps+" steps · validation ε MSE "+fmt(tr.validation_epsilon_mse,4);E("denoiseBtn").disabled=false;E("generateBtn").disabled=false;buildHistory("forward")}).catch(function(err){E("modelTag").textContent="Oracle only";E("modelLine").textContent="model load failed: "+err;E("mode").value="oracle";E("mode").querySelector('option[value="learned"]').disabled=true;E("denoiseBtn").disabled=false;buildHistory("forward")});
+function renderSim(){
+  var cx=300+state.x*103,th=state.theta,len=144,x2=cx+Math.sin(th)*len,y2=210-Math.cos(th)*len;
+  E("cart").setAttribute("x",cx-50);E("wheel1").setAttribute("cx",cx-28);E("wheel2").setAttribute("cx",cx+28);E("pivot").setAttribute("cx",cx);E("pole").setAttribute("x1",cx);E("pole").setAttribute("x2",x2);E("pole").setAttribute("y2",y2);
+  E("stateLabel").textContent="θ "+fmt(deg(th),1)+"° · θ̇ "+fmt(deg(state.thetaDot),0)+"°/s";E("planLabel").textContent="plan #"+planCount+" · action "+(policyForce>=0?"+":"")+fmt(policyForce,2)+" N";
+  var plen=Math.min(75,Math.abs(policyForce)*6),px=cx+Math.sign(policyForce||1)*plen;E("policyArrow").setAttribute("x1",cx);E("policyArrow").setAttribute("x2",px);E("policyArrow").setAttribute("opacity",Math.abs(policyForce)>.05?1:0);
+  var dlen=Math.min(60,Math.abs(disturbance)*9),dx=cx+Math.sign(disturbance||1)*dlen;E("pushArrow").setAttribute("x1",cx);E("pushArrow").setAttribute("x2",dx);E("pushArrow").setAttribute("opacity",Math.abs(disturbance)>.05?1:0);
+  E("rx").textContent=fmt(state.x,2)+" m";E("rv").textContent=fmt(state.xDot,2)+" m/s";E("rt").textContent=fmt(deg(th),1)+"°";E("rw").textContent=fmt(deg(state.thetaDot),0)+"°/s";E("simStatus").textContent=status;E("elapsed").textContent=fmt(elapsed,1)+" s";
+}
+function reset(){
+  state=resetState();elapsed=0;status="balancing";running=true;disturbance=0;plan=[];planCursor=0;planCount=0;policyForce=0;noiseSeed=11;selectedT=START_T;E("runBtn").textContent="Pause";if(model)makePlan();renderSim();
+}
+function step(){
+  if(!model)return;
+  if(!plan.length||planCursor>=EXECUTE)makePlan();
+  policyForce=(plan[planCursor]||0)*MAXF;
+  state=physics(state,policyForce,disturbance);planCursor++;elapsed+=TAU;
+  if(Math.abs(state.theta)>18*Math.PI/180||Math.abs(state.x)>2.4){status="fell · reset to continue";running=false;disturbance=0;E("runBtn").textContent="Run"}
+}
+function frame(now){
+  if(!lastNow)lastNow=now;var delta=Math.min(.08,(now-lastNow)/1000);lastNow=now;
+  if(running){acc+=delta;while(acc>=TAU){step();acc-=TAU;if(!running)break}}
+  renderSim();raf=requestAnimationFrame(frame);
+}
+function push(v){disturbance=v}function pushEnd(){disturbance=0}
+E("runBtn").addEventListener("click",function(){running=!running;this.textContent=running?"Pause":"Run";if(running&&status.indexOf("fell")===0)reset()});
+E("resetBtn").addEventListener("click",reset);
+[["pushL",-4],["pushR",4]].forEach(function(pair){var b=E(pair[0]);b.addEventListener("pointerdown",function(){push(pair[1])});["pointerup","pointerleave","pointercancel"].forEach(function(ev){b.addEventListener(ev,pushEnd)})});
+DiffusionViz.subscribe(function(index){if(index===null){E("hoverReadout").textContent="hover a cell → follow action[i] through denoising";return}var s=stage(),parts=["action["+index+"]"];if(s){parts.push("a_t="+fmt(s.latent[index],3));if(s.pred)parts.push("εθ="+fmt(s.pred[index],3));if(s.x0)parts.push("â0="+fmt(s.x0[index],3));}E("hoverReadout").textContent=parts.join("  ·  ")});
+state=resetState();renderSim();DiffusionViz.renderInspector(E("inspector"),null);
+CartPoleTinyDenoiser.load("artifacts/model.json").then(function(m){model=m;var tr=m.metadata.training;E("modelTag").textContent="learned εθ · "+tr.steps+" train steps · val MSE "+fmt(tr.validation_epsilon_mse,4);makePlan();raf=requestAnimationFrame(frame)}).catch(function(err){status="model load failed";E("modelTag").textContent=String(err);renderSim()});
 })();
 </script>
 </body>

@@ -16,9 +16,9 @@ server.listen(8123,"127.0.0.1",async()=>{
     vm.runInThisContext(vizSource,{filename:"diffusion_viz.js"});
     if(!globalThis.DiffusionViz||typeof globalThis.DiffusionViz.renderLadder!=="function")throw new Error("viz api missing");
     const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
-    for(const id of ["ladder","inspector","execute","denoiseBtn","generateBtn","hoverReadout"])if(!html.includes('id="'+id+'"'))throw new Error("missing "+id);
-    if(!html.includes("Diffusion = noise"))throw new Error("diffusion-first explanation missing");
-    console.log("MODEL_AND_VIZ_SMOKE_OK",model.metadata.training.validation_epsilon_mse.toFixed(6));
+    for(const id of ["ladder","inspector","runBtn","resetBtn","pushL","pushR","metricPlan"])if(!html.includes('id="'+id+'"'))throw new Error("missing "+id);
+    if(!html.includes("physics 50 Hz")||!html.includes("replan every 4 actions"))throw new Error("live loop contract missing");
+    console.log("MODEL_AND_LIVE_UI_SMOKE_OK",model.metadata.training.validation_epsilon_mse.toFixed(6));
     server.close(()=>process.exit(0));
   }catch(e){console.error(e);server.close(()=>process.exit(1))}
 });

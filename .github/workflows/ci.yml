@@ -2,7 +2,7 @@ name: Validate interactive lab
 on:
   pull_request:
   push:
-    branches: [feat/v0.2-learned-denoiser, feat/v0.3-diffusion-focus, main]
+    branches: [feat/v0.2-learned-denoiser, feat/v0.3-diffusion-focus, feat/v0.4-responsive-live-layout, main]
     paths:
       - "index.html"
       - "app/**"
@@ -31,3 +31,6 @@ jobs:
       - name: Browser-model and visualization smoke contract
         if: hashFiles('artifacts/model.json') != ''
         run: node tests/model_smoke.cjs
+      - name: Ten-second learned-policy rollout
+        if: hashFiles('artifacts/model.json') != ''
+        run: node tests/live_policy_smoke.cjs
