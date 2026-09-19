@@ -1,64 +1,108 @@
 # Cart-Pole Diffusion
 
-Interactive beginner-first diffusion explainer using a live Cart-Pole only as a compact conditioning example.
+Interactive control-loop-first explainer for understanding what a diffusion policy actually does.
 
 **Live:** https://tinmanlab.github.io/cartpole-diffusion/
 
-## v0.5 — distribution-first view
+## v0.6 — control loop first
 
-The main page is intentionally reduced to three visual questions:
+The default page now starts from control engineering, not diffusion internals:
 
-1. **Same state, many noise seeds:** what empirical action distribution do different diffusion samples produce?
-2. **One sample path:** how does one selected action value change through reverse denoising?
-3. **Final action chunk:** what 16-step force sequence is actually sent to the controller?
+```text
+Plant
+  ↓ observe
+[x, x_dot, theta, theta_dot]
+  ↓
+Diffusion Policy
+  ↓ generate 16 future forces
+[a0 ... a15]
+  ↓ execute first 4
+Cart-Pole
+  ↓
+observe again and replan
+```
 
-Hovering or tapping one final-action bar selects the same action index in the distribution and denoising-path plots.
+The page answers four concrete questions in order:
 
-The older full denoising ladder and `a_t / epsilon / a0_hat / next` inspector are still available under **Advanced**, but are no longer the default view.
+1. **What did the policy observe?**  
+   The exact 4-state snapshot used when the current plan was generated.
 
-## Important probability boundary
+2. **What does diffusion do with that observation?**  
+   It starts from 16 random action-space candidates, then repeatedly edits them while conditioned on the observation and diffusion timestep.
 
-The distribution plot is an **empirical sample distribution** across multiple noise seeds at the same Cart-Pole condition. It is not presented as calibrated epistemic uncertainty, confidence, or a learned variance output.
+3. **What action comes out?**  
+   A 16-step force plan. The UI shows the actual Newton values for the first four actions.
 
-## Simplified Cart-Pole view
+4. **What happens next?**  
+   Only the first four actions are applied to the plant. Then a new state is observed and a new plan is generated from fresh Gaussian noise.
 
-The left simulation removes wheel decoration and on-canvas policy/disturbance arrows. Its visual language is informed by the official MuJoCo Playground CartpoleBalance asset:
+## Noise and denoise in plain language
 
-- rail
-- box cart
-- capsule-like pole
+In the default visualization:
 
-The browser does **not** embed MuJoCo, MJX, or the Playground XML. Existing browser dynamics and the learned diffusion policy remain unchanged.
+- **Noise** means 16 random future-force candidates. They are internal values and are **not** sent to the robot.
+- **Denoise** means repeatedly modifying those candidates using the observed Cart-Pole state.
+- **Final action plan** is the denoised 16-step force sequence. Only this final sequence can be executed.
 
-## Live control
+The page displays three actual snapshots from one real planning cycle:
 
-- physics: 50 Hz
-- learned state-conditioned diffusion denoiser
-- Gaussian start latent at t=95
-- DDIM stride 5
-- horizon: 16 actions
-- execute first 4 actions, then observe and replan
-- pause/run, reset, and temporary left/right disturbance
+```text
+t=95 random candidates
+        ↓
+t≈45 partially denoised candidates
+        ↓
+t=0 final force plan
+```
+
+## Relation to the original Diffusion Policy
+
+The official Diffusion Policy low-dimensional interface accepts an observation horizon and predicts an action sequence. The classical single-step observation case is a special case.
+
+This toy deliberately uses:
+
+- observation horizon: 1
+- observation dimension: 4
+- prediction horizon: 16 force values
+- executed action horizon: 4
+- replanning: after those 4 actions
+
+That preserves the essential receding-horizon structure while keeping every quantity inspectable.
+
+## Live simulation
+
+- browser Cart-Pole physics: 50 Hz
+- learned state-conditioned denoiser
+- Gaussian start latent: t=95
+- DDIM stride: 5
+- prediction horizon: 16
+- execute prefix: 4 actions
+- controls: Pause/Run, Reset, temporary left/right disturbance
+
+The Cart-Pole drawing remains intentionally minimal: rail, box cart, and pole.
 
 ## Architecture
 
-The same rule used in `cartpole-transformer` is retained:
+The same separation used in `cartpole-transformer` is retained:
 
 ```text
-Environment → actual learned model → explainer reads actual intermediates
+Environment → actual learned policy → explainer reads actual intermediates
 ```
 
-The explainer does not implement a separate teaching controller.
+The explainer never substitutes a separate teaching controller.
+
+## Advanced view
+
+The detailed timestep ladder and `a_t / predicted epsilon / estimated a0 / next latent` inspector remain available under **Advanced** for users who already understand the control loop.
 
 ## Validation
 
 CI checks:
 
-- Python Cart-Pole / diffusion core
-- browser model load and inference
+- Python dynamics/diffusion core
+- model load and inference
+- visualization JavaScript syntax
 - inline page script syntax
-- visualization module syntax
-- 10-second deterministic 50 Hz learned-policy rollout
+- deterministic 10-second 50 Hz learned-policy rollout
 
 ## References
 
