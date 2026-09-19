@@ -209,6 +209,31 @@ function renderObservation(rootEl,obs,planCount){
     +'<div><span>θ̇</span><b>'+fmt(deg(obs[3]),0)+'°/s</b><small>pole angular velocity</small></div>'
     +'</div>';
 }
+function renderHorizon(plan,cursor,guide){
+  var executeCount=4,dt=.02,predSeconds=plan.length*dt,execSeconds=executeCount*dt;
+  var applied=cursor>0;if(guide&&guide.enabled)applied=!!guide.applied;
+  var finished=applied&&cursor>=executeCount;
+  var slots=plan.map(function(v,i){
+    var cls=i<executeCount?" execute":" planned";
+    if(i<executeCount){
+      if(applied&&i<Math.max(0,cursor-1))cls+=" done";
+      else if(applied&&i===Math.max(0,cursor-1))cls+=" current";
+      else cls+=" pending";
+    }else if(finished)cls+=" discarded";
+    return '<i class="horizon-slot'+cls+'" data-action-index="'+i+'" title="a['+i+'] = '+fmt(v*10,2)+' N"></i>';
+  }).join("");
+  return '<div class="horizon-panel" data-qa="horizon" data-prediction-count="'+plan.length+'" data-execute-count="'+executeCount+'" data-prediction-seconds="'+predSeconds.toFixed(2)+'" data-execute-seconds="'+execSeconds.toFixed(2)+'">'
+    +'<div class="horizon-head"><div><b>왜 16개를 만들고 4개만 실행하나?</b><span>prediction horizon과 execution horizon을 분리한 receding-horizon control</span></div>'
+    +'<div class="horizon-metrics"><strong>16 actions · '+predSeconds.toFixed(2)+' s 계획</strong><em>4 actions · '+execSeconds.toFixed(2)+' s 실행</em></div></div>'
+    +'<div class="horizon-track-wrap"><div class="horizon-track">'+slots+'</div><i class="reobserve-marker"></i></div>'
+    +'<div class="horizon-labels"><span>a[0]</span><span>a[3]</span><b>↑ 여기서 다시 관측</b><span>a[4]</span><span>a[15]</span></div>'
+    +'<div class="horizon-groups"><div class="execute-window"><b>실제로 실행</b><span>a[0]~a[3] · '+execSeconds.toFixed(2)+' s</span></div>'
+    +'<div class="planned-window '+(finished?'is-discarded':'')+'"><b>'+(finished?'기존 계획은 폐기':'아직 미래 계획')+'</b><span>a[4]~a[15] · '+(predSeconds-execSeconds).toFixed(2)+' s</span></div></div>'
+    +'<p class="horizon-note">'+(finished
+      ?'<b>재관측 시점:</b> plant가 이미 변했으므로 old a[4]~a[15]를 계속 실행하지 않습니다. 새 x, ẋ, θ, θ̇로 다시 16-action plan을 생성합니다.'
+      :'<b>핵심:</b> 0.32 s 전체를 미리 계획하지만 0.08 s만 실행합니다. 그 뒤 실제 plant를 다시 측정하고 남은 old a[4]~a[15] 대신 새 plan으로 교체합니다.')
+    +'</p></div>';
+}
 function renderExecution(rootEl,plan,cursor,policyForce,guide){
   if(!plan||!plan.length){rootEl.innerHTML='<div class="exec-empty">plan을 기다리는 중…</div>';return}
   var applied=cursor>0;
@@ -224,7 +249,7 @@ function renderExecution(rootEl,plan,cursor,policyForce,guide){
     : '<strong class="not-applied">아직 적용 안 함</strong>';
   rootEl.innerHTML='<div class="exec-now" data-qa="current-force"><span>현재 cart에 적용되는 force</span>'+nowText+'</div>'
     +'<div class="exec-prefix" data-qa="exec-prefix">'+cards+'</div>'
-    +'<div class="exec-rest">a[4] … a[15]는 아직 미래 계획입니다. a[3] 실행 후 다시 관측하고 새 plan을 생성합니다.</div>';
+    +renderHorizon(plan,cursor,guide);
 }
 function renderStateDelta(rootEl,before,after){
   if(!rootEl)return;
