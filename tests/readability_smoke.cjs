@@ -25,7 +25,7 @@ const required=[
   '.timeline-caption{margin-top:4px;font-size:11px',
   '.timeline-scale{display:flex;justify-content:space-between;gap:8px;font-size:11px',
   '.timeline-axis{font:11px',
-  '.update-axis{font:11px'
+  '.update-axis{font:11px',
   '.denoise-update-head b{display:block;font-size:14px',
   '.update-card strong{display:block;font:700 17px',
   '.update-card span{display:block;font-size:11px',
