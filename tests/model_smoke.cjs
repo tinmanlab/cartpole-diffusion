@@ -19,7 +19,7 @@ server.listen(8123,"127.0.0.1",async()=>{
     if(!globalThis.ControlLoopViz||typeof globalThis.ControlLoopViz.renderStages!=="function"||typeof globalThis.ControlLoopViz.renderObservation!=="function"||typeof globalThis.ControlLoopViz.renderExecution!=="function")throw new Error("control-loop viz api missing");
 
     const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
-    for(const id of ["observation","denoiseStages","execution","ladder","inspector","runBtn","resetBtn","pushL","pushR"])if(!html.includes('id="'+id+'"'))throw new Error("missing "+id);
+    for(const id of ["observation","denoiseStages","execution","ladder","inspector","runBtn","resetBtn","pushL","pushR","guideBtn","guideControls","guidePrev","guideNext","guideExit","guideStep","guideExplain"])if(!html.includes('id="'+id+'"'))throw new Error("missing "+id);
     if(html.includes("distributionCanvas")||html.includes("Same state, many noise seeds"))throw new Error("probability-first UI must not be default");
     if(html.includes("policyArrow")||html.includes("pushArrow"))throw new Error("on-canvas force arrows must stay removed");
     console.log("MODEL_AND_CONTROL_LOOP_UI_SMOKE_OK",model.metadata.training.validation_epsilon_mse.toFixed(6));
