@@ -42,7 +42,7 @@ function rowSvg(stage,finalPlan,rowY,title,subtitle,color,kind){
     return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.2" class="execute-point"/>';
   }).join("");
   var unit=kind==="final"?" N":"";
-  return '<g class="sequence-row '+kind+'">'
+  return '<g class="sequence-row '+kind+'" data-qa="sequence-'+kind+'">'
     +'<text x="8" y="'+(rowY+20)+'" class="sequence-title">'+title+'</text>'
     +'<text x="8" y="'+(rowY+39)+'" class="sequence-sub">'+subtitle+'</text>'
     +'<line x1="'+x0+'" y1="'+(rowY+height/2)+'" x2="'+(x0+width)+'" y2="'+(rowY+height/2)+'" class="sequence-zero"/>'
@@ -65,7 +65,7 @@ function mobileRow(stage,finalPlan,title,subtitle,color,kind){
     var x=x0+i/(values.length-1)*width,shown=clamp(v*10,-limit,limit),y=y0+height/2-(shown/limit)*(height*.42);
     return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.5" class="execute-point"/>';
   }).join("");
-  return '<article class="mobile-seq-card '+kind+'">'
+  return '<article class="mobile-seq-card '+kind+'" data-qa="sequence-'+kind+'">'
     +'<div class="mobile-seq-head"><b>'+title+'</b><span>'+subtitle+'</span></div>'
     +'<svg viewBox="0 0 330 86" role="img" aria-label="'+title+'">'
     +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="sequence-zero"/>'
@@ -108,15 +108,20 @@ function renderObservation(rootEl,obs,planCount){
     +'<div><span>θ̇</span><b>'+fmt(deg(obs[3]),0)+'°/s</b><small>pole angular velocity</small></div>'
     +'</div>';
 }
-function renderExecution(rootEl,plan,cursor,policyForce){
-  if(!plan||!plan.length){rootEl.innerHTML='<div class="exec-empty">waiting for a plan…</div>';return}
-  var active=Math.max(0,Math.min(3,cursor-1));
+function renderExecution(rootEl,plan,cursor,policyForce,guide){
+  if(!plan||!plan.length){rootEl.innerHTML='<div class="exec-empty">plan을 기다리는 중…</div>';return}
+  var applied=cursor>0;
+  if(guide&&guide.enabled)applied=!!guide.applied;
+  var active=applied?Math.max(0,Math.min(3,cursor-1)):-1;
   var cards='';
   for(var i=0;i<4;i++){
-    var state=i<cursor-1?'done':i===active?'active':'future';
-    cards+='<div class="exec-action '+state+'" data-qa="exec-action"><span>a['+i+']</span><b>'+(plan[i]>=0?'+':'')+fmt(plan[i]*10,2)+' N</b><small>'+(state==='active'?'현재 적용':state==='done'?'완료':'다음')+'</small></div>';
+    var state=i<active?'done':i===active?'active':'future';
+    cards+='<div class="exec-action '+state+'" data-qa="exec-action"><span>a['+i+']</span><b>'+(plan[i]>=0?'+':'')+fmt(plan[i]*10,2)+' N</b><small>'+(state==='active'?'현재 적용':state==='done'?'완료':'실행 예정')+'</small></div>';
   }
-  rootEl.innerHTML='<div class="exec-now" data-qa="current-force"><span>현재 cart에 적용되는 force</span><strong>'+(policyForce>=0?'+':'')+fmt(policyForce,2)+' N</strong></div>'
+  var nowText=applied
+    ? '<strong>'+(policyForce>=0?'+':'')+fmt(policyForce,2)+' N</strong>'
+    : '<strong class="not-applied">아직 적용 안 함</strong>';
+  rootEl.innerHTML='<div class="exec-now" data-qa="current-force"><span>현재 cart에 적용되는 force</span>'+nowText+'</div>'
     +'<div class="exec-prefix" data-qa="exec-prefix">'+cards+'</div>'
     +'<div class="exec-rest">a[4] … a[15]는 아직 미래 계획입니다. a[3] 실행 후 다시 관측하고 새 plan을 생성합니다.</div>';
 }
