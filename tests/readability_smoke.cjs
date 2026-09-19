@@ -20,7 +20,7 @@ const required=[
   '.divergence-head strong{font:700 12px',
   '.divergence-legend{display:flex;justify-content:flex-end;gap:12px;font-size:11px',
   '.divergence-metrics span{display:block;font-size:11px',
-  '.divergence-metrics b{display:block;font:700 13px'
+  '.divergence-metrics b{display:block;font:700 13px',
   '.policy-plain{border-left:4px',
   'font-size:13px;line-height:1.65',
   '.sequence-title{font:700 15px',
