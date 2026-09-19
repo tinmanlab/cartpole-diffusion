@@ -105,6 +105,62 @@ function normalizedPath(values,x0,y0,width,height,limit){
     return (i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
   }).join(" ");
 }
+function denoiseTrajectoryPath(history,actionIndex,x0,y0,width,height,limit){
+  if(!history||history.length<2)return "";
+  return history.map(function(stage,i){
+    var x=x0+i/(history.length-1)*width,v=stage.latent[actionIndex],shown=clamp(v,-limit,limit);
+    var y=y0+height/2-(shown/limit)*(height*.42);
+    return (i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
+  }).join(" ");
+}
+function renderDenoiseTimeline(rootEl,history,stepIndex,actionIndex,onSelect){
+  if(!rootEl)return;
+  if(!history||history.length<2){rootEl.hidden=true;rootEl.innerHTML="";return}
+  var transitions=history.length-1;
+  stepIndex=clamp(Math.round(stepIndex||0),0,transitions-1);
+  actionIndex=clamp(Math.round(actionIndex||0),0,history[0].latent.length-1);
+  var current=history[stepIndex],next=history[stepIndex+1];
+  var values=history.map(function(s){return s.latent[actionIndex]});
+  var limit=Math.max(1,Math.max.apply(null,values.map(function(v){return Math.abs(v)}))*1.08);
+  var x0=28,y0=10,width=744,height=116;
+  var path=denoiseTrajectoryPath(history,actionIndex,x0,y0,width,height,limit);
+  var points=history.map(function(stage,i){
+    var x=x0+i/(history.length-1)*width,v=clamp(stage.latent[actionIndex],-limit,limit);
+    var y=y0+height/2-(v/limit)*(height*.42),cls=i===0?" start":i===history.length-1?" final":"";
+    if(i===stepIndex||i===stepIndex+1)cls+=" selected";
+    return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+((i===stepIndex||i===stepIndex+1)?5:2.8)+'" class="timeline-point'+cls+'"/>';
+  }).join("");
+  var xA=x0+stepIndex/(history.length-1)*width,xB=x0+(stepIndex+1)/(history.length-1)*width;
+  var yA=y0+height/2-(clamp(current.latent[actionIndex],-limit,limit)/limit)*(height*.42);
+  var yB=y0+height/2-(clamp(next.latent[actionIndex],-limit,limit)/limit)*(height*.42);
+  var actionOptions=history[0].latent.map(function(_,i){return '<option value="'+i+'"'+(i===actionIndex?' selected':'')+'>a['+i+']</option>'}).join("");
+  rootEl.hidden=false;
+  rootEl.dataset.stepIndex=String(stepIndex);rootEl.dataset.actionIndex=String(actionIndex);
+  rootEl.dataset.currentT=String(current.t);rootEl.dataset.nextT=String(next.t);rootEl.dataset.transitions=String(transitions);
+  rootEl.innerHTML=
+    '<div class="timeline-head"><div><b>19번 denoise 전체 경로</b><span>20개 후보 상태 · 현재 update를 scrubber로 선택</span></div>'
+    +'<div class="timeline-status"><strong>step '+(stepIndex+1)+'/'+transitions+'</strong><span>t='+current.t+' → '+next.t+'</span></div></div>'
+    +'<div class="timeline-controls"><button type="button" data-denoise-nav="prev" aria-label="previous denoise update"'+(stepIndex===0?' disabled':'')+'>← 이전</button>'
+    +'<input type="range" min="0" max="'+(transitions-1)+'" step="1" value="'+stepIndex+'" data-denoise-scrubber aria-label="denoise update scrubber">'
+    +'<button type="button" data-denoise-nav="next" aria-label="next denoise update"'+(stepIndex===transitions-1?' disabled':'')+'>다음 →</button>'
+    +'<label>추적 <select data-denoise-action aria-label="tracked action index">'+actionOptions+'</select></label></div>'
+    +'<div class="timeline-scale"><span>t=95 · random</span><span>t≈50</span><span>t=0 · action plan</span></div>'
+    +'<svg class="timeline-svg" viewBox="0 0 800 144" role="img" aria-label="selected action value across all denoising steps">'
+    +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="timeline-zero"/>'
+    +'<path d="'+path+'" class="timeline-path" fill="none"/>'
+    +'<line x1="'+xA.toFixed(1)+'" y1="'+yA.toFixed(1)+'" x2="'+xB.toFixed(1)+'" y2="'+yB.toFixed(1)+'" class="timeline-selected-segment"/>'
+    +points
+    +'<text x="'+x0+'" y="141" class="timeline-axis">95</text><text x="'+(x0+width)+'" y="141" text-anchor="end" class="timeline-axis">0</text>'
+    +'</svg>'
+    +'<div class="timeline-caption"><b>a['+actionIndex+']</b> 내부 candidate 값: <span>'+fmt(current.latent[actionIndex],3)+'</span> → <span>'+fmt(next.latent[actionIndex],3)+'</span><small> · t=0 전까지는 물리 force(N)가 아니라 내부 action-space 값</small></div>';
+  var slider=rootEl.querySelector('[data-denoise-scrubber]');
+  var select=rootEl.querySelector('[data-denoise-action]');
+  var prev=rootEl.querySelector('[data-denoise-nav="prev"]'),nxt=rootEl.querySelector('[data-denoise-nav="next"]');
+  if(slider)slider.addEventListener("input",function(){if(onSelect)onSelect(Number(this.value),actionIndex)});
+  if(select)select.addEventListener("change",function(){if(onSelect)onSelect(stepIndex,Number(this.value))});
+  if(prev)prev.addEventListener("click",function(){if(onSelect)onSelect(Math.max(0,stepIndex-1),actionIndex)});
+  if(nxt)nxt.addEventListener("click",function(){if(onSelect)onSelect(Math.min(transitions-1,stepIndex+1),actionIndex)});
+}
 function renderDenoiseUpdate(rootEl,history,targetT){
   if(!rootEl)return;
   if(targetT===null||targetT===undefined||!history||!history.length){rootEl.hidden=true;rootEl.innerHTML="";return}
@@ -186,5 +242,5 @@ function renderStateDelta(rootEl,before,after){
     }).join("")
     +'</div>';
 }
-root.ControlLoopViz={renderStages:renderStages,renderDenoiseUpdate:renderDenoiseUpdate,renderObservation:renderObservation,renderExecution:renderExecution,renderStateDelta:renderStateDelta};
+root.ControlLoopViz={renderStages:renderStages,renderDenoiseTimeline:renderDenoiseTimeline,renderDenoiseUpdate:renderDenoiseUpdate,renderObservation:renderObservation,renderExecution:renderExecution,renderStateDelta:renderStateDelta};
 })(typeof window!=="undefined"?window:globalThis);
