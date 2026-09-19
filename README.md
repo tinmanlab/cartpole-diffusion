@@ -41,6 +41,32 @@ After executing the four commands, the walkthrough shows the before → after va
 
 The guided mode does not synthesize separate teaching data: it freezes and reveals the same observation, denoising history, final plan, and physics update used by the live policy.
 
+## One real denoising update
+
+Guided step **3/6 · Denoise** now opens one actual reverse-diffusion update from the current planning history.
+
+The representative step is:
+
+```text
+current candidate at t=50
+        ↓
+learned denoiser predicts epsilon_theta
+        ↓
+DDIM uses that prediction + diffusion schedule
+        ↓
+next candidate at t=45
+```
+
+The UI shows the real `a[0]` values for the current candidate, predicted epsilon, and next candidate, plus an overlay of all 16 action positions before and after the update.
+
+Important claim boundary:
+
+- `epsilon_theta` is an internal noise prediction, not a force command.
+- DDIM does not simply subtract `epsilon_theta`; it uses the diffusion schedule to compute the next candidate.
+- only the final t=0 action sequence is converted into the executable force plan.
+
+The browser QA checks that this panel appears only at guided step 3/6, reads the actual t=50 → 45 history entry, contains finite model values, changes the action candidate, and remains readable without horizontal overflow on mobile.
+
 ## What diffusion does
 
 The default denoising visualization now uses one shared force-sequence axis instead of three dense bar grids.
