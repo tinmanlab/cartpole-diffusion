@@ -25,7 +25,7 @@ const required=[
   '.sampling-head span{display:block;font-size:11px',
   '.sampling-condition b{display:block;font:700 15px',
   '.sampling-summary b{display:block;font:700 13px',
-  '.sampling-note{margin:8px 0 0'
+  '.sampling-note{margin:8px 0 0',
   '.policy-plain{border-left:4px',
   'font-size:13px;line-height:1.65',
   '.sequence-title{font:700 15px',
