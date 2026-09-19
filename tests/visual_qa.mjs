@@ -7,6 +7,47 @@ const report={generatedAt:new Date().toISOString(),baseURL,errors:[],warnings:[]
 const err=m=>report.errors.push(m),warn=m=>report.warnings.push(m);
 const rect=r=>r?{x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height),right:Math.round(r.right),bottom:Math.round(r.bottom)}:null;
 async function waitLearned(page){await page.waitForFunction(()=>document.querySelector('#modelTag')?.textContent?.includes('learned'),null,{timeout:15000});}
+// In-SVG <text> font-size is expressed in viewBox units, so a width:100% SVG shrinks its
+// labels by (rendered width / viewBox width). getComputedStyle cannot see that; only the
+// screen CTM can. Same 10.5px floor the HTML minCoreFont check uses.
+const SVG_TEXT_MIN=10.5;
+async function svgTextSizes(page){
+  return page.evaluate(()=>[...document.querySelectorAll('svg text')].filter(t=>t.getClientRects().length).map(t=>{
+    const m=t.getScreenCTM(),s=m?Math.sqrt(Math.abs(m.a*m.d-m.b*m.c)):1,css=parseFloat(getComputedStyle(t).fontSize);
+    return{label:t.getAttribute('class')||t.id||'svg-text',css,scale:s,effective:css*s,text:(t.textContent||'').slice(0,24)};
+  }).filter(r=>Number.isFinite(r.effective)));
+}
+function checkSvgText(list,label){
+  const bad=list.filter(r=>r.effective<SVG_TEXT_MIN);
+  if(bad.length)err(label+': in-SVG text renders below '+SVG_TEXT_MIN+'px effective — '+bad.map(b=>b.label+' '+b.effective.toFixed(2)+'px ("'+b.text+'")').join('; '));
+  return{measured:list.length,minEffective:list.length?Math.min(...list.map(r=>r.effective)):null,offenders:bad.map(b=>({label:b.label,css:b.css,scale:Number(b.scale.toFixed(3)),effective:Number(b.effective.toFixed(2))}))};
+}
+async function checkPageWidth(page,label){
+  const d=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth}));
+  if(d.scrollWidth>d.viewport+2)err(label+': page-level horizontal overflow '+d.scrollWidth+' > '+d.viewport);
+  return d;
+}
+// The five contract widths, each walked through the guided states that mount the
+// timeline / one-step / conditioning SVGs, since those only exist inside guided mode.
+async function responsiveSweep(browser){
+  const out={};
+  for(const width of [320,390,768,1024,1440]){
+    const page=await browser.newPage({viewport:{width,height:900},deviceScaleFactor:1});
+    const browserErrors=[];page.on('console',m=>{if(m.type()==='error')browserErrors.push(m.text())});page.on('pageerror',e=>browserErrors.push(String(e)));
+    await page.goto(baseURL,{waitUntil:'networkidle',timeout:30000});await waitLearned(page);await page.waitForTimeout(350);
+    const stages={};
+    stages.live={...await checkPageWidth(page,'responsive '+width+' live'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' live')};
+    await page.getByRole('button',{name:'한 cycle 설명'}).click();await page.waitForTimeout(180);
+    stages.observe={...await checkPageWidth(page,'responsive '+width+' guided 1/6'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' guided 1/6')};
+    await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
+    await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(180);
+    if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('responsive '+width+': guided denoise step not reached');
+    stages.denoise={...await checkPageWidth(page,'responsive '+width+' guided 3/6'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' guided 3/6')};
+    if(browserErrors.length)err('responsive '+width+' browser errors: '+browserErrors.join(' | '));
+    out[width]=stages;await page.close();
+  }
+  report.responsive=out;
+}
 async function readAtomicSnapshot(page){
   return page.locator('[data-qa="plant"]').evaluate(el=>{
     const parse=v=>v?String(v).split(',').map(Number):[];
@@ -73,7 +114,9 @@ async function inspect(page,name){
     }:null;
     return{viewport:{width:innerWidth,height:innerHeight},document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},boxes,minCoreFont:fonts.length?Math.min(...fonts):null,plantControllerOverlap:overlap(boxes[sels[0]],boxes[sels[1]]),sequencePaths:visibleCount('.sequence-svg .sequence-path'),executePoints:visibleCount('.execute-point'),executeBands:visibleCount('.execute-band'),obsValues:document.querySelectorAll('[data-qa="observation-values"]>div').length,execActions:document.querySelectorAll('[data-qa="exec-action"]').length,advancedOpen:document.querySelector('[data-qa="advanced"]')?.open||false,desktopSequenceDisplay:getComputedStyle(document.querySelector('.sequence-svg')).display,mobileSequenceDisplay:getComputedStyle(document.querySelector('[data-qa="mobile-sequence"]')).display,mobileSequencePaths:visibleCount('.mobile-sequence-path'),horizon:horizonInfo};
   });
-  d.boxes=Object.fromEntries(Object.entries(d.boxes).map(([k,v])=>[k,rect(v)]));report.views[name]=d;
+  d.boxes=Object.fromEntries(Object.entries(d.boxes).map(([k,v])=>[k,rect(v)]));
+  d.svgText=checkSvgText(await svgTextSizes(page),name);
+  report.views[name]=d;
   if(d.document.scrollWidth>d.viewport.width+2)err(name+': page-level horizontal overflow '+d.document.scrollWidth+' > '+d.viewport.width);
   if(d.minCoreFont!==null&&d.minCoreFont<10.5)err(name+': core text too small '+d.minCoreFont+'px');
   if(d.plantControllerOverlap>4)err(name+': plant/controller overlap '+Math.round(d.plantControllerOverlap));
@@ -512,7 +555,7 @@ async function mobile(browser){
   await page.screenshot({path:path.join(outDir,'mobile.jpg'),type:'jpeg',quality:82,fullPage:true});await page.close();
 }
 let browser;
-try{browser=await chromium.launch({headless:true});await desktop(browser);await mobile(browser);}
+try{browser=await chromium.launch({headless:true});await desktop(browser);await mobile(browser);await responsiveSweep(browser);}
 catch(e){err('unhandled visual QA exception: '+(e?.stack||String(e)));}
 finally{if(browser)try{await browser.close()}catch{};fs.writeFileSync(path.join(outDir,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));}
 if(report.errors.length)process.exitCode=1;

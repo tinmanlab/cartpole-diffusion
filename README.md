@@ -320,13 +320,20 @@ Plain-language meaning:
 
 The UI uses readable default typography instead of shrinking labels to fit:
 
-- body: 15 px
+- body: 16 px
 - major panel headings: 15–18 px
 - control-loop step titles: 16 px
 - observation values: 17 px
 - current applied force: 22 px
+- primary control buttons: 44 px minimum touch height
 
 When horizontal space is insufficient, layout is allowed to reflow instead of reducing text below the readability contract.
+
+Compact axis captions on the denoise/conditioning/sampling charts and a few dense labels intentionally stay around 11–12 px as a named exception (`.chart-axis` and similar); not all text in the page is ≥14 px. Chart axis labels that used to live inside a scaled `<svg viewBox>` (where the effective on-screen size shrinks with the SVG's rendered width) now render as ordinary HTML next to each chart instead, so their px size is real at every width rather than an artifact of SVG scaling.
+
+### P0 responsive/readability repair (2026-09-20)
+
+This pass fixed a specific bug rather than redesigning the page: in-SVG `<text>` labels (plant `#stateLabel`, and the denoise/conditioning/sampling chart axis labels) were sized in SVG viewBox units, so their effective rendered size shrank whenever the SVG was scaled down by `width:100%` on narrow viewports — invisible from the CSS `font-size` alone. `#stateLabel` was removed in favor of the existing HTML `.sim-readout` companion; the chart axis labels moved to HTML `.chart-axis` elements next to each `<svg>`. `tests/visual_qa.mjs` now measures actual on-screen SVG text size via `getScreenCTM()` and sweeps 320/390/768/1024/1440 px widths for page-level horizontal overflow, in addition to all prior semantic/physics checks (unchanged). This is a bounded layout/typography fix; the guided teaching progression, model, and control-loop semantics are unmodified, and no deeper educational-flow redesign was attempted here.
 
 ## Prediction horizon vs execution horizon
 

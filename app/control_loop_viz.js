@@ -150,8 +150,8 @@ function renderDenoiseTimeline(rootEl,history,stepIndex,actionIndex,onSelect){
     +'<path d="'+path+'" class="timeline-path" fill="none"/>'
     +'<line x1="'+xA.toFixed(1)+'" y1="'+yA.toFixed(1)+'" x2="'+xB.toFixed(1)+'" y2="'+yB.toFixed(1)+'" class="timeline-selected-segment"/>'
     +points
-    +'<text x="'+x0+'" y="141" class="timeline-axis">95</text><text x="'+(x0+width)+'" y="141" text-anchor="end" class="timeline-axis">0</text>'
     +'</svg>'
+    +'<div class="chart-axis"><span>95</span><span>0</span></div>'
     +'<div class="timeline-caption"><b>a['+actionIndex+']</b> 내부 candidate 값: <span>'+fmt(current.latent[actionIndex],3)+'</span> → <span>'+fmt(next.latent[actionIndex],3)+'</span><small> · t=0 전까지는 물리 force(N)가 아니라 내부 action-space 값</small></div>';
   var slider=rootEl.querySelector('[data-denoise-scrubber]');
   var select=rootEl.querySelector('[data-denoise-action]');
@@ -194,8 +194,8 @@ function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
     +'<path d="'+afterPath+'" class="update-after" fill="none"/>'
     +'<circle cx="'+(x0+actionIndex/(stage.latent.length-1)*width).toFixed(1)+'" cy="'+(y0+height/2-(clamp(before,-limit,limit)/limit)*(height*.42)).toFixed(1)+'" r="5" class="update-before-dot"/>'
     +'<circle cx="'+(x0+actionIndex/(stage.latent.length-1)*width).toFixed(1)+'" cy="'+(y0+height/2-(clamp(after,-limit,limit)/limit)*(height*.42)).toFixed(1)+'" r="5" class="update-after-dot"/>'
-    +'<text x="'+x0+'" y="121" class="update-axis">a[0]</text><text x="'+(x0+width)+'" y="121" text-anchor="end" class="update-axis">a[15]</text>'
-    +'</svg></div>'
+    +'</svg>'
+    +'<div class="chart-axis"><span>a[0]</span><span>a[15]</span></div></div>'
     +'<p class="denoise-update-note"><b>중요:</b> denoiser의 출력 εθ는 cart에 보내는 force가 아닙니다. sampler가 이 noise 예측과 diffusion schedule을 이용해 다음 action 후보를 계산합니다.</p>';
 }
 function conditioningPlanPath(values,x0,y0,width,height,limit){
@@ -264,8 +264,8 @@ function renderConditioningCompare(rootEl,data){
     +'<path d="'+plusHist+'" class="conditioning-plus-history" fill="none"/>'
     +'<path d="'+minusHist+'" class="conditioning-minus-history" fill="none"/>'
     +'<circle cx="'+hx0+'" cy="'+(hy0+hheight/2-(clamp(ph[0].latent[actionIndex],-histLimit,histLimit)/histLimit)*(hheight*.42)).toFixed(1)+'" r="5" class="conditioning-same-start"/>'
-    +'<text x="'+hx0+'" y="139" class="conditioning-axis">t=95 · same</text><text x="'+(hx0+hwidth/2)+'" y="139" text-anchor="middle" class="conditioning-axis">t≈50</text><text x="'+(hx0+hwidth)+'" y="139" text-anchor="end" class="conditioning-axis">t=0</text>'
     +'</svg>'
+    +'<div class="chart-axis"><span>t=95 · same</span><span>t≈50</span><span>t=0</span></div>'
     +'<div class="divergence-metrics"><div><span>t=95 시작 차이</span><b>'+fmt(initialDelta,3)+'</b></div><div><span>첫 update 후 t='+firstAfterT+'</span><b>'+fmt(firstDelta,3)+'</b></div><div><span>t≈50 차이</span><b>'+fmt(midDelta,3)+'</b></div><div><span>t=0 차이</span><b>'+fmt(finalDelta,3)+'</b></div></div>'
     +'</div>'
     +'<div class="conditioning-chart"><div class="conditioning-legend"><span><i class="plus-key"></i>θ=+5° final plan</span><span><i class="minus-key"></i>θ=−5° final plan</span></div>'
@@ -273,8 +273,8 @@ function renderConditioningCompare(rootEl,data){
     +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="conditioning-zero"/>'
     +'<path d="'+plusPath+'" class="conditioning-plus" fill="none"/>'
     +'<path d="'+minusPath+'" class="conditioning-minus" fill="none"/>'
-    +'<text x="'+x0+'" y="143" class="conditioning-axis">a[0]</text><text x="'+(x0+width)+'" y="143" text-anchor="end" class="conditioning-axis">a[15]</text>'
-    +'</svg></div>'
+    +'</svg>'
+    +'<div class="chart-axis"><span>a[0]</span><span>a[15]</span></div></div>'
     +'<div class="conditioning-summary"><div><span>첫 force A</span><b>'+(plus[0]>=0?"+":"")+fmt(plus[0]*10,2)+' N</b></div>'
     +'<div><span>첫 force B</span><b>'+(minus[0]>=0?"+":"")+fmt(minus[0]*10,2)+' N</b></div>'
     +'<div><span>16개 평균 차이</span><b>'+fmt(meanDiff,2)+' N</b></div></div>'
@@ -318,8 +318,8 @@ function renderSamplingCompare(rootEl,data){
     +'</div><svg viewBox="0 0 760 146" role="img" aria-label="same-observation final action plans from three different noise seeds">'
     +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="conditioning-zero"/>'
     +paths.map(function(p,i){return '<path d="'+p+'" class="sampling-plan sampling-plan-'+i+'" stroke="'+colors[i]+'" fill="none"/>'}).join("")
-    +'<text x="'+x0+'" y="143" class="conditioning-axis">a[0]</text><text x="'+(x0+width)+'" y="143" text-anchor="end" class="conditioning-axis">a[15]</text>'
-    +'</svg></div>'
+    +'</svg>'
+    +'<div class="chart-axis"><span>a[0]</span><span>a[15]</span></div></div>'
     +'<div class="sampling-summary">'
     +firstForces.map(function(v,i){return '<div><span>seed '+data.seeds[i]+' · first force</span><b>'+(v>=0?"+":"")+fmt(v,2)+' N</b></div>'}).join("")
     +'<div><span>pairwise 평균 plan 차이</span><b>'+fmt(meanPair,2)+' N</b></div></div>'
