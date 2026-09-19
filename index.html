@@ -59,7 +59,7 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
     <section class="step">
       <div class="step-head"><i class="step-num">2</i><div><b>계획 (Plan) · Diffusion이 미래 force 16개 생성</b><span>랜덤 후보를 현재 관측에 맞는 force sequence로 반복 수정합니다.</span></div></div>
       <div class="policy-plain"><b>Noise</b>는 아직 실행하지 않는 랜덤 force 후보 16개입니다. <b>Denoise</b>는 현재 관측값을 보면서 이 후보들을 여러 번 고쳐 최종 force plan으로 만드는 과정입니다.</div>
-      <div class="blackbox"><span>observation c</span><i>+</i><span>current candidate aₜ</span><i>+</i><span>step t</span><i>→</i><b>εθ predicts what part looks like noise</b><i>→</i><span>DDIM updates candidate</span></div>
+      <div class="blackbox"><span>현재 관측 4개</span><i>+</i><span>랜덤 미래 force 16개</span><i>→</i><b>denoiser가 force 후보를 조금 수정</b><i>→</i><span>반복 ×19</span><i>→</i><span>최종 force 16개</span></div>
       <div id="denoiseStages" class="denoise-stages"></div>
     </section>
 
