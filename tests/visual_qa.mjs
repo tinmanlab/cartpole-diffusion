@@ -323,6 +323,8 @@ async function desktop(browser){
   await page.locator('#replayModeBtn').click();await page.waitForTimeout(160);
   const replayLab=page.locator('[data-qa="replay-lab"]');
   if(!(await replayLab.isVisible()))err('replay: lab did not open');
+  const visibleLearn=await page.locator('.learn-only').evaluateAll(els=>els.filter(el=>el.getClientRects().length>0&&getComputedStyle(el).display!=='none').length);
+  if(visibleLearn!==0)err('replay: Learn content still visible in Replay mode ('+visibleLearn+')');
   const replayCards=page.locator('.replay-card');
   if(await replayCards.count()!==3)err('replay: expected three seed-stream cards');
   await page.locator('#replayRunBtn').click();await page.waitForTimeout(60);
@@ -364,6 +366,8 @@ async function desktop(browser){
 
   await page.locator('#learnModeBtn').click();await page.waitForTimeout(80);
   if(await replayLab.isVisible())err('replay: Learn mode did not hide replay lab');
+  const visibleLearnAfter=await page.locator('.learn-only').evaluateAll(els=>els.filter(el=>el.getClientRects().length>0&&getComputedStyle(el).display!=='none').length);
+  if(visibleLearnAfter<1)err('replay: Learn mode did not restore Learn content');
 
   if(browserErrors.length)err('desktop browser errors: '+browserErrors.join(' | '));report.interactions.consoleErrors=browserErrors;await page.close();
 }
@@ -483,6 +487,8 @@ async function mobile(browser){
   await page.locator('#replayModeBtn').click();await page.waitForTimeout(140);
   const mobileReplay=page.locator('[data-qa="replay-lab"]'),mobileCards=page.locator('.replay-card');
   if(!(await mobileReplay.isVisible()))err('mobile replay: lab hidden');
+  const mobileVisibleLearn=await page.locator('.learn-only').evaluateAll(els=>els.filter(el=>el.getClientRects().length>0&&getComputedStyle(el).display!=='none').length);
+  if(mobileVisibleLearn!==0)err('mobile replay: Learn content still visible in Replay mode ('+mobileVisibleLearn+')');
   if(await mobileCards.count()!==3)err('mobile replay: expected three cards');
   const mobileReplayLayout=await page.evaluate(()=>{
     const lab=document.querySelector('[data-qa="replay-lab"]'),grid=document.querySelector('.replay-grid'),r=lab?.getBoundingClientRect();
