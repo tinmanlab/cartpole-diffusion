@@ -215,7 +215,7 @@ function renderConditioningCompare(rootEl,data){
   for(var i=0;i<plus.length;i++){var d=Math.abs((plus[i]-minus[i])*10);diff+=d;maxDiff=Math.max(maxDiff,d)}
   var meanDiff=diff/plus.length;
   rootEl.hidden=false;
-  rootEl.dataset.sameNoise=data.sameNoise?"true":"false";
+  rootEl.dataset.sameNoise=data.sameNoise?"true":"false";rootEl.dataset.seed=String(data.seed);
   rootEl.dataset.plusTheta=String(data.plusObs[2]);
   rootEl.dataset.minusTheta=String(data.minusObs[2]);
   rootEl.dataset.meanAbsDiffN=String(meanDiff);
