@@ -19,7 +19,13 @@ const required=[
   '.exec-action small{font-size:11px',
   '.reobserve-title b{font-size:13px',
   '.reobserve-cell b{font:700 14px',
-  '.reobserve-cell em{display:block'
+  '.reobserve-cell em{display:block',
+  '.denoise-update-head b{display:block;font-size:14px',
+  '.update-card strong{display:block;font:700 17px',
+  '.update-card span{display:block;font-size:11px',
+  '.update-card small{display:block;font-size:11px',
+  '.update-chart-title span{font-size:11px',
+  '.denoise-update-note{margin:7px 0 0'
 ];
 for(const token of required)if(!html.includes(token))throw new Error("readability contract missing: "+token);
 console.log("READABILITY_CONTRACT_OK");
