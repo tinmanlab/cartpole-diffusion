@@ -368,7 +368,7 @@ async function desktop(browser){
   const preWalkSnapshot=await readAtomicSnapshot(page);
   await stageBtn(3).click();await page.waitForTimeout(60);
   if(!(await page.locator('#guideStep').innerText()).includes('6/6'))err('stage nav walk: Result step not reached before old Prev/Next walk');
-  const guidePrevBtn=page.getByRole('button',{name:'이전'}),guideNextBtn=page.getByRole('button',{name:'다음'});
+  const guidePrevBtn=page.locator('#guidePrev'),guideNextBtn=page.locator('#guideNext');
   await guidePrevBtn.click();await page.waitForTimeout(60);
   await guidePrevBtn.click();await page.waitForTimeout(60);
   if(!(await page.locator('#guideStep').innerText()).includes('4/6'))err('stage nav walk: old Prev twice from 6/6 should land on 4/6');

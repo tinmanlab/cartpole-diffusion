@@ -394,7 +394,7 @@ function applyGuideFocus(){
   if(guideStep===3){markGuide("plan","guide-focus");markGuide("sequence-final","guide-focus")}
   if(guideStep===4){markGuide("act","guide-focus");markGuide("plant","guide-focus")}
   if(guideStep===5){markGuide("replan","guide-focus");markGuide("observe","guide-focus");markGuide("plant","guide-focus")}
-  E("guidePrev").disabled=guideStep===0;E("guideNext").textContent=guideStep===3?"앞 4개 실제 적용":guideStep===4?"다시 관측":guideStep===5?"다음 cycle":"다음";
+  E("guidePrev").disabled=guideStep===0;E("guideNext").textContent=guideStep===3?(guideApplied?"실행 결과 확인":"앞 4개 실제 적용"):guideStep===4?"다시 관측":guideStep===5?"다음 cycle":"다음";
   ControlLoopViz.renderStateDelta(E("reobserveCompare"),guideMode&&guideStep===5?guideBefore:null,guideMode&&guideStep===5?guideAfter:null);
   ControlLoopViz.renderConditioningCompare(E("conditioningCompare"),guideMode&&guideStep===0?conditioningCompareData:null);
   ControlLoopViz.renderSamplingCompare(E("samplingCompare"),guideMode&&guideStep===0?samplingCompareData:null);
