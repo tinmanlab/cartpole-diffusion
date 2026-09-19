@@ -280,6 +280,51 @@ function renderConditioningCompare(rootEl,data){
     +'<div><span>16개 평균 차이</span><b>'+fmt(meanDiff,2)+' N</b></div></div>'
     +'<p class="conditioning-note"><b>의미:</b> t=95의 시작 candidate는 완전히 같습니다. observation은 denoiser 입력에 들어가므로 첫 reverse update부터 두 candidate 경로가 달라지고, 그 차이가 누적되어 서로 다른 최종 16-action plan이 됩니다.</p>';
 }
+function renderSamplingCompare(rootEl,data){
+  if(!rootEl)return;
+  if(!data){rootEl.hidden=true;rootEl.innerHTML="";return}
+  var runs=data.runs||[],x0=34,y0=10,width=692,height=118,limit=10;
+  var colors=["#5476df","#8968ca","#3c9a73"],paths=[],firstForces=[],initialA0=[];
+  for(var r=0;r<runs.length;r++){
+    paths.push(conditioningPlanPath(runs[r].plan,x0,y0,width,height,limit));
+    firstForces.push(runs[r].plan[0]*10);
+    initialA0.push(runs[r].history[0].latent[0]);
+  }
+  var pairSum=0,pairCount=0,maxPair=0;
+  for(var i=0;i<runs.length;i++)for(var j=i+1;j<runs.length;j++){
+    for(var k=0;k<runs[i].plan.length;k++){
+      var d=Math.abs((runs[i].plan[k]-runs[j].plan[k])*10);
+      pairSum+=d;pairCount++;maxPair=Math.max(maxPair,d);
+    }
+  }
+  var meanPair=pairCount?pairSum/pairCount:0;
+  var initialSpread=Math.max.apply(null,initialA0)-Math.min.apply(null,initialA0);
+  rootEl.hidden=false;
+  rootEl.dataset.sameObservation="true";
+  rootEl.dataset.observationTheta=String(data.obs[2]);
+  rootEl.dataset.seedCount=String(data.seeds.length);
+  rootEl.dataset.seeds=data.seeds.join(",");
+  rootEl.dataset.initialSpread=String(initialSpread);
+  rootEl.dataset.meanPairDiffN=String(meanPair);
+  rootEl.dataset.maxPairDiffN=String(maxPair);
+  rootEl.innerHTML=
+    '<div class="sampling-head"><div><b>같은 observation, noise seed만 바꿔보기</b><span>통제 실험: model · observation · DDIM schedule은 동일</span></div><em>sampling diversity</em></div>'
+    +'<div class="sampling-condition"><span>고정 observation</span><b>[0, 0, +5°, 0]</b><small>θ를 포함한 모든 state는 동일</small></div>'
+    +'<div class="sampling-starts"><b>t=95 시작부터 다름</b>'
+    +runs.map(function(run,i){return '<span><i style="background:'+colors[i]+'"></i>seed '+data.seeds[i]+' · a[0]='+fmt(initialA0[i],3)+'</span>'}).join("")
+    +'</div>'
+    +'<div class="sampling-chart"><div class="sampling-legend">'
+    +runs.map(function(run,i){return '<span><i style="background:'+colors[i]+'"></i>seed '+data.seeds[i]+'</span>'}).join("")
+    +'</div><svg viewBox="0 0 760 146" role="img" aria-label="same-observation final action plans from three different noise seeds">'
+    +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="conditioning-zero"/>'
+    +paths.map(function(p,i){return '<path d="'+p+'" class="sampling-plan sampling-plan-'+i+'" stroke="'+colors[i]+'" fill="none"/>'}).join("")
+    +'<text x="'+x0+'" y="143" class="conditioning-axis">a[0]</text><text x="'+(x0+width)+'" y="143" text-anchor="end" class="conditioning-axis">a[15]</text>'
+    +'</svg></div>'
+    +'<div class="sampling-summary">'
+    +firstForces.map(function(v,i){return '<div><span>seed '+data.seeds[i]+' · first force</span><b>'+(v>=0?"+":"")+fmt(v,2)+' N</b></div>'}).join("")
+    +'<div><span>pairwise 평균 plan 차이</span><b>'+fmt(meanPair,2)+' N</b></div></div>'
+    +'<p class="sampling-note"><b>중요:</b> seed를 바꾸면 같은 observation에서도 서로 다른 sample plan이 나올 수 있습니다. 여기서 보이는 sample spread는 <b>sampling diversity</b>일 뿐, calibrated uncertainty·확률·confidence가 아닙니다.</p>';
+}
 function renderObservation(rootEl,obs,planCount){
   if(!obs){rootEl.innerHTML='';return}
   rootEl.innerHTML=
@@ -351,5 +396,5 @@ function renderStateDelta(rootEl,before,after){
     }).join("")
     +'</div>';
 }
-root.ControlLoopViz={renderStages:renderStages,renderDenoiseTimeline:renderDenoiseTimeline,renderDenoiseUpdate:renderDenoiseUpdate,renderConditioningCompare:renderConditioningCompare,renderObservation:renderObservation,renderExecution:renderExecution,renderStateDelta:renderStateDelta};
+root.ControlLoopViz={renderStages:renderStages,renderDenoiseTimeline:renderDenoiseTimeline,renderDenoiseUpdate:renderDenoiseUpdate,renderConditioningCompare:renderConditioningCompare,renderSamplingCompare:renderSamplingCompare,renderObservation:renderObservation,renderExecution:renderExecution,renderStateDelta:renderStateDelta};
 })(typeof window!=="undefined"?window:globalThis);
