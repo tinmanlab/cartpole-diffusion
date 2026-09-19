@@ -424,6 +424,12 @@ Every run uploads `desktop.jpg`, `desktop-advanced.jpg`, `mobile.jpg`, and `repo
 
 GitHub Pages now repeats the core runtime, readability, model-runtime, and closed-loop checks before uploading the site. A broken browser runtime therefore cannot be published merely because the static files exist.
 
+## Common-stage learning walkthrough (P1.1)
+
+The existing real six-step guided cycle (`한 cycle 설명`) now also exposes a compact common-stage nav — Input/입력 → Calculation/계산 → Action/행동 → Result/결과 — mapping guide step 0 to Input, steps 1–2 to Calculation, steps 3–4 to Action, and step 5 to Result. It is a display-only overlay: stage clicks jump between already-computed panels via the existing renderers, never advance physics or apply the four-action prefix implicitly, and the Result stage stays disabled until the real `앞 4개 실제 적용` step has executed. Revisiting an earlier stage (via the stage nav or the original 이전/다음 stepper) never rewinds or re-applies an already-executed prefix; it only changes which already-computed panel is displayed.
+
+The shared cross-project stage contract (`Input → Calculation → Action → Result`, shared typography/touch targets) is owned by `tinmanlab/cartpole-transformer`. That contract document is not yet merged to that repo's default branch, so linking a `main` URL here would 404; until it is integrated, see it on that repo's own P1.1 review branch at `docs/learning-suite.md`. This README does not duplicate that contract's text.
+
 ## References
 
 See [NOTICE.md](NOTICE.md).

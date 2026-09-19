@@ -39,6 +39,14 @@ async function responsiveSweep(browser){
     stages.live={...await checkPageWidth(page,'responsive '+width+' live'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' live')};
     await page.getByRole('button',{name:'한 cycle 설명'}).click();await page.waitForTimeout(180);
     stages.observe={...await checkPageWidth(page,'responsive '+width+' guided 1/6'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' guided 1/6')};
+    const stageBtnHeights=await page.locator('.stage-btn').evaluateAll(els=>els.map(e=>Math.round(e.getBoundingClientRect().height)));
+    if(stageBtnHeights.some(h=>h<44))err('responsive '+width+': stage-nav button below 44px touch height ('+stageBtnHeights.join(',')+')');
+    // Essential guide copy/explanation, stage labels, and the frozen-plan identity readout
+    // must stay >=14px effective at every width, never shrink to fit.
+    const guideTextSizes=await page.evaluate(()=>[...document.querySelectorAll('.guide-copy b,.guide-copy span,.guide-shared-label,.stage-btn,.stage-btn span,.guide-identity')]
+      .filter(e=>e.getClientRects().length).map(e=>({sel:e.className||e.tagName,px:parseFloat(getComputedStyle(e).fontSize)})));
+    const smallGuideText=guideTextSizes.filter(r=>r.px<13.9);
+    if(smallGuideText.length)err('responsive '+width+': essential guide text below 14px effective — '+smallGuideText.map(r=>r.sel+' '+r.px+'px').join('; '));
     await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
     await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(180);
     if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('responsive '+width+': guided denoise step not reached');
@@ -198,6 +206,22 @@ async function desktop(browser){
   if(frozen0!==frozen1)err('guided cycle: live physics did not freeze');
   if(await page.locator('[data-qa="observe"].guide-focus').count()!==1)err('guided cycle: observation is not focused at step 1');
 
+  // Common-stage nav (Input/Calculation/Action/Result) is a display-only overlay over the
+  // real six-step engine: jumping stages must never advance physics or apply the prefix.
+  const stageNav=page.locator('[data-qa="stage-nav"]'),guideIdentity=page.locator('[data-qa="guide-identity"]');
+  if(!(await stageNav.isVisible()))err('stage nav: hidden at guided entry');
+  if(!(await guideIdentity.isVisible())||!/tick/.test(await guideIdentity.innerText()))err('stage nav: identity readout missing plan/tick info');
+  const stageBtn=i=>page.locator('.stage-btn').nth(i);
+  if(!(await stageBtn(0).evaluate(el=>el.classList.contains('active'))))err('stage nav: Input stage not active at 1/6');
+  if(!(await stageBtn(3).isDisabled()))err('stage nav: Result stage should be disabled before four actions execute');
+  const tickAtStart=await page.locator('#tickLabel').innerText();
+  await stageBtn(1).click();await page.waitForTimeout(80);
+  if(!(await page.locator('#guideStep').innerText()).includes('2/6'))err('stage nav: Calculation stage did not jump to 2/6');
+  if((await page.locator('#tickLabel').innerText())!==tickAtStart)err('stage nav: Calculation stage jump advanced physics tick');
+  await stageBtn(0).click();await page.waitForTimeout(80);
+  if(!(await page.locator('#guideStep').innerText()).includes('1/6'))err('stage nav: Input stage did not return to 1/6');
+  if((await page.locator('#tickLabel').innerText())!==tickAtStart)err('stage nav: Input stage jump advanced physics tick');
+
   const conditioning=page.locator('[data-qa="conditioning-compare"]');
   if(!(await conditioning.isVisible()))err('guided conditioning: comparison panel is hidden at 1/6');
   const conditioningData=await conditioning.evaluate(el=>({
@@ -322,6 +346,49 @@ async function desktop(browser){
   if(!horizonAfter.note.includes('old a[4]~a[15]'))err('guided horizon: discarded-tail explanation missing');
   await page.screenshot({path:path.join(outDir,'desktop-horizon.jpg'),type:'jpeg',quality:84,fullPage:true});
 
+  // Once the four actions are real, revisiting earlier common stages must not rewind
+  // state or silently re-apply — physics only ever advances via the one explicit apply.
+  const tickAfterApply=await page.locator('#tickLabel').innerText();
+  if(await stageBtn(3).isDisabled())err('stage nav: Result stage still disabled after four actions executed');
+  await stageBtn(1).click();await page.waitForTimeout(80);
+  if(!(await page.locator('#guideStep').innerText()).includes('2/6'))err('stage nav: post-apply Calculation jump did not reach 2/6');
+  if((await page.locator('#tickLabel').innerText())!==tickAfterApply)err('stage nav: revisiting Calculation after apply rewound or re-advanced the tick');
+  await stageBtn(3).click();await page.waitForTimeout(80);
+  if(!(await page.locator('#guideStep').innerText()).includes('6/6'))err('stage nav: Result stage did not reach 6/6');
+  if((await page.locator('#tickLabel').innerText())!==tickAfterApply)err('stage nav: Result stage jump changed the physics tick');
+  await stageBtn(2).click();await page.waitForTimeout(80);
+  if(!(await page.locator('#guideStep').innerText()).includes('5/6'))err('stage nav: Action stage did not return to the post-apply 5/6 view');
+  if((await page.locator('#tickLabel').innerText())!==tickAfterApply)err('stage nav: revisiting Action after apply re-executed the prefix');
+  if((await page.locator('[data-qa="exec-action"].done').count())!==3)err('stage nav: revisiting Action lost the already-executed prefix state');
+
+  // F1 regression: neither the old granular 이전/다음 stepper nor the new stage buttons
+  // may rewind or re-apply the executed prefix once it is real. Walk Result -> oldPrev
+  // -> oldPrev -> oldNext -> oldNext and require the exact atomic snapshot to be identical
+  // at every stop.
+  const preWalkSnapshot=await readAtomicSnapshot(page);
+  await stageBtn(3).click();await page.waitForTimeout(60);
+  if(!(await page.locator('#guideStep').innerText()).includes('6/6'))err('stage nav walk: Result step not reached before old Prev/Next walk');
+  const guidePrevBtn=page.getByRole('button',{name:'이전'}),guideNextBtn=page.getByRole('button',{name:'다음'});
+  await guidePrevBtn.click();await page.waitForTimeout(60);
+  await guidePrevBtn.click();await page.waitForTimeout(60);
+  if(!(await page.locator('#guideStep').innerText()).includes('4/6'))err('stage nav walk: old Prev twice from 6/6 should land on 4/6');
+  const afterOldPrev=await readAtomicSnapshot(page);
+  if((await page.locator('[data-qa="exec-action"].done').count())!==3)err('stage nav walk: old Prev lost the already-executed prefix state');
+  await guideNextBtn.click();await page.waitForTimeout(60);
+  await guideNextBtn.click();await page.waitForTimeout(60);
+  if(!(await page.locator('#guideStep').innerText()).includes('6/6'))err('stage nav walk: old Next twice from 4/6 should return to 6/6');
+  const afterOldNext=await readAtomicSnapshot(page);
+  const snapshotsMatch=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  if(!snapshotsMatch(preWalkSnapshot,afterOldPrev))err('stage nav walk: old Prev changed the atomic plant/plan snapshot (tick/state/applied prefix)');
+  if(!snapshotsMatch(preWalkSnapshot,afterOldNext))err('stage nav walk: old Next changed the atomic plant/plan snapshot (tick/state/applied prefix)');
+  await stageBtn(2).click();await page.waitForTimeout(60);
+  const afterStageBack=await readAtomicSnapshot(page);
+  if(!snapshotsMatch(preWalkSnapshot,afterStageBack))err('stage nav walk: stage-button navigation after the old-button walk changed the atomic snapshot');
+  await stageBtn(3).click();await page.waitForTimeout(60);
+  if(!(await page.locator('#guideStep').innerText()).includes('6/6'))err('stage nav walk: Result stage unreachable after old-button walk');
+  if(!snapshotsMatch(preWalkSnapshot,await readAtomicSnapshot(page)))err('stage nav walk: final Result stage jump changed the atomic snapshot');
+  await stageBtn(2).click();await page.waitForTimeout(60);
+
   await page.getByRole('button',{name:'다시 관측'}).click();await page.waitForTimeout(100);
   const reobserveText=await page.locator('#guideStep').innerText();
   if(!reobserveText.includes('6/6'))err('guided cycle: re-observation step missing');
@@ -418,6 +485,7 @@ async function mobile(browser){
   const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
   const browserErrors=[];page.on('console',m=>{if(m.type()==='error')browserErrors.push(m.text())});page.on('pageerror',e=>browserErrors.push(String(e)));
   await page.goto(baseURL,{waitUntil:'networkidle',timeout:30000});await waitLearned(page);await page.waitForTimeout(350);
+  if((await page.evaluate(()=>scrollY))!==0)err('mobile: page auto-scrolled on plain render before any explicit guide interaction');
   const d=await inspect(page,'mobile');
   const sc=await page.locator('.denoise-stages').evaluate(e=>({clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX}));
   report.interactions.mobileSequenceScroller=sc;
@@ -426,7 +494,27 @@ async function mobile(browser){
   if(d.desktopSequenceDisplay!=='none')err('mobile: desktop wide sequence should be hidden');
   if(d.mobileSequencePaths!==3)err('mobile: expected 3 vertical sequence paths, got '+d.mobileSequencePaths);
 
-  await page.getByRole('button',{name:'한 cycle 설명'}).click();await page.waitForTimeout(100);
+  await page.getByRole('button',{name:'한 cycle 설명'}).click();await page.waitForTimeout(180);
+  // F3: on narrow width, the focused panel must be readable and the guide controls
+  // reachable without scrolling through hundreds of px of dimmed prior sections; dimmed
+  // sections are removed from layout (not merely faded), and the after-state/result
+  // values are never among them since only guide-dim panels are hidden.
+  const mobileGuideFocus=await page.evaluate(()=>{
+    var focus=document.querySelector('.step.guide-focus,[data-qa="plant"].guide-focus');
+    var nav=document.querySelector('[data-qa="stage-nav"]');
+    var fr=focus?focus.getBoundingClientRect():null,nr=nav?nav.getBoundingClientRect():null;
+    var dimmedVisible=[...document.querySelectorAll('.step.guide-dim,.loop-back.guide-dim')].filter(function(e){return e.getClientRects().length>0}).length;
+    return{
+      focusInViewport:!!fr&&fr.top<innerHeight&&fr.bottom>0,
+      navInViewport:!!nr&&nr.top<innerHeight&&nr.bottom>0,
+      dimmedVisible:dimmedVisible,
+      scrollY:scrollY
+    };
+  });
+  report.interactions.mobileGuideFocus=mobileGuideFocus;
+  if(!mobileGuideFocus.focusInViewport)err('mobile: focused guide panel is not visible near the top of the viewport after guided entry');
+  if(!mobileGuideFocus.navInViewport)err('mobile: stage nav / guide controls not reachable in viewport after guided entry');
+  if(mobileGuideFocus.dimmedVisible!==0)err('mobile: dimmed (irrelevant) guide sections are still taking layout space instead of being hidden');
   const mobileConditioning=await page.locator('[data-qa="conditioning-compare"]').evaluate(el=>{
     const r=el.getBoundingClientRect();
     const fonts=[...el.querySelectorAll('b,span,small,em,p')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
@@ -526,6 +614,7 @@ async function mobile(browser){
   if(mobileHorizon.minFont!==null&&mobileHorizon.minFont<10.5)err('mobile horizon: text too small '+mobileHorizon.minFont+'px');
   await page.screenshot({path:path.join(outDir,'mobile-horizon.jpg'),type:'jpeg',quality:82,fullPage:true});
   await page.getByRole('button',{name:'Live로 돌아가기'}).click();await page.waitForTimeout(80);
+  if((await page.locator('[data-qa="observe"],[data-qa="plan"],[data-qa="act"],[data-qa="replan"]').evaluateAll(els=>els.filter(e=>e.getClientRects().length>0).length))!==4)err('mobile: not all control-loop panels returned to layout after exiting guided mode');
 
   await page.locator('#replayModeBtn').click();await page.waitForTimeout(140);
   const mobileReplay=page.locator('[data-qa="replay-lab"]'),mobileCards=page.locator('.replay-card');
