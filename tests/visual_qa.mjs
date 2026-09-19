@@ -7,6 +7,48 @@ const report={generatedAt:new Date().toISOString(),baseURL,errors:[],warnings:[]
 const err=m=>report.errors.push(m),warn=m=>report.warnings.push(m);
 const rect=r=>r?{x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height),right:Math.round(r.right),bottom:Math.round(r.bottom)}:null;
 async function waitLearned(page){await page.waitForFunction(()=>document.querySelector('#modelTag')?.textContent?.includes('learned'),null,{timeout:15000});}
+async function readAtomicSnapshot(page){
+  return page.locator('[data-qa="plant"]').evaluate(el=>{
+    const parse=v=>v?String(v).split(',').map(Number):[];
+    return{
+      tick:Number(el.dataset.currentTick),sim:parse(el.dataset.simState),
+      planObservation:parse(el.dataset.planObservation),planNumber:Number(el.dataset.planNumber),
+      planStartTick:Number(el.dataset.planStartTick),planAge:Number(el.dataset.planAge),
+      cursor:Number(el.dataset.planCursor),nextActionIndex:Number(el.dataset.nextActionIndex),
+      policyForce:Number(el.dataset.policyForce),planForce:Number(el.dataset.planForce),
+      lastAppliedForce:Number(el.dataset.lastAppliedForce),lastAppliedActionIndex:Number(el.dataset.lastAppliedActionIndex),
+      running:el.dataset.running==='true'
+    };
+  });
+}
+function arraysClose(a,b,eps=1e-10){return a.length===b.length&&a.every((v,i)=>Number.isFinite(v)&&Number.isFinite(b[i])&&Math.abs(v-b[i])<=eps)}
+function close(a,b,eps=1e-9){return Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<=eps}
+function verifyAtomicSnapshot(s,label){
+  if(s.sim.length!==4||s.planObservation.length!==4)err(label+': state/plan observation width is not 4');
+  if(s.tick-s.planStartTick!==s.planAge)err(label+': plan age != current tick - plan start tick');
+  if(s.nextActionIndex!==s.cursor)err(label+': next action index != plan cursor');
+  if(s.cursor<0||s.cursor>3)err(label+': live cursor outside 0..3: '+s.cursor);
+  if(!close(s.policyForce,s.planForce,1e-8))err(label+': displayed next force != current plan[cursor]');
+  if(s.planAge===0&&!arraysClose(s.sim,s.planObservation,1e-10))err(label+': fresh plan observation != current plant state');
+}
+function verifyAtomicTransition(before,after,label){
+  if(after.tick!==before.tick+1)err(label+': Step did not advance exactly one 20 ms tick');
+  if(!close(after.lastAppliedForce,before.policyForce,1e-8))err(label+': last applied force != previous snapshot next force');
+  if(after.lastAppliedActionIndex!==before.cursor)err(label+': last applied action index != previous cursor');
+  if(before.cursor<3){
+    if(after.planNumber!==before.planNumber)err(label+': plan changed before four-action prefix completed');
+    if(after.cursor!==before.cursor+1)err(label+': cursor did not advance by one inside prefix');
+    if(after.planStartTick!==before.planStartTick)err(label+': plan start tick changed inside prefix');
+    if(!arraysClose(after.planObservation,before.planObservation,1e-12))err(label+': plan observation changed inside prefix');
+    if(after.planAge!==before.planAge+1)err(label+': plan age did not increase by one');
+    return false;
+  }
+  if(after.planNumber!==before.planNumber+1)err(label+': fourth action did not trigger immediate replan');
+  if(after.cursor!==0)err(label+': replanned snapshot did not reset cursor to a[0]');
+  if(after.planStartTick!==after.tick||after.planAge!==0)err(label+': replanned snapshot is not anchored to current tick');
+  if(!arraysClose(after.sim,after.planObservation,1e-10))err(label+': replan observation != post-transition plant state');
+  return true;
+}
 async function inspect(page,name){
   const d=await page.evaluate(()=>{
     const pick=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};
@@ -70,6 +112,36 @@ async function desktop(browser){
     current:el.querySelectorAll('.horizon-slot.current').length,note:el.querySelector('.horizon-note')?.textContent||'',
     plannedText:el.querySelector('.planned-window b')?.textContent||''
   }));
+  // Latest cartpole-transformer v0.6 contract adapted for action chunks:
+  // current plant + current plan cursor + next force are one atomic snapshot.
+  const pauseAtomic=page.getByRole('button',{name:'Pause'});
+  await pauseAtomic.click();await page.waitForTimeout(90);
+  const stepAtomic=page.getByRole('button',{name:'Step 20 ms'});
+  if(!(await stepAtomic.isEnabled().catch(()=>false)))err('atomic snapshot: Step 20 ms is not enabled while paused');
+  let atomicBefore=await readAtomicSnapshot(page);verifyAtomicSnapshot(atomicBefore,'atomic pause');
+  const tickLabel0=Number(await page.locator('#tickLabel').innerText());
+  if(tickLabel0!==atomicBefore.tick)err('atomic pause: visible tick label != snapshot tick');
+
+  const atomicTransitions=[];
+  let replanObserved=false,current=atomicBefore;
+  for(let i=0;i<4&&!replanObserved;i++){
+    await stepAtomic.click();await page.waitForTimeout(70);
+    const after=await readAtomicSnapshot(page);verifyAtomicSnapshot(after,'atomic step '+(i+1));
+    const replanned=verifyAtomicTransition(current,after,'atomic transition '+(i+1));
+    atomicTransitions.push({before:current,after,replanned});
+    replanObserved=replanned;current=after;
+  }
+  if(!replanObserved)err('atomic snapshot: no replan observed within remaining four-action prefix');
+  const tickLabel1=Number(await page.locator('#tickLabel').innerText());
+  if(tickLabel1!==current.tick)err('atomic step: visible tick label != snapshot tick');
+  report.interactions.atomicTick={before:atomicBefore,after:current,transitions:atomicTransitions,replanObserved};
+  await page.screenshot({path:path.join(outDir,'desktop-atomic-step.jpg'),type:'jpeg',quality:84,fullPage:true});
+
+  const runAtomic=page.getByRole('button',{name:'Run'});
+  if(!(await runAtomic.isEnabled().catch(()=>false)))err('atomic snapshot: Run not enabled after stepping');
+  else await runAtomic.click();
+  await page.waitForTimeout(120);
+
   const x0=await page.locator('#rx').innerText();const push=page.getByRole('button',{name:'Push right'});await push.dispatchEvent('pointerdown');await page.waitForTimeout(260);await push.dispatchEvent('pointerup');await page.waitForTimeout(100);const x1=await page.locator('#rx').innerText();report.interactions.push={before:x0,after:x1,changed:x0!==x1};if(x0===x1)err('desktop: Push right did not change visible cart position');
 
   // Guided one-cycle walkthrough must freeze live control, expose each semantic stage,
@@ -243,7 +315,7 @@ async function desktop(browser){
   report.interactions.guidedCycle={start:guideStart,frozen:frozen0===frozen1,applied:guideAppliedText,reobserved:reobserveText,changedStates,afterState,nextCycle:nextCycleText,newPlan:oldPlanTitle!==newPlanTitle,doneCount,activeCount,resumed:afterExit0!==afterExit1,beforeGuideTime};
 
   await page.screenshot({path:path.join(outDir,'desktop.jpg'),type:'jpeg',quality:84,fullPage:true});
-  await page.getByRole('button',{name:'Pause'}).click();const p0=await page.locator('#elapsed').innerText();await page.waitForTimeout(320);const p1=await page.locator('#elapsed').innerText();if(p0!==p1)err('desktop: Pause did not freeze clock');
+  await page.getByRole('button',{name:'Pause'}).click();const p0=await page.locator('#elapsed').innerText();await page.waitForTimeout(320);const p1=await page.locator('#elapsed').innerText();if(p0!==p1)err('desktop: Pause did not freeze clock');if(!(await page.getByRole('button',{name:'Step 20 ms'}).isEnabled().catch(()=>false)))err('desktop: Step 20 ms is disabled while paused');
   const adv=page.locator('[data-qa="advanced"] summary');await adv.click();await page.waitForTimeout(120);if(!(await page.locator('[data-qa="advanced"]').evaluate(e=>e.open)))err('desktop: Advanced did not open');
   await page.screenshot({path:path.join(outDir,'desktop-advanced.jpg'),type:'jpeg',quality:82,fullPage:true});
   if(browserErrors.length)err('desktop browser errors: '+browserErrors.join(' | '));report.interactions.consoleErrors=browserErrors;await page.close();
