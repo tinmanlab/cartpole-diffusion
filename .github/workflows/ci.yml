@@ -39,3 +39,6 @@ jobs:
       - name: Ten-second learned-policy rollout
         if: hashFiles('artifacts/model.json') != ''
         run: node tests/live_policy_smoke.cjs
+      - name: Deterministic three-seed comparison replay
+        if: hashFiles('artifacts/model.json') != ''
+        run: node tests/comparison_replay_check.cjs

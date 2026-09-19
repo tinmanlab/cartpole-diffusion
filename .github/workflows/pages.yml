@@ -42,6 +42,7 @@ jobs:
           node tests/readability_smoke.cjs
           node tests/model_runtime_check.cjs
           node tests/live_policy_smoke.cjs
+          node tests/comparison_replay_check.cjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static site
