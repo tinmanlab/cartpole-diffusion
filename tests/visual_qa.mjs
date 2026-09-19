@@ -32,7 +32,10 @@ async function checkPageWidth(page,label){
 async function responsiveSweep(browser){
   const out={};
   for(const width of [320,390,768,1024,1440]){
-    const page=await browser.newPage({viewport:{width,height:900},deviceScaleFactor:1});
+    // reducedMotion:'reduce' makes the app's own reducedMotion() check use an instant
+    // (behavior:"auto") scrollIntoView instead of "smooth", so geometry reads right after
+    // an explicit nav click observe the settled layout instead of a mid-animation frame.
+    const page=await browser.newPage({viewport:{width,height:900},deviceScaleFactor:1,reducedMotion:'reduce'});
     const browserErrors=[];page.on('console',m=>{if(m.type()==='error')browserErrors.push(m.text())});page.on('pageerror',e=>browserErrors.push(String(e)));
     await page.goto(baseURL,{waitUntil:'networkidle',timeout:30000});await waitLearned(page);await page.waitForTimeout(350);
     const stages={};
@@ -517,7 +520,9 @@ async function desktop(browser){
   if(browserErrors.length)err('desktop browser errors: '+browserErrors.join(' | '));report.interactions.consoleErrors=browserErrors;await page.close();
 }
 async function mobile(browser){
-  const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
+  // Same determinism rationale as responsiveSweep: settle the guide-bar scroll
+  // instantly so the geometry reads right after a nav click are never mid-animation.
+  const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,reducedMotion:'reduce'});
   const browserErrors=[];page.on('console',m=>{if(m.type()==='error')browserErrors.push(m.text())});page.on('pageerror',e=>browserErrors.push(String(e)));
   await page.goto(baseURL,{waitUntil:'networkidle',timeout:30000});await waitLearned(page);await page.waitForTimeout(350);
   if((await page.evaluate(()=>scrollY))!==0)err('mobile: page auto-scrolled on plain render before any explicit guide interaction');
