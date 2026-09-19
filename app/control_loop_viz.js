@@ -125,5 +125,23 @@ function renderExecution(rootEl,plan,cursor,policyForce,guide){
     +'<div class="exec-prefix" data-qa="exec-prefix">'+cards+'</div>'
     +'<div class="exec-rest">a[4] … a[15]는 아직 미래 계획입니다. a[3] 실행 후 다시 관측하고 새 plan을 생성합니다.</div>';
 }
-root.ControlLoopViz={renderStages:renderStages,renderObservation:renderObservation,renderExecution:renderExecution};
+function renderStateDelta(rootEl,before,after){
+  if(!rootEl)return;
+  if(!before||!after){rootEl.hidden=true;rootEl.innerHTML="";return}
+  var specs=[
+    ["x",before[0],after[0],"m",2],
+    ["ẋ",before[1],after[1],"m/s",2],
+    ["θ",deg(before[2]),deg(after[2]),"°",1],
+    ["θ̇",deg(before[3]),deg(after[3]),"°/s",0]
+  ];
+  rootEl.hidden=false;
+  rootEl.innerHTML='<div class="reobserve-title"><b>실행 전 → 실행 후</b><span>이 오른쪽 값들이 다음 plan의 새 observation이 됩니다.</span></div>'
+    +'<div class="reobserve-values">'
+    +specs.map(function(s){
+      var delta=s[2]-s[1],sign=delta>=0?"+":"";
+      return '<div class="reobserve-cell"><span>'+s[0]+'</span><div><b>'+fmt(s[1],s[4])+'</b><i>→</i><b>'+fmt(s[2],s[4])+'</b><small>'+s[3]+'</small></div><em>Δ '+sign+fmt(delta,s[4])+' '+s[3]+'</em></div>';
+    }).join("")
+    +'</div>';
+}
+root.ControlLoopViz={renderStages:renderStages,renderObservation:renderObservation,renderExecution:renderExecution,renderStateDelta:renderStateDelta};
 })(typeof window!=="undefined"?window:globalThis);

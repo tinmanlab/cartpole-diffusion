@@ -52,21 +52,21 @@ async function desktop(browser){
   await guide.click();await page.waitForTimeout(120);
   const guideStart=await page.locator('#guideStep').innerText();
   const frozen0=await page.locator('#elapsed').innerText();await page.waitForTimeout(260);const frozen1=await page.locator('#elapsed').innerText();
-  if(!guideStart.includes('1/5'))err('guided cycle: did not start at observation');
+  if(!guideStart.includes('1/6'))err('guided cycle: did not start at observation');
   if(frozen0!==frozen1)err('guided cycle: live physics did not freeze');
   if(await page.locator('[data-qa="observe"].guide-focus').count()!==1)err('guided cycle: observation is not focused at step 1');
 
   const next=page.getByRole('button',{name:'다음'});
   await next.click();await page.waitForTimeout(80);
-  if(!(await page.locator('#guideStep').innerText()).includes('2/5'))err('guided cycle: random-start step missing');
+  if(!(await page.locator('#guideStep').innerText()).includes('2/6'))err('guided cycle: random-start step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-noise"].guide-focus').count()!==1)err('guided cycle: random sequence not focused');
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
-  if(!(await page.locator('#guideStep').innerText()).includes('3/5'))err('guided cycle: denoise step missing');
+  if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('guided cycle: denoise step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-mid"].guide-focus').count()!==1)err('guided cycle: mid sequence not focused');
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
-  if(!(await page.locator('#guideStep').innerText()).includes('4/5'))err('guided cycle: final-plan step missing');
+  if(!(await page.locator('#guideStep').innerText()).includes('4/6'))err('guided cycle: final-plan step missing');
   if(await page.locator('.sequence-svg [data-qa="sequence-final"].guide-focus').count()!==1)err('guided cycle: final sequence not focused');
 
   await page.getByRole('button',{name:'앞 4개 실제 적용'}).click();await page.waitForTimeout(80);
@@ -74,15 +74,42 @@ async function desktop(browser){
   const explain=await page.locator('#guideExplain').innerText();
   const doneCount=await page.locator('[data-qa="exec-action"].done').count();
   const activeCount=await page.locator('[data-qa="exec-action"].active').count();
-  if(!guideAppliedText.includes('5/5'))err('guided cycle: execution step missing');
+  if(!guideAppliedText.includes('5/6'))err('guided cycle: execution step missing');
   if(doneCount!==3||activeCount!==1)err('guided cycle: first four actions were not represented as 3 done + 1 active');
   if(!explain.includes('0.08 s'))err('guided cycle: physical execution explanation missing');
   if(await page.locator('[data-qa="act"].guide-focus').count()!==1)err('guided cycle: act stage not focused after execution');
 
+  await page.getByRole('button',{name:'다시 관측'}).click();await page.waitForTimeout(100);
+  const reobserveText=await page.locator('#guideStep').innerText();
+  if(!reobserveText.includes('6/6'))err('guided cycle: re-observation step missing');
+  if(await page.locator('[data-qa="replan"].guide-focus').count()!==1)err('guided cycle: replan stage not focused');
+  if(await page.locator('[data-qa="observe"].guide-focus').count()!==1)err('guided cycle: observation not refocused after execution');
+  const compare=page.locator('#reobserveCompare');
+  if(!(await compare.isVisible()))err('guided cycle: before/after comparison is hidden');
+  const cells=compare.locator('.reobserve-cell');
+  if(await cells.count()!==4)err('guided cycle: expected four before/after state cells');
+  const statePairs=[];
+  for(let i=0;i<4;i++){
+    const nums=await cells.nth(i).locator('b').allInnerTexts();
+    statePairs.push(nums.map(Number));
+  }
+  const changedStates=statePairs.filter(p=>p.length===2&&Math.abs(p[1]-p[0])>1e-9).length;
+  if(changedStates<1)err('guided cycle: executed actions did not change any displayed plant state');
+
+  const afterState=statePairs.map(p=>p[1]);
+  const oldPlanTitle=await page.locator('[data-qa="observation-title"] b').innerText();
+  await page.getByRole('button',{name:'다음 cycle'}).click();await page.waitForTimeout(120);
+  const nextCycleText=await page.locator('#guideStep').innerText();
+  const newPlanTitle=await page.locator('[data-qa="observation-title"] b').innerText();
+  const nextObs=(await page.locator('[data-qa="observation-values"] b').allInnerTexts()).map(parseFloat);
+  if(!nextCycleText.includes('1/6'))err('guided cycle: next cycle did not restart at observation');
+  if(oldPlanTitle===newPlanTitle)err('guided cycle: next cycle did not generate a new plan');
+  for(let i=0;i<4;i++)if(!Number.isFinite(nextObs[i])||Math.abs(nextObs[i]-afterState[i])>1e-9)err('guided cycle: next observation does not match prior after-state at index '+i);
+
   await page.getByRole('button',{name:'Live로 돌아가기'}).click();await page.waitForTimeout(260);
   const afterExit0=await page.locator('#elapsed').innerText();await page.waitForTimeout(260);const afterExit1=await page.locator('#elapsed').innerText();
   if(afterExit0===afterExit1)err('guided cycle: live control did not resume after exit');
-  report.interactions.guidedCycle={start:guideStart,frozen:frozen0===frozen1,applied:guideAppliedText,doneCount,activeCount,resumed:afterExit0!==afterExit1,beforeGuideTime};
+  report.interactions.guidedCycle={start:guideStart,frozen:frozen0===frozen1,applied:guideAppliedText,reobserved:reobserveText,changedStates,afterState,nextCycle:nextCycleText,newPlan:oldPlanTitle!==newPlanTitle,doneCount,activeCount,resumed:afterExit0!==afterExit1,beforeGuideTime};
 
   await page.screenshot({path:path.join(outDir,'desktop.jpg'),type:'jpeg',quality:84,fullPage:true});
   await page.getByRole('button',{name:'Pause'}).click();const p0=await page.locator('#elapsed').innerText();await page.waitForTimeout(320);const p1=await page.locator('#elapsed').innerText();if(p0!==p1)err('desktop: Pause did not freeze clock');
