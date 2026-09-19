@@ -72,13 +72,30 @@ server.listen(8130,"127.0.0.1",async()=>{
     assert(conditionMax>1e-4,"full DDIM plan is insensitive to theta sign under fixed noise");
     assert(conditionMean>1e-5,"full DDIM plan mean difference too small under fixed noise");
     assert(plusPlan.every(Number.isFinite)&&minusPlan.every(Number.isFinite),"conditioning comparison produced non-finite actions");
+
+    const diversityObs=[0,0,5*Math.PI/180,0],diversitySeeds=[10101,20202,30303];
+    const diversityRuns=diversitySeeds.map(seed=>planHistoryFromFixedLatent(model,diversityObs,fixedGaussian16(seed)));
+    for(const run of diversityRuns){
+      assert(run.history.length===20,"sampling diversity history must contain 20 candidate states");
+      assert(run.plan.every(Number.isFinite),"sampling diversity produced non-finite actions");
+    }
+    let diversityInitialMin=Infinity,diversityPlanMean=0,diversityPlanMax=0,diversityPairs=0;
+    for(let i=0;i<diversityRuns.length;i++)for(let j=i+1;j<diversityRuns.length;j++){
+      diversityInitialMin=Math.min(diversityInitialMin,maxDiff(diversityRuns[i].history[0].latent,diversityRuns[j].history[0].latent));
+      diversityPlanMean+=meanAbsDiff(diversityRuns[i].plan,diversityRuns[j].plan);
+      diversityPlanMax=Math.max(diversityPlanMax,maxDiff(diversityRuns[i].plan,diversityRuns[j].plan));
+      diversityPairs++;
+    }
+    diversityPlanMean/=diversityPairs;
+    assert(diversityInitialMin>1e-4,"different seeds unexpectedly produced identical initial latents");
+    assert(diversityPlanMean>1e-5&&diversityPlanMax>1e-4,"same-observation samples do not show plan diversity");
     for(let i=0;i<100;i++)model.predict(noisy,50,state);
     const runs=1500,t0=performance.now();
     for(let i=0;i<runs;i++)model.predict(noisy,50,state);
     const avg=(performance.now()-t0)/runs;
     assert(avg<10,"browser denoiser unexpectedly slow: "+avg.toFixed(3)+" ms");
     assert(m.training.validation_epsilon_mse<0.06,"validation metric regressed");
-    console.log("MODEL_RUNTIME_CHECK_OK avgMs="+avg.toFixed(4)+" stateDelta="+maxDiff(a,byState).toFixed(4)+" timeDelta="+maxDiff(a,byTime).toFixed(4)+" fixedNoisePlanMaxDelta="+conditionMax.toFixed(4)+" fixedNoisePlanMeanDelta="+conditionMean.toFixed(4)+" initialHistoryDelta="+initialHistoryDelta.toFixed(6)+" firstHistoryDelta="+firstHistoryDelta.toFixed(4)+" midHistoryDelta="+midHistoryDelta.toFixed(4));
+    console.log("MODEL_RUNTIME_CHECK_OK avgMs="+avg.toFixed(4)+" stateDelta="+maxDiff(a,byState).toFixed(4)+" timeDelta="+maxDiff(a,byTime).toFixed(4)+" fixedNoisePlanMaxDelta="+conditionMax.toFixed(4)+" fixedNoisePlanMeanDelta="+conditionMean.toFixed(4)+" initialHistoryDelta="+initialHistoryDelta.toFixed(6)+" firstHistoryDelta="+firstHistoryDelta.toFixed(4)+" midHistoryDelta="+midHistoryDelta.toFixed(4)+" diversityInitialMin="+diversityInitialMin.toFixed(4)+" diversityPlanMean="+diversityPlanMean.toFixed(4)+" diversityPlanMax="+diversityPlanMax.toFixed(4));
     server.close(()=>process.exit(0));
   }catch(e){console.error(e);server.close(()=>process.exit(1))}
 });
