@@ -16,7 +16,10 @@ const required=[
   '.sequence-scale{font:11px',
   '.sequence-plain{',
   '.exec-now strong{font:22px',
-  '.exec-action small{font-size:11px'
+  '.exec-action small{font-size:11px',
+  '.reobserve-title b{font-size:13px',
+  '.reobserve-cell b{font:700 14px',
+  '.reobserve-cell em{display:block
 ];
 for(const token of required)if(!html.includes(token))throw new Error("readability contract missing: "+token);
 console.log("READABILITY_CONTRACT_OK");
