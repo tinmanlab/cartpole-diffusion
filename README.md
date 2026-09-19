@@ -29,14 +29,15 @@ For a first pass, use **한 cycle 설명** instead of trying to read the live pa
 The walkthrough freezes live physics and uses one real planning cycle:
 
 ```text
-1/5 observe
-2/5 random action candidates
-3/5 denoise
-4/5 final 16-action plan
-5/5 physically apply a[0] ... a[3] for 0.08 s
+1/6 observe
+2/6 random action candidates
+3/6 denoise
+4/6 final 16-action plan
+5/6 physically apply a[0] ... a[3] for 0.08 s
+6/6 observe the changed plant again
 ```
 
-At the final step the browser applies the same first four force commands to the actual Cart-Pole dynamics, shows the changed plant state, and explains that the next operation is a new observation and replan. Exiting the walkthrough returns to the normal live controller.
+After executing the four commands, the walkthrough shows the before → after values for `x`, `x_dot`, `theta`, and `theta_dot`. Those after-values become the next cycle’s actual observation. Pressing **다음 cycle** generates a new diffusion plan from that changed plant state. Exiting the walkthrough returns to the normal live controller.
 
 The guided mode does not synthesize separate teaching data: it freezes and reveals the same observation, denoising history, final plan, and physics update used by the live policy.
 
@@ -132,6 +133,7 @@ It verifies:
 - denoising visualization changes as replanning occurs
 - Pause freezes the simulation
 - Push changes the visible Cart-Pole state
+- guided mode freezes live physics, applies exactly four actions, shows four before/after state comparisons, and restarts the next cycle from the after-state
 - Advanced opens correctly
 - no browser console / page errors
 - mobile uses the vertical A → B → C denoising cards without horizontal scrolling
