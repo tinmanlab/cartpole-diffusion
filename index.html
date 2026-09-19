@@ -30,7 +30,7 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
 
 <section class="lab-grid">
 <aside class="card">
-  <div class="card-head"><b>PLANT · LIVE CART-POLE</b><span>50 Hz</span></div>
+  <div class="card-head"><b>Plant · 실시간 Cart-Pole</b><span>50 Hz physics</span></div>
   <div class="scene"><svg viewBox="0 0 600 270" role="img" aria-label="simple live Cart-Pole plant">
     <rect x="34" y="217" width="532" height="25" rx="6" fill="#f3f5f7"/>
     <line x1="54" y1="219" x2="546" y2="219" stroke="#cbd1da" stroke-width="4" stroke-linecap="round"/>
@@ -47,18 +47,18 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
 </aside>
 
 <section class="card">
-  <div class="card-head"><b>CONTROLLER · ONE CLOSED-LOOP CYCLE</b><span>Pause하면 현재 plan을 그대로 읽을 수 있습니다.</span></div>
+  <div class="card-head"><b>제어 루프 · 관측 → 계획 → 실행 → 재관측</b><span>Pause하면 현재 cycle을 천천히 읽을 수 있습니다.</span></div>
   <div class="loop">
     <section class="step">
-      <div class="step-head"><i class="step-num">1</i><div><b>Observe the plant</b><span>Diffusion policy에 들어가는 센서 상태</span></div></div>
+      <div class="step-head"><i class="step-num">1</i><div><b>관측 (Observe)</b><span>현재 Cart-Pole에서 policy로 들어가는 4개 상태값</span></div></div>
       <div id="observation"></div>
     </section>
 
     <div class="loop-arrow">↓</div>
 
     <section class="step">
-      <div class="step-head"><i class="step-num">2</i><div><b>Diffusion Policy makes a future force plan</b><span>여기가 Diffusion의 역할입니다.</span></div></div>
-      <div class="policy-plain"><b>Noise</b> = 아직 cart에 보내지 않는 랜덤한 미래 force 후보 16개. <b>Denoise</b> = 관측 상태를 조건으로 그 후보를 반복 수정해서 시연 데이터와 비슷한 force sequence로 만드는 과정.</div>
+      <div class="step-head"><i class="step-num">2</i><div><b>계획 (Plan) · Diffusion이 미래 force 16개 생성</b><span>랜덤 후보를 현재 관측에 맞는 force sequence로 반복 수정합니다.</span></div></div>
+      <div class="policy-plain"><b>Noise</b>는 아직 실행하지 않는 랜덤 force 후보 16개입니다. <b>Denoise</b>는 현재 관측값을 보면서 이 후보들을 여러 번 고쳐 최종 force plan으로 만드는 과정입니다.</div>
       <div class="blackbox"><span>observation c</span><i>+</i><span>current candidate aₜ</span><i>+</i><span>step t</span><i>→</i><b>εθ predicts what part looks like noise</b><i>→</i><span>DDIM updates candidate</span></div>
       <div id="denoiseStages" class="denoise-stages"></div>
     </section>
@@ -66,11 +66,11 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
     <div class="loop-arrow">↓</div>
 
     <section class="step">
-      <div class="step-head"><i class="step-num">3</i><div><b>Execute only the first 4 forces</b><span>16개를 모두 실행하지 않고 짧은 prefix만 plant에 보냅니다.</span></div></div>
+      <div class="step-head"><i class="step-num">3</i><div><b>실행 (Act) · 앞 4개 force만 적용</b><span>16개 전체가 아니라 a[0]~a[3]만 Cart-Pole에 차례로 보냅니다.</span></div></div>
       <div id="execution"></div>
     </section>
 
-    <div class="loop-back"><b>4 · Observe again → replan</b> · a[3]까지 실행하면 새 x, ẋ, θ, θ̇를 읽고 Gaussian noise부터 새 16-action plan을 만듭니다.</div>
+    <div class="loop-back"><b>4 · 다시 관측 → 새 계획</b> · a[3]까지 실행하면 바뀐 x, ẋ, θ, θ̇를 다시 읽고 새로운 16-action plan을 생성합니다.</div>
   </div>
 </section>
 </section>
