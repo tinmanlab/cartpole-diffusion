@@ -73,6 +73,7 @@ async function desktop(browser){
   if(Math.abs(oneData.before0-oneData.after0)<1e-12)err('guided cycle: one-step denoise did not change a[0]');
   if(oneData.paths!==2)err('guided cycle: one-step before/after paths missing');
   if(!oneData.note.includes('force가 아닙니다'))err('guided cycle: epsilon claim boundary missing');
+  await page.screenshot({path:path.join(outDir,'desktop-denoise-update.jpg'),type:'jpeg',quality:84,fullPage:true});
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
   if(!(await page.locator('#guideStep').innerText()).includes('4/6'))err('guided cycle: final-plan step missing');
@@ -139,6 +140,35 @@ async function mobile(browser){
   if(d.mobileSequenceDisplay==='none')err('mobile: vertical denoise cards are hidden');
   if(d.desktopSequenceDisplay!=='none')err('mobile: desktop wide sequence should be hidden');
   if(d.mobileSequencePaths!==3)err('mobile: expected 3 vertical sequence paths, got '+d.mobileSequencePaths);
+
+  await page.getByRole('button',{name:'한 cycle 설명'}).click();await page.waitForTimeout(80);
+  await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(60);
+  await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(100);
+  const mobileGuideStep=await page.locator('#guideStep').innerText();
+  const mobileOne=page.locator('[data-qa="denoise-one-step"]');
+  if(!mobileGuideStep.includes('3/6'))err('mobile: guided denoise step did not reach 3/6');
+  if(!(await mobileOne.isVisible()))err('mobile: one-step denoise panel is hidden');
+  const mobileGuided=await page.evaluate(()=>{
+    const panel=document.querySelector('[data-qa="denoise-one-step"]'),flow=document.querySelector('.denoise-update-flow');
+    const r=panel?.getBoundingClientRect();
+    return {
+      scrollWidth:document.documentElement.scrollWidth,
+      viewport:innerWidth,
+      panel:r?{x:r.x,width:r.width,right:r.right}:null,
+      cards:panel?.querySelectorAll('.update-card').length||0,
+      gridTemplateColumns:flow?getComputedStyle(flow).gridTemplateColumns:'',
+      panelFont:panel?Math.min(...[...panel.querySelectorAll('b,span,strong,small,p')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite)):null
+    };
+  });
+  report.interactions.mobileGuidedDenoise={step:mobileGuideStep,...mobileGuided};
+  if(mobileGuided.scrollWidth>mobileGuided.viewport+2)err('mobile guided denoise: page overflow '+mobileGuided.scrollWidth+' > '+mobileGuided.viewport);
+  if(!mobileGuided.panel||mobileGuided.panel.right>mobileGuided.viewport+2)err('mobile guided denoise: panel escapes viewport');
+  if(mobileGuided.cards!==4)err('mobile guided denoise: expected four update cards');
+  if(mobileGuided.gridTemplateColumns.trim().split(/\s+/).length!==1)err('mobile guided denoise: update cards are not vertically stacked');
+  if(mobileGuided.panelFont!==null&&mobileGuided.panelFont<10.5)err('mobile guided denoise: text too small '+mobileGuided.panelFont+'px');
+  await page.screenshot({path:path.join(outDir,'mobile-denoise-update.jpg'),type:'jpeg',quality:82,fullPage:true});
+  await page.getByRole('button',{name:'Live로 돌아가기'}).click();await page.waitForTimeout(80);
+
   if(browserErrors.length)err('mobile browser errors: '+browserErrors.join(' | '));
   report.interactions.mobileConsoleErrors=browserErrors;
   await page.screenshot({path:path.join(outDir,'mobile.jpg'),type:'jpeg',quality:82,fullPage:true});await page.close();
