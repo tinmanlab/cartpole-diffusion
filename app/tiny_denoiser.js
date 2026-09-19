@@ -21,11 +21,13 @@ function dense(input,layer,activate){
 }
 async function readText(url){var r=await fetch(url);if(!r.ok)throw new Error("HTTP "+r.status+" "+url);return (await r.text()).trim()}
 async function load(manifestUrl){
-  var r=await fetch(manifestUrl);if(!r.ok)throw new Error("HTTP "+r.status+" "+manifestUrl);
-  var m=await r.json(),layers=[];
+  var base=(typeof document!=="undefined"&&document.baseURI)?document.baseURI:undefined;
+  var manifestAbs=new URL(manifestUrl,base);
+  var r=await fetch(manifestAbs.href);if(!r.ok)throw new Error("HTTP "+r.status+" "+manifestAbs.href);
+  var m=await r.json(),layers=[],siteBase=new URL("../",new URL(".",manifestAbs));
   for(var i=0;i<m.layers.length;i++){
     var spec=m.layers[i];
-    var pair=await Promise.all([readText(spec.weight.path),readText(spec.bias.path)]);
+    var pair=await Promise.all([readText(new URL(spec.weight.path,siteBase).href),readText(new URL(spec.bias.path,siteBase).href)]);
     layers.push({
       shape:spec.weight.shape,
       weight:decodeInt16(pair[0],spec.weight.scale),
