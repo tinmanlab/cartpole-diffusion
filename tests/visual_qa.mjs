@@ -497,7 +497,7 @@ async function mobile(browser){
   });
   if(mobileReplayLayout.scrollWidth>mobileReplayLayout.viewport+2||mobileReplayLayout.right>mobileReplayLayout.viewport+2)err('mobile replay: layout escapes viewport');
   if(mobileReplayLayout.columns.trim().split(/\s+/).length!==1)err('mobile replay: controller cards are not vertically stacked');
-  if(mobileReplayLayout.minFont!==null&&mobileReplayLayout.minFont<9.5)err('mobile replay: text too small '+mobileReplayLayout.minFont+'px');
+  if(mobileReplayLayout.minFont!==null&&mobileReplayLayout.minFont<10.5)err('mobile replay: text too small '+mobileReplayLayout.minFont+'px');
   await page.locator('#replayRunBtn').click();await page.waitForTimeout(40);
   const mobileReplaySlider=page.locator('#replaySlider');
   await mobileReplaySlider.evaluate(el=>{el.value='81';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(60);
