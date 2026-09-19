@@ -22,6 +22,24 @@ Cart-Pole
 observe again and replan
 ```
 
+## Guided one-cycle walkthrough
+
+For a first pass, use **한 cycle 설명** instead of trying to read the live page while it is moving.
+
+The walkthrough freezes live physics and uses one real planning cycle:
+
+```text
+1/5 observe
+2/5 random action candidates
+3/5 denoise
+4/5 final 16-action plan
+5/5 physically apply a[0] ... a[3] for 0.08 s
+```
+
+At the final step the browser applies the same first four force commands to the actual Cart-Pole dynamics, shows the changed plant state, and explains that the next operation is a new observation and replan. Exiting the walkthrough returns to the normal live controller.
+
+The guided mode does not synthesize separate teaching data: it freezes and reveals the same observation, denoising history, final plan, and physics update used by the live policy.
+
 ## What diffusion does
 
 The default denoising visualization now uses one shared force-sequence axis instead of three dense bar grids.
