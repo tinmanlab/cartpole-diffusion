@@ -8,7 +8,8 @@ const required=[
   '.obs-values b{display:block;font:17px',
   '.policy-plain{border-left:4px',
   'font-size:13px;line-height:1.65',
-  '.denoise-head b{font-size:12px',
+  '.sequence-title{font:700 15px',
+  '.sequence-plain{',
   '.exec-now strong{font:22px'
 ];
 for(const token of required)if(!html.includes(token))throw new Error("readability contract missing: "+token);
