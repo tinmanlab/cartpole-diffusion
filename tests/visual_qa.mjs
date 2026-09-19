@@ -12,11 +12,24 @@ async function inspect(page,name){
     const pick=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};
     const sels=['[data-qa="plant"]','[data-qa="controller"]','[data-qa="observe"]','[data-qa="plan"]','[data-qa="act"]','[data-qa="replan"]'];
     const boxes=Object.fromEntries(sels.map(s=>[s,pick(s)]));
-    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.timeline-head b,.timeline-head span,.timeline-status strong,.timeline-status span,.timeline-controls button,.timeline-controls label,.timeline-controls select,.timeline-scale,.timeline-caption,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.exec-rest,.loop-back')];
+    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.timeline-head b,.timeline-head span,.timeline-status strong,.timeline-status span,.timeline-controls button,.timeline-controls label,.timeline-controls select,.timeline-scale,.timeline-caption,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.horizon-head b,.horizon-head span,.horizon-metrics strong,.horizon-metrics em,.horizon-labels,.horizon-groups b,.horizon-groups span,.horizon-note,.loop-back')];
     const fonts=core.filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
     const overlap=(a,b)=>{if(!a||!b)return 0;return Math.max(0,Math.min(a.right,b.right)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y))};
     const visibleCount=s=>[...document.querySelectorAll(s)].filter(e=>e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden').length;
-    return{viewport:{width:innerWidth,height:innerHeight},document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},boxes,minCoreFont:fonts.length?Math.min(...fonts):null,plantControllerOverlap:overlap(boxes[sels[0]],boxes[sels[1]]),sequencePaths:visibleCount('.sequence-svg .sequence-path'),executePoints:visibleCount('.execute-point'),executeBands:visibleCount('.execute-band'),obsValues:document.querySelectorAll('[data-qa="observation-values"]>div').length,execActions:document.querySelectorAll('[data-qa="exec-action"]').length,advancedOpen:document.querySelector('[data-qa="advanced"]')?.open||false,desktopSequenceDisplay:getComputedStyle(document.querySelector('.sequence-svg')).display,mobileSequenceDisplay:getComputedStyle(document.querySelector('[data-qa="mobile-sequence"]')).display,mobileSequencePaths:visibleCount('.mobile-sequence-path')};
+    const horizon=document.querySelector('[data-qa="horizon"]'),track=horizon?.querySelector('.horizon-track'),marker=horizon?.querySelector('.reobserve-marker');
+    const tr=track?.getBoundingClientRect(),mr=marker?.getBoundingClientRect();
+    const horizonInfo=horizon?{
+      predictionCount:Number(horizon.dataset.predictionCount),
+      executeCount:Number(horizon.dataset.executeCount),
+      predictionSeconds:Number(horizon.dataset.predictionSeconds),
+      executeSeconds:Number(horizon.dataset.executeSeconds),
+      slots:horizon.querySelectorAll('.horizon-slot').length,
+      executeSlots:horizon.querySelectorAll('.horizon-slot.execute').length,
+      plannedSlots:horizon.querySelectorAll('.horizon-slot.planned').length,
+      discardedSlots:horizon.querySelectorAll('.horizon-slot.discarded').length,
+      markerRatio:tr&&mr?((mr.x+mr.width/2)-tr.x)/tr.width:null
+    }:null;
+    return{viewport:{width:innerWidth,height:innerHeight},document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},boxes,minCoreFont:fonts.length?Math.min(...fonts):null,plantControllerOverlap:overlap(boxes[sels[0]],boxes[sels[1]]),sequencePaths:visibleCount('.sequence-svg .sequence-path'),executePoints:visibleCount('.execute-point'),executeBands:visibleCount('.execute-band'),obsValues:document.querySelectorAll('[data-qa="observation-values"]>div').length,execActions:document.querySelectorAll('[data-qa="exec-action"]').length,advancedOpen:document.querySelector('[data-qa="advanced"]')?.open||false,desktopSequenceDisplay:getComputedStyle(document.querySelector('.sequence-svg')).display,mobileSequenceDisplay:getComputedStyle(document.querySelector('[data-qa="mobile-sequence"]')).display,mobileSequencePaths:visibleCount('.mobile-sequence-path'),horizon:horizonInfo};
   });
   d.boxes=Object.fromEntries(Object.entries(d.boxes).map(([k,v])=>[k,rect(v)]));report.views[name]=d;
   if(d.document.scrollWidth>d.viewport.width+2)err(name+': page-level horizontal overflow '+d.document.scrollWidth+' > '+d.viewport.width);
@@ -29,6 +42,13 @@ async function inspect(page,name){
   if(d.executePoints!==4||d.executeBands!==1)err(name+': execute-region markers incorrect');
   if(d.obsValues!==4)err(name+': observation card count '+d.obsValues);
   if(d.execActions!==4)err(name+': execution card count '+d.execActions);
+  if(!d.horizon)err(name+': horizon visualization missing');
+  else{
+    if(d.horizon.predictionCount!==16||d.horizon.executeCount!==4)err(name+': horizon count contract is not 16/4');
+    if(Math.abs(d.horizon.predictionSeconds-.32)>1e-9||Math.abs(d.horizon.executeSeconds-.08)>1e-9)err(name+': horizon timing contract is not 0.32/0.08 s');
+    if(d.horizon.slots!==16||d.horizon.executeSlots!==4||d.horizon.plannedSlots!==12)err(name+': horizon slot split incorrect');
+    if(d.horizon.markerRatio===null||Math.abs(d.horizon.markerRatio-.25)>.025)err(name+': re-observation marker is not at 25% of horizon');
+  }
   return d;
 }
 async function desktop(browser){
@@ -43,6 +63,13 @@ async function desktop(browser){
   if(o0===o1)err('desktop: plan number did not advance over 450 ms');
   if(seq0===seq1)err('desktop: denoising sequence did not update with replanning');
   await inspect(page,'desktop');
+  const readHorizon=()=>page.locator('[data-qa="horizon"]').evaluate(el=>({
+    predictionCount:Number(el.dataset.predictionCount),executeCount:Number(el.dataset.executeCount),
+    predictionSeconds:Number(el.dataset.predictionSeconds),executeSeconds:Number(el.dataset.executeSeconds),
+    slots:el.querySelectorAll('.horizon-slot').length,discarded:el.querySelectorAll('.horizon-slot.discarded').length,
+    current:el.querySelectorAll('.horizon-slot.current').length,note:el.querySelector('.horizon-note')?.textContent||'',
+    plannedText:el.querySelector('.planned-window b')?.textContent||''
+  }));
   const x0=await page.locator('#rx').innerText();const push=page.getByRole('button',{name:'Push right'});await push.dispatchEvent('pointerdown');await page.waitForTimeout(260);await push.dispatchEvent('pointerup');await page.waitForTimeout(100);const x1=await page.locator('#rx').innerText();report.interactions.push={before:x0,after:x1,changed:x0!==x1};if(x0===x1)err('desktop: Push right did not change visible cart position');
 
   // Guided one-cycle walkthrough must freeze live control, expose each semantic stage,
@@ -109,6 +136,9 @@ async function desktop(browser){
   if(await page.locator('.sequence-svg [data-qa="sequence-final"].guide-focus').count()!==1)err('guided cycle: final sequence not focused');
   if(await timeline.isVisible())err('guided cycle: denoise timeline should hide after denoise step');
   if(await oneStep.isVisible())err('guided cycle: one-step denoise panel should hide after denoise step');
+  const horizonBefore=await readHorizon();
+  if(horizonBefore.predictionCount!==16||horizonBefore.executeCount!==4||horizonBefore.slots!==16)err('guided horizon: final plan is not 16 actions with 4-action execution window');
+  if(horizonBefore.discarded!==0)err('guided horizon: tail should not be discarded before execution');
 
   await page.getByRole('button',{name:'앞 4개 실제 적용'}).click();await page.waitForTimeout(80);
   const guideAppliedText=await page.locator('#guideStep').innerText();
@@ -119,6 +149,10 @@ async function desktop(browser){
   if(doneCount!==3||activeCount!==1)err('guided cycle: first four actions were not represented as 3 done + 1 active');
   if(!explain.includes('0.08 s'))err('guided cycle: physical execution explanation missing');
   if(await page.locator('[data-qa="act"].guide-focus').count()!==1)err('guided cycle: act stage not focused after execution');
+  const horizonAfter=await readHorizon();
+  if(horizonAfter.discarded!==12)err('guided horizon: old a[4]..a[15] tail should be marked discarded after execution');
+  if(!horizonAfter.note.includes('old a[4]~a[15]'))err('guided horizon: discarded-tail explanation missing');
+  await page.screenshot({path:path.join(outDir,'desktop-horizon.jpg'),type:'jpeg',quality:84,fullPage:true});
 
   await page.getByRole('button',{name:'다시 관측'}).click();await page.waitForTimeout(100);
   const reobserveText=await page.locator('#guideStep').innerText();
@@ -146,6 +180,9 @@ async function desktop(browser){
   if(!nextCycleText.includes('1/6'))err('guided cycle: next cycle did not restart at observation');
   if(oldPlanTitle===newPlanTitle)err('guided cycle: next cycle did not generate a new plan');
   for(let i=0;i<4;i++)if(!Number.isFinite(nextObs[i])||Math.abs(nextObs[i]-afterState[i])>1e-9)err('guided cycle: next observation does not match prior after-state at index '+i);
+  const horizonNext=await readHorizon();
+  if(horizonNext.discarded!==0)err('guided horizon: next cycle should start with a fresh undiscarded 16-action plan');
+  report.interactions.horizon={before:horizonBefore,after:horizonAfter,next:horizonNext};
 
   await page.getByRole('button',{name:'Live로 돌아가기'}).click();await page.waitForTimeout(260);
   const afterExit0=await page.locator('#elapsed').innerText();await page.waitForTimeout(260);const afterExit1=await page.locator('#elapsed').innerText();
@@ -210,6 +247,21 @@ async function mobile(browser){
   const mobileLast=await mobileTimeline.evaluate(el=>({stepIndex:Number(el.dataset.stepIndex),currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT)}));
   if(mobileLast.stepIndex!==18||mobileLast.currentT!==5||mobileLast.nextT!==0)err('mobile guided denoise: scrubber failed to reach final update');
   await page.screenshot({path:path.join(outDir,'mobile-denoise-update.jpg'),type:'jpeg',quality:82,fullPage:true});
+  await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(60);
+  await page.getByRole('button',{name:'앞 4개 실제 적용'}).click();await page.waitForTimeout(90);
+  const mobileHorizon=await page.locator('[data-qa="horizon"]').evaluate(el=>{
+    const r=el.getBoundingClientRect(),track=el.querySelector('.horizon-track')?.getBoundingClientRect(),marker=el.querySelector('.reobserve-marker')?.getBoundingClientRect();
+    const fonts=[...el.querySelectorAll('b,span,strong,em,p')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
+    return {x:r.x,width:r.width,right:r.right,viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,
+      slots:el.querySelectorAll('.horizon-slot').length,discarded:el.querySelectorAll('.horizon-slot.discarded').length,
+      markerRatio:track&&marker?((marker.x+marker.width/2)-track.x)/track.width:null,minFont:fonts.length?Math.min(...fonts):null};
+  });
+  report.interactions.mobileHorizon=mobileHorizon;
+  if(mobileHorizon.scrollWidth>mobileHorizon.viewport+2||mobileHorizon.right>mobileHorizon.viewport+2)err('mobile horizon: layout escapes viewport');
+  if(mobileHorizon.slots!==16||mobileHorizon.discarded!==12)err('mobile horizon: expected 16 slots and 12 discarded tail slots after execution');
+  if(mobileHorizon.markerRatio===null||Math.abs(mobileHorizon.markerRatio-.25)>.025)err('mobile horizon: re-observation marker not at 25%');
+  if(mobileHorizon.minFont!==null&&mobileHorizon.minFont<10.5)err('mobile horizon: text too small '+mobileHorizon.minFont+'px');
+  await page.screenshot({path:path.join(outDir,'mobile-horizon.jpg'),type:'jpeg',quality:82,fullPage:true});
   await page.getByRole('button',{name:'Live로 돌아가기'}).click();await page.waitForTimeout(80);
 
   if(browserErrors.length)err('mobile browser errors: '+browserErrors.join(' | '));
