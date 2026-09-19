@@ -206,6 +206,14 @@ function conditioningPlanPath(values,x0,y0,width,height,limit){
     return (i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
   }).join(" ");
 }
+function conditioningHistoryPath(history,actionIndex,x0,y0,width,height,limit){
+  if(!history||!history.length)return "";
+  return history.map(function(stage,i){
+    var x=x0+i/(history.length-1)*width,v=stage.latent[actionIndex],shown=clamp(v,-limit,limit);
+    var y=y0+height/2-(shown/limit)*(height*.42);
+    return (i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
+  }).join(" ");
+}
 function renderConditioningCompare(rootEl,data){
   if(!rootEl)return;
   if(!data){rootEl.hidden=true;rootEl.innerHTML="";return}
@@ -214,6 +222,18 @@ function renderConditioningCompare(rootEl,data){
   var diff=0,maxDiff=0;
   for(var i=0;i<plus.length;i++){var d=Math.abs((plus[i]-minus[i])*10);diff+=d;maxDiff=Math.max(maxDiff,d)}
   var meanDiff=diff/plus.length;
+  var actionIndex=0,ph=data.plusHistory||[],mh=data.minusHistory||[];
+  var values=[];
+  for(var h=0;h<ph.length;h++){values.push(Math.abs(ph[h].latent[actionIndex]));values.push(Math.abs(mh[h].latent[actionIndex]))}
+  var histLimit=Math.max(1,Math.max.apply(null,values)*1.08),hx0=34,hy0=10,hwidth=692,hheight=112;
+  var plusHist=conditioningHistoryPath(ph,actionIndex,hx0,hy0,hwidth,hheight,histLimit);
+  var minusHist=conditioningHistoryPath(mh,actionIndex,hx0,hy0,hwidth,hheight,histLimit);
+  var initialDelta=ph.length&&mh.length?Math.abs(ph[0].latent[actionIndex]-mh[0].latent[actionIndex]):NaN;
+  var firstDelta=ph.length>1&&mh.length>1?Math.abs(ph[1].latent[actionIndex]-mh[1].latent[actionIndex]):NaN;
+  var midIndex=ph.findIndex(function(s){return s.t===50});if(midIndex<0)midIndex=Math.floor(ph.length/2);
+  var midDelta=ph.length&&mh.length?Math.abs(ph[midIndex].latent[actionIndex]-mh[midIndex].latent[actionIndex]):NaN;
+  var finalDelta=Math.abs(plus[actionIndex]-minus[actionIndex]);
+  var firstAfterT=ph.length>1?ph[1].t:null;
   rootEl.hidden=false;
   rootEl.dataset.sameNoise=data.sameNoise?"true":"false";rootEl.dataset.seed=String(data.seed);
   rootEl.dataset.plusTheta=String(data.plusObs[2]);
@@ -222,6 +242,12 @@ function renderConditioningCompare(rootEl,data){
   rootEl.dataset.maxAbsDiffN=String(maxDiff);
   rootEl.dataset.plusFirstN=String(plus[0]*10);
   rootEl.dataset.minusFirstN=String(minus[0]*10);
+  rootEl.dataset.historyStates=String(ph.length);
+  rootEl.dataset.initialDelta=String(initialDelta);
+  rootEl.dataset.firstUpdateDelta=String(firstDelta);
+  rootEl.dataset.midDelta=String(midDelta);
+  rootEl.dataset.finalDelta=String(finalDelta);
+  rootEl.dataset.firstAfterT=String(firstAfterT);
   rootEl.innerHTML=
     '<div class="conditioning-head"><div><b>같은 noise, observation만 바꿔보기</b><span>통제 실험: model · initial Gaussian latent · sampler는 동일</span></div><em>θ만 +5° ↔ −5°</em></div>'
     +'<div class="conditioning-observations">'
@@ -229,7 +255,20 @@ function renderConditioningCompare(rootEl,data){
     +'<div class="cond-arrow">같은 noise →</div>'
     +'<div class="cond-obs minus"><span>Observation B</span><b>[0, 0, −5°, 0]</b><small>오직 θ만 변경</small></div>'
     +'</div>'
-    +'<div class="conditioning-chart"><div class="conditioning-legend"><span><i class="plus-key"></i>θ=+5° plan</span><span><i class="minus-key"></i>θ=−5° plan</span></div>'
+    +'<div class="conditioning-divergence">'
+    +'<div class="divergence-head"><div><b>같은 a[0]이 언제 갈라지나?</b><span>t=95에서는 같은 initial latent · 첫 denoise update부터 observation-conditioned 경로 분기</span></div>'
+    +'<strong>Δ '+fmt(initialDelta,3)+' → '+fmt(firstDelta,3)+' → '+fmt(finalDelta,3)+'</strong></div>'
+    +'<div class="divergence-legend"><span><i class="plus-key"></i>θ=+5°</span><span><i class="minus-key"></i>θ=−5°</span></div>'
+    +'<svg viewBox="0 0 760 142" role="img" aria-label="same initial action candidate diverging across denoising under two observations">'
+    +'<line x1="'+hx0+'" y1="'+(hy0+hheight/2)+'" x2="'+(hx0+hwidth)+'" y2="'+(hy0+hheight/2)+'" class="conditioning-zero"/>'
+    +'<path d="'+plusHist+'" class="conditioning-plus-history" fill="none"/>'
+    +'<path d="'+minusHist+'" class="conditioning-minus-history" fill="none"/>'
+    +'<circle cx="'+hx0+'" cy="'+(hy0+hheight/2-(clamp(ph[0].latent[actionIndex],-histLimit,histLimit)/histLimit)*(hheight*.42)).toFixed(1)+'" r="5" class="conditioning-same-start"/>'
+    +'<text x="'+hx0+'" y="139" class="conditioning-axis">t=95 · same</text><text x="'+(hx0+hwidth/2)+'" y="139" text-anchor="middle" class="conditioning-axis">t≈50</text><text x="'+(hx0+hwidth)+'" y="139" text-anchor="end" class="conditioning-axis">t=0</text>'
+    +'</svg>'
+    +'<div class="divergence-metrics"><div><span>t=95 시작 차이</span><b>'+fmt(initialDelta,3)+'</b></div><div><span>첫 update 후 t='+firstAfterT+'</span><b>'+fmt(firstDelta,3)+'</b></div><div><span>t≈50 차이</span><b>'+fmt(midDelta,3)+'</b></div><div><span>t=0 차이</span><b>'+fmt(finalDelta,3)+'</b></div></div>'
+    +'</div>'
+    +'<div class="conditioning-chart"><div class="conditioning-legend"><span><i class="plus-key"></i>θ=+5° final plan</span><span><i class="minus-key"></i>θ=−5° final plan</span></div>'
     +'<svg viewBox="0 0 760 146" role="img" aria-label="same-noise final action plans under positive and negative pole angle observations">'
     +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="conditioning-zero"/>'
     +'<path d="'+plusPath+'" class="conditioning-plus" fill="none"/>'
@@ -239,7 +278,7 @@ function renderConditioningCompare(rootEl,data){
     +'<div class="conditioning-summary"><div><span>첫 force A</span><b>'+(plus[0]>=0?"+":"")+fmt(plus[0]*10,2)+' N</b></div>'
     +'<div><span>첫 force B</span><b>'+(minus[0]>=0?"+":"")+fmt(minus[0]*10,2)+' N</b></div>'
     +'<div><span>16개 평균 차이</span><b>'+fmt(meanDiff,2)+' N</b></div></div>'
-    +'<p class="conditioning-note"><b>의미:</b> 시작 noise가 같아도 observation이 달라지면 denoiser의 매 step 출력이 달라지고 최종 16-action plan도 달라집니다. 이 toy에서 observation은 단순 표시값이 아니라 policy의 조건(condition)입니다.</p>';
+    +'<p class="conditioning-note"><b>의미:</b> t=95의 시작 candidate는 완전히 같습니다. observation은 denoiser 입력에 들어가므로 첫 reverse update부터 두 candidate 경로가 달라지고, 그 차이가 누적되어 서로 다른 최종 16-action plan이 됩니다.</p>';
 }
 function renderObservation(rootEl,obs,planCount){
   if(!obs){rootEl.innerHTML='';return}
