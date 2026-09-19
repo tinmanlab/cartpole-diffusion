@@ -158,13 +158,13 @@ function computeDistribution(snapshot){
     }
     next.t0.push(x.slice());
   }
-  distData=next;distributionSeed+=100003;lastDistAt=performance.now();distPending=false;
+  distData=next;lastDistAt=performance.now();distPending=false;
   E("sampleStatus").textContent=DIST_SAMPLES+" empirical samples · refreshed from live state";
   renderBeginnerCharts();
 }
 function scheduleDistribution(){
   if(!model||distPending)return;
-  var now=performance.now();if(now-lastDistAt<1200)return;
+  var now=performance.now();if(distData.t0.length&&now-lastDistAt<1200)return;
   distPending=true;var snapshot=stateArray().slice();E("sampleStatus").textContent="sampling "+DIST_SAMPLES+" seeds…";
   setTimeout(function(){computeDistribution(snapshot)},0);
 }
