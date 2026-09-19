@@ -27,6 +27,7 @@ jobs:
       - run: python -m unittest training.test_core
       - run: node --check app/tiny_denoiser.js
       - run: node --check app/diffusion_viz.js
+      - run: node tests/index_script_smoke.cjs
       - name: Browser-model and visualization smoke contract
         if: hashFiles('artifacts/model.json') != ''
         run: node tests/model_smoke.cjs
