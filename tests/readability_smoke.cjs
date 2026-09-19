@@ -8,7 +8,7 @@ const required=[
   '.replay-head p{font-size:11px',
   '.replay-card-head b{font-size:13px',
   '.replay-values b,.replay-metrics b{font:11px',
-  '.replay-note{margin-top:10px;padding:9px 11px;border-radius:8px;background:#f5f3fa;font-size:11px'
+  '.replay-note{margin-top:10px;padding:9px 11px;border-radius:8px;background:#f5f3fa;font-size:11px',
   '.card-head b{font-size:15px',
   '.card-head span i{font-style:normal;font:700 11px',
   '.controls button:disabled{opacity:.38',
