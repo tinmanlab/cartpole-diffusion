@@ -56,8 +56,8 @@ function rowSvg(stage,finalPlan,rowY,title,subtitle,color,kind){
 function renderStages(rootEl,history,finalPlan){
   var start=pick(history,95),mid=pick(history,45),final=pick(history,0);
   rootEl.innerHTML=
-    '<div class="sequence-guide"><b>같은 16개 미래 action 자리</b><span>A/B는 내부 후보값, C만 실제 force(N)입니다. 왼쪽이 먼저 실행될 action입니다.</span></div>'
-    +'<svg class="sequence-svg" viewBox="0 0 980 282" role="img" aria-label="random future-force candidates becoming the final force plan">'
+    '<div class="sequence-guide" data-qa="sequence-guide"><b>같은 16개 미래 action 자리</b><span>A/B는 내부 후보값, C만 실제 force(N)입니다. 왼쪽이 먼저 실행될 action입니다.</span></div>'
+    +'<svg class="sequence-svg" data-qa="denoise-sequence" viewBox="0 0 980 282" role="img" aria-label="random future-force candidates becoming the final force plan">'
     +rowSvg(start,finalPlan,12,'A · 랜덤 후보','내부 action 후보 · 아직 실행 안 함 · t='+(start?start.t:'—'),'#8968ca','noise')
     +'<text x="530" y="94" class="sequence-down">↓ 관측값을 조건으로 반복 수정</text>'
     +rowSvg(mid,finalPlan,106,'B · 정리 중','관측 상태에 맞게 반복 수정 · t≈'+(mid?mid.t:'—'),'#5476df','mid')
@@ -69,8 +69,8 @@ function renderStages(rootEl,history,finalPlan){
 function renderObservation(rootEl,obs,planCount){
   if(!obs){rootEl.innerHTML='';return}
   rootEl.innerHTML=
-    '<div class="obs-title"><b>Observation used for plan #'+planCount+'</b><span>이 4개 숫자가 현재 toy policy가 보는 전부입니다.</span></div>'
-    +'<div class="obs-values">'
+    '<div class="obs-title" data-qa="observation-title"><b>현재 plan #'+planCount+'</b><span>이 4개 상태값으로 현재 plan을 생성했습니다.</span></div>'
+    +'<div class="obs-values" data-qa="observation-values">'
     +'<div><span>x</span><b>'+fmt(obs[0],2)+' m</b><small>cart position</small></div>'
     +'<div><span>ẋ</span><b>'+fmt(obs[1],2)+' m/s</b><small>cart velocity</small></div>'
     +'<div><span>θ</span><b>'+fmt(deg(obs[2]),1)+'°</b><small>pole angle</small></div>'
@@ -83,11 +83,11 @@ function renderExecution(rootEl,plan,cursor,policyForce){
   var cards='';
   for(var i=0;i<4;i++){
     var state=i<cursor-1?'done':i===active?'active':'future';
-    cards+='<div class="exec-action '+state+'"><span>a['+i+']</span><b>'+(plan[i]>=0?'+':'')+fmt(plan[i]*10,2)+' N</b><small>'+(state==='active'?'applied now':state==='done'?'done':'next')+'</small></div>';
+    cards+='<div class="exec-action '+state+'" data-qa="exec-action"><span>a['+i+']</span><b>'+(plan[i]>=0?'+':'')+fmt(plan[i]*10,2)+' N</b><small>'+(state==='active'?'현재 적용':state==='done'?'완료':'다음')+'</small></div>';
   }
-  rootEl.innerHTML='<div class="exec-now"><span>force currently sent to cart</span><strong>'+(policyForce>=0?'+':'')+fmt(policyForce,2)+' N</strong></div>'
-    +'<div class="exec-prefix">'+cards+'</div>'
-    +'<div class="exec-rest">a[4] … a[15] stay as future plan only. After a[3], observe again and generate a new plan.</div>';
+  rootEl.innerHTML='<div class="exec-now" data-qa="current-force"><span>현재 cart에 적용되는 force</span><strong>'+(policyForce>=0?'+':'')+fmt(policyForce,2)+' N</strong></div>'
+    +'<div class="exec-prefix" data-qa="exec-prefix">'+cards+'</div>'
+    +'<div class="exec-rest">a[4] … a[15]는 아직 미래 계획입니다. a[3] 실행 후 다시 관측하고 새 plan을 생성합니다.</div>';
 }
 root.ControlLoopViz={renderStages:renderStages,renderObservation:renderObservation,renderExecution:renderExecution};
 })(typeof window!=="undefined"?window:globalThis);
