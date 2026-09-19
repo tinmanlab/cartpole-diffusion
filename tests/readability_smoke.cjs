@@ -22,6 +22,9 @@ const required=[
   '.reobserve-cell em{display:block',
   '.denoise-update-head b{display:block;font-size:14px',
   '.update-card strong{display:block;font:700 17px',
+  '.update-card span{display:block;font-size:11px',
+  '.update-card small{display:block;font-size:11px',
+  '.update-chart-title span{font-size:11px',
   '.denoise-update-note{margin:7px 0 0'
 ];
 for(const token of required)if(!html.includes(token))throw new Error("readability contract missing: "+token);
