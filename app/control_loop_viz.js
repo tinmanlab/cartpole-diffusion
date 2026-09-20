@@ -307,7 +307,7 @@ function renderConditioningCompare(rootEl,data){
     +'</svg>'
     +(custom?'<span class="conditioning-marker-tag" style="'+conditioningMarkerTagStyle(actionIndex,plus.length,conditioningMarkerX(actionIndex,plus.length,x0,width)/7.6)+'">a['+actionIndex+']</span>':'')
     +'</div>'
-    +'<div class="chart-axis"><span>a[0]</span>'+(custom?"<span>"+(rescaled?"⚠ 확장된 ":"고정 ")+"±"+fmt(limit,2)+" N (최종 force 축)</span>":"")+'<span>a[15]</span></div></div>'
+    +'<div class="chart-axis'+(custom?' chart-axis-force':'')+'"><span>a[0]</span>'+(custom?"<span>"+(rescaled?"⚠ 확장된 ":"고정 ")+"±"+fmt(limit,2)+" N (최종 force 축)</span>":"")+'<span>a[15]</span></div></div>'
     +'<div class="conditioning-summary"><div><span>'+(custom?'a['+actionIndex+'] force A':'첫 force A')+'</span><b>'+(plus[actionIndex]>=0?"+":"")+fmt(plus[actionIndex]*10,2)+' N</b></div>'
     +'<div><span>'+(custom?'a['+actionIndex+'] force B':'첫 force B')+'</span><b>'+(minus[actionIndex]>=0?"+":"")+fmt(minus[actionIndex]*10,2)+' N</b></div>'
     +(custom?'<div><span>a['+actionIndex+'] 변화 B − A</span><b>'+fmt((minus[actionIndex]-plus[actionIndex])*10,3)+' N</b></div>':'')

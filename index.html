@@ -42,6 +42,13 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
 .conditioning-compare[data-experiment="true"] .cond-obs b{white-space:normal}.conditioning-compare[data-experiment="true"] .conditioning-chart svg,.conditioning-compare[data-experiment="true"] .conditioning-divergence svg{height:144px;width:100%;display:block}
 .conditioning-estimates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
 .conditioning-estimates>div{padding:9px;border:1px solid #dfe4ee;border-radius:7px;background:#fafbff;min-width:0}.conditioning-estimates span,.conditioning-estimates b{display:block}
+/* Custom-experiment final-command chart-axis: a[0]/a[15] must never wrap inside their own
+   brackets when the shared flex row squeezes them for the long fixed-axis caption. Only the
+   custom variant gets a 3-column grid (auto | flexible caption | auto); presets keep the
+   plain flex row above untouched. */
+.chart-axis-force{display:grid;grid-template-columns:auto minmax(0,1fr) auto}
+.chart-axis-force span:first-child,.chart-axis-force span:last-child{white-space:nowrap;overflow-wrap:normal}
+.chart-axis-force span:nth-child(2){text-align:center}
 @media(max-width:600px){.conditioning-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.conditioning-tools button{flex:1}.conditioning-compare[data-experiment="true"] .conditioning-summary{grid-template-columns:1fr}.conditioning-estimates{grid-template-columns:1fr}}
 </style>
 </head>

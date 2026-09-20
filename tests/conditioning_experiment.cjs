@@ -137,6 +137,17 @@ function checkMarkerGeometry(page,check,width,index,length){
    check(`${width}px: essential experiment text is readable`,geometry.small===0);
    const plots=await page.locator('#conditioningCompare svg').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().height));
    check(`${width}px: real comparison plots remain legible`,plots.length===2&&plots.every(h=>h>=120),plots);
+   if(width===320||width===390){
+    // A Range over the text node reports one ClientRect per visual line, so >1 means the
+    // browser actually wrapped inside the label (e.g. "a[0" / "]") — catching the real defect
+    // beyond a page-level overflow check, which stayed clean even while this was broken.
+    const axisLines=await page.locator('#conditioningCompare .conditioning-chart .chart-axis span').evaluateAll(spans=>spans.map(s=>{
+     const r=document.createRange();r.selectNodeContents(s);
+     return{text:s.textContent,lines:r.getClientRects().length};
+    }));
+    check(`${width}px: a[0] axis label renders on one line`,axisLines[0]?.lines===1,axisLines);
+    check(`${width}px: a[15] axis label renders on one line`,axisLines.at(-1)?.lines===1,axisLines);
+   }
    report.widths.push({width,...geometry});
    if(width===320||width===1440){
     await page.locator('#conditioningExperimentTools').screenshot({path:path.join(out,`controls-${width}.png`)});
