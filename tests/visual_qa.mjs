@@ -42,6 +42,7 @@ async function responsiveSweep(browser){
     await page.goto(baseURL,{waitUntil:'networkidle',timeout:30000});await waitLearned(page);await page.waitForTimeout(350);
     const stages={};
     stages.live={...await checkPageWidth(page,'responsive '+width+' live'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' live')};
+    if(width===320)await checkPlanExplainerCopy(page,'responsive 320 plan-explainer');
     await page.getByRole('button',{name:'한 cycle 설명'}).click();await page.waitForTimeout(180);
     stages.observe={...await checkPageWidth(page,'responsive '+width+' guided 1/6'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' guided 1/6')};
     const stageBtnHeights=await page.locator('.stage-btn').evaluateAll(els=>els.map(e=>Math.round(e.getBoundingClientRect().height)));
@@ -195,6 +196,26 @@ async function checkDisclosureSummary(page,selector,label){
   if(box.fontSize<14)err(label+': disclosure summary font-size below 14px ('+box.fontSize+'px)');
   if(box.height<44)err(label+': disclosure summary touch target below 44px ('+box.height+'px)');
   return box;
+}
+// F1 regression: the plan-explainer recap used to call the initial Gaussian noise a
+// "force 후보" and say the denoiser edits force -- contradicting the real sampler
+// arithmetic (denoiser predicts noise εθ, the DDIM sampler turns that into the next
+// internal candidate, and only the final clamp·×10N output is force in N). Opens the
+// closed-by-default recap, checks the fixed copy, and restores the original open state.
+// Font-size readability for .policy-plain/.blackbox is already covered by inspect()'s
+// existing 10.5px core-text floor -- this only re-checks wording, not a new tolerance.
+async function checkPlanExplainerCopy(page,label){
+  const explainer=page.locator('[data-qa="plan-explainer"]');
+  const wasOpen=await explainer.evaluate(el=>el.open);
+  if(!wasOpen){await explainer.locator('summary').click();await page.waitForTimeout(60);}
+  const text=await page.evaluate(()=>{
+    const plain=document.querySelector('.policy-plain'),box=document.querySelector('.blackbox');
+    return(plain?plain.textContent:'')+' '+(box?box.textContent:'');
+  });
+  if(text.indexOf('force 후보')!==-1)err(label+': plan-explainer recap still calls the internal noise/candidate a "force 후보" (F1 regression)');
+  if(!/denoiser/.test(text)||!/sampler/.test(text))err(label+': plan-explainer recap does not distinguish denoiser vs sampler roles');
+  if(!/force\s*16개|16개\s*force/.test(text))err(label+': plan-explainer recap does not name the final 16 force outputs');
+  if(!wasOpen){await explainer.locator('summary').click();await page.waitForTimeout(60);}
 }
 // Independent oracle for the diffusion schedule (T=100, S=.008 -- the same constants
 // index.html declares), used only to crosscheck the app's own displayed coefficients;
@@ -482,6 +503,7 @@ async function desktop(browser){
   if(seq0===seq1)err('desktop: denoising sequence did not update with replanning');
   await inspect(page,'desktop');
   await checkDisclosureSummary(page,'[data-qa="plan-explainer"]','plan-explainer summary');
+  await checkPlanExplainerCopy(page,'desktop 1440 plan-explainer');
   const readHorizon=()=>page.locator('[data-qa="horizon"]').evaluate(el=>({
     predictionCount:Number(el.dataset.predictionCount),executeCount:Number(el.dataset.executeCount),
     predictionSeconds:Number(el.dataset.predictionSeconds),executeSeconds:Number(el.dataset.executeSeconds),
@@ -925,6 +947,7 @@ async function mobile(browser){
   await page.goto(baseURL,{waitUntil:'networkidle',timeout:30000});await waitLearned(page);await page.waitForTimeout(350);
   if((await page.evaluate(()=>scrollY))!==0)err('mobile: page auto-scrolled on plain render before any explicit guide interaction');
   const d=await inspect(page,'mobile');
+  await checkPlanExplainerCopy(page,'mobile 390 plan-explainer');
   const sc=await page.locator('.denoise-stages').evaluate(e=>({clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX}));
   report.interactions.mobileSequenceScroller=sc;
   if(sc.scrollWidth>sc.clientWidth+2)err('mobile: denoise view still requires horizontal scrolling '+sc.scrollWidth+' > '+sc.clientWidth);
