@@ -201,9 +201,10 @@ async function checkDisclosureSummary(page,selector,label){
 // "force 후보" and say the denoiser edits force -- contradicting the real sampler
 // arithmetic (denoiser predicts noise εθ, the DDIM sampler turns that into the next
 // internal candidate, and only the final clamp·×10N output is force in N). Opens the
-// closed-by-default recap, checks the fixed copy, and restores the original open state.
-// Font-size readability for .policy-plain/.blackbox is already covered by inspect()'s
-// existing 10.5px core-text floor -- this only re-checks wording, not a new tolerance.
+// closed-by-default recap, checks the fixed copy plus live geometry (F2: essential
+// explanation text must render >=14px and never clip/overflow at the contract widths
+// 320/390/1440 while actually open, not merely before opening), captures an opened-recap
+// screenshot at those three widths, and restores the original open state.
 async function checkPlanExplainerCopy(page,label){
   const explainer=page.locator('[data-qa="plan-explainer"]');
   const wasOpen=await explainer.evaluate(el=>el.open);
@@ -214,7 +215,32 @@ async function checkPlanExplainerCopy(page,label){
   });
   if(text.indexOf('force 후보')!==-1)err(label+': plan-explainer recap still calls the internal noise/candidate a "force 후보" (F1 regression)');
   if(!/denoiser/.test(text)||!/sampler/.test(text))err(label+': plan-explainer recap does not distinguish denoiser vs sampler roles');
-  if(!/force\s*16개|16개\s*force/.test(text))err(label+': plan-explainer recap does not name the final 16 force outputs');
+  if(!(/force\s*16/.test(text)||text.indexOf('힘 명령 16개')!==-1))err(label+': plan-explainer recap does not name the final 16 force outputs');
+  const geom=await page.evaluate(()=>{
+    const explainerEl=document.querySelector('[data-qa="plan-explainer"]');
+    const plain=explainerEl.querySelector('.policy-plain');
+    const badges=[...explainerEl.querySelectorAll('.blackbox span,.blackbox b')];
+    const rendered=[plain,...badges].filter(e=>e&&e.getClientRects().length);
+    const sizes=rendered.map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
+    const overflowing=rendered.filter(e=>e.scrollWidth>e.clientWidth+1);
+    const er=explainerEl.getBoundingClientRect();
+    return{
+      minFont:sizes.length?Math.min(...sizes):null,
+      overflowCount:overflowing.length,
+      explainerLeft:er.left,explainerRight:er.right,
+      pageScrollWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth
+    };
+  });
+  if(geom.minFont===null||geom.minFont<14)err(label+': plan-explainer recap essential text below 14px effective while open ('+geom.minFont+'px)');
+  if(geom.overflowCount>0)err(label+': plan-explainer recap text is clipped instead of wrapping while open ('+geom.overflowCount+' element(s))');
+  if(geom.pageScrollWidth>geom.viewportWidth+2)err(label+': page-level horizontal overflow while plan-explainer recap is open ('+geom.pageScrollWidth+' > '+geom.viewportWidth+')');
+  if(geom.explainerRight>geom.viewportWidth+2||geom.explainerLeft<-2)err(label+': plan-explainer recap escapes the viewport bounds while open');
+  const width=page.viewportSize()?.width;
+  if(width===320||width===390||width===1440){
+    const shotPath=path.join(outDir,'plan-explainer-opened-'+width+'.jpg');
+    await explainer.screenshot({path:shotPath,type:'jpeg',quality:88});
+    (report.planExplainerOpenedScreenshots=report.planExplainerOpenedScreenshots||{})[width]=shotPath;
+  }
   if(!wasOpen){await explainer.locator('summary').click();await page.waitForTimeout(60);}
 }
 // Independent oracle for the diffusion schedule (T=100, S=.008 -- the same constants
