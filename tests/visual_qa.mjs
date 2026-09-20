@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { chromium } from 'playwright';
+const nodeRequire=createRequire(import.meta.url);
 const outDir=path.resolve('qa-output');fs.mkdirSync(outDir,{recursive:true});
 const baseURL=process.env.QA_URL||'http://127.0.0.1:4173/';
 const report={generatedAt:new Date().toISOString(),baseURL,errors:[],warnings:[],views:{},interactions:{}};
@@ -99,6 +101,37 @@ async function responsiveSweep(browser){
     await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(180);
     if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('responsive '+width+': guided denoise step not reached');
     stages.denoise={...await checkPageWidth(page,'responsive '+width+' guided 3/6'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' guided 3/6')};
+
+    // F1: the sampler-arithmetic recipe (.sampler-eq/.sampler-note/.sampler-details) has
+    // scoped CSS -- verify actual computed geometry, not just that the elements exist.
+    // Essential code/caveat text must stay >=14px effective, no clipping overflow, and the
+    // recipe must read right after the sampler flow (before the optional 16-dim chart).
+    const samplerGeom=await page.evaluate(()=>{
+      const one=document.querySelector('[data-qa="denoise-one-step"]');
+      if(!one)return null;
+      const codes=[...one.querySelectorAll('.sampler-eq code')].map(c=>({fs:parseFloat(getComputedStyle(c).fontSize),overflow:getComputedStyle(c).overflow,lines:(()=>{const r=document.createRange();r.selectNodeContents(c);return r.getClientRects().length})(),clientW:c.clientWidth,scrollW:c.scrollWidth}));
+      const note=one.querySelector('.sampler-note');
+      const math=one.querySelector('.denoise-sampler-math'),chart=one.querySelector('.denoise-update-chart');
+      const order=math&&chart?(math.compareDocumentPosition(chart)&Node.DOCUMENT_POSITION_FOLLOWING?'math-before-chart':'chart-before-math'):'missing';
+      return{codes,noteFs:note?parseFloat(getComputedStyle(note).fontSize):null,noteOverflow:note?getComputedStyle(note).overflow:null,order};
+    });
+    if(!samplerGeom)err('responsive '+width+': sampler-arithmetic recipe not found at the Denoise stage');
+    else{
+      if(samplerGeom.codes.some(c=>c.fs<13.9))err('responsive '+width+': sampler equation code below 14px effective — '+JSON.stringify(samplerGeom.codes));
+      if(samplerGeom.codes.some(c=>c.overflow==='hidden'||c.scrollW>c.clientW+1))err('responsive '+width+': sampler equation text is clipped/overflow-hidden instead of wrapping — '+JSON.stringify(samplerGeom.codes));
+      if(samplerGeom.noteFs===null||samplerGeom.noteFs<13.9)err('responsive '+width+': sampler caveat note below 14px effective ('+samplerGeom.noteFs+'px)');
+      if(samplerGeom.noteOverflow==='hidden')err('responsive '+width+': sampler caveat note is overflow-hidden');
+      if(samplerGeom.order!=='math-before-chart')err('responsive '+width+': sampler recipe does not read right after the sampler flow, before the 16-dim chart ('+samplerGeom.order+')');
+    }
+    if(width===320||width===1440){
+      const mathEl=page.locator('[data-qa="denoise-one-step"] .denoise-sampler-math');
+      if(await mathEl.count()){
+        const shotPath=path.join(outDir,'responsive-'+width+'-sampler-recipe.jpg');
+        await mathEl.screenshot({path:shotPath,type:'jpeg',quality:88});
+        (report.samplerRecipeScreenshots=report.samplerRecipeScreenshots||{})[width]=shotPath;
+      }
+    }
+
     if(browserErrors.length)err('responsive '+width+' browser errors: '+browserErrors.join(' | '));
     out[width]=stages;await page.close();
   }
@@ -145,6 +178,128 @@ function verifyAtomicTransition(before,after,label){
   if(after.planStartTick!==after.tick||after.planAge!==0)err(label+': replanned snapshot is not anchored to current tick');
   if(!arraysClose(after.sim,after.planObservation,1e-10))err(label+': replan observation != post-transition plant state');
   return true;
+}
+// Independent oracle for the diffusion schedule (T=100, S=.008 -- the same constants
+// index.html declares), used only to crosscheck the app's own displayed coefficients;
+// this never replaces or duplicates the app's real computation for rendering.
+function alphaBarOracle(t,T=100,S=.008){const x=(t/T+S)/(1+S),f=Math.cos(x*Math.PI/2),f0=Math.cos((S/(1+S))*Math.PI/2);return Math.max(1e-5,Math.min(1,f*f/(f0*f0)))}
+function fixedGaussian16Oracle(seed){
+  let local=seed>>>0,sp=null,out=[];
+  const rnd=()=>{local+=0x6D2B79F5;let a=local;a=Math.imul(a^a>>>15,a|1);a^=a+Math.imul(a^a>>>7,a|61);return((a^a>>>14)>>>0)/4294967296};
+  while(out.length<16){
+    if(sp!==null){out.push(sp);sp=null;continue}
+    let u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();
+    const m=Math.sqrt(-2*Math.log(u));out.push(m*Math.cos(2*Math.PI*v));sp=m*Math.sin(2*Math.PI*v);
+  }
+  return out;
+}
+// Pre-change native ddim() (2-field return, no x0Raw/coef) -- byte-identical expressions
+// to what index.html's ddim() computed before this correction. Used as a bit-for-bit
+// reference so the post-change ddim() (below) is provably a metadata-only addition.
+function ddimPreChange(x,cur,prev,pred){
+  const ac=alphaBarOracle(cur),ap=alphaBarOracle(prev),sc=Math.sqrt(ac),nc=Math.sqrt(1-ac),sp=Math.sqrt(ap),np=Math.sqrt(1-ap);
+  const x0=x.map((v,i)=>Math.max(-1.2,Math.min(1.2,(v-nc*pred[i])/sc)));
+  const next=x0.map((v,i)=>sp*v+np*pred[i]);
+  return{x0,next};
+}
+// Post-change native ddim() -- identical expressions to app/control_loop_viz.js's callers
+// via index.html's ddim(), now also returning x0Raw/coef.
+function ddimPostChange(x,cur,prev,pred){
+  const ac=alphaBarOracle(cur),ap=alphaBarOracle(prev),sc=Math.sqrt(ac),nc=Math.sqrt(1-ac),sp=Math.sqrt(ap),np=Math.sqrt(1-ap);
+  const x0Raw=x.map((v,i)=>(v-nc*pred[i])/sc);
+  const x0=x0Raw.map(v=>Math.max(-1.2,Math.min(1.2,v)));
+  const next=x0.map((v,i)=>sp*v+np*pred[i]);
+  return{x0,x0Raw,next,coef:{ac,ap,sc,nc,sp,np}};
+}
+// F3: exercise the sampler recipe over all 19 real recorded denoising steps and the
+// three sampled tracked actions (0/7/15), independently crosschecking every displayed
+// coefficient/operand against the schedule oracle and the full scalar formula -- not
+// just self-consistency within the page. Also confirms scrubbing/inspecting the guide
+// never mutates the frozen plan/tick identity (read-only), and separately runs a
+// deterministic, clearly-labelled Node-side regression (not a physical rollout) proving
+// the post-change ddim() is a metadata-only refactor of the pre-change one, using a real
+// clipped and a real unclipped case from the actual trained denoiser.
+async function verifySamplerAllSteps(browser){
+  const page=await browser.newPage({viewport:{width:1280,height:900}});
+  const browserErrors=[];page.on('console',m=>{if(m.type()==='error')browserErrors.push(m.text())});page.on('pageerror',e=>browserErrors.push(String(e)));
+  await page.goto(baseURL,{waitUntil:'networkidle',timeout:30000});await waitLearned(page);
+  await page.getByRole('button',{name:'한 cycle 설명'}).click();await page.waitForTimeout(150);
+  await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
+  await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(150);
+  if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('sampler-all-steps: guided denoise step not reached');
+
+  const slider=page.locator('[data-denoise-scrubber]');
+  const actionSelect=page.locator('[data-denoise-action]');
+  const oneStep=page.locator('[data-qa="denoise-one-step"]');
+  const readOne=()=>oneStep.evaluate(el=>({
+    currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),
+    before:Number(el.dataset.beforeValue),noise:Number(el.dataset.noiseValue),after:Number(el.dataset.afterValue),
+    ac:Number(el.dataset.coefAc),ap:Number(el.dataset.coefAp),sc:Number(el.dataset.coefSc),
+    nc:Number(el.dataset.coefNc),sp:Number(el.dataset.coefSp),np:Number(el.dataset.coefNp),
+    x0Raw:Number(el.dataset.x0Raw),x0Clip:Number(el.dataset.x0Clip),clipped:el.dataset.clipped==='true',
+    valuesText:[...el.querySelectorAll('.sampler-eq .sampler-values')].map(c=>c.textContent)
+  }));
+  const sig6=v=>Number(Number(v).toPrecision(6));
+
+  const before=await readAtomicSnapshot(page);
+  let anyClipped=false,combos=0;
+  for(let step=0;step<19;step++){
+    await slider.evaluate((el,v)=>{el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}))},step);
+    await page.waitForTimeout(25);
+    for(const actionIndex of [0,7,15]){
+      await actionSelect.selectOption(String(actionIndex));
+      await page.waitForTimeout(25);
+      const d=await readOne();
+      combos++;
+      const label='sampler-all-steps step='+step+' action='+actionIndex;
+      const acExp=alphaBarOracle(d.currentT),apExp=alphaBarOracle(d.nextT);
+      if(!close(d.ac,acExp,1e-9)||!close(d.ap,apExp,1e-9))err(label+': displayed alpha_cur/alpha_prev does not match the independent schedule oracle — '+JSON.stringify({shown:{ac:d.ac,ap:d.ap},expected:{ac:acExp,ap:apExp}}));
+      if(!close(d.sc,Math.sqrt(acExp),1e-9)||!close(d.nc,Math.sqrt(1-acExp),1e-9)||!close(d.sp,Math.sqrt(apExp),1e-9)||!close(d.np,Math.sqrt(1-apExp),1e-9))
+        err(label+': displayed sqrt(alpha)/sqrt(1-alpha) coefficients do not match the independent schedule oracle');
+      const x0RawExp=(d.before-d.nc*d.noise)/d.sc,x0ClipExp=Math.max(-1.2,Math.min(1.2,x0RawExp)),afterExp=d.sp*x0ClipExp+d.np*d.noise;
+      if(!close(d.x0Raw,x0RawExp,1e-6))err(label+': clean estimate does not match the full scalar formula');
+      if(!close(d.x0Clip,x0ClipExp,1e-9))err(label+': clipped estimate does not match clamp(clean estimate,-1.2,1.2)');
+      if(!close(d.after,afterExp,1e-6))err(label+': next candidate does not match the full scalar formula');
+      if(d.clipped)anyClipped=true;
+      // F2 atom-level check, extended to every step/action, not just one sample.
+      const atomsEq1=[...d.valuesText[0].matchAll(/-?\d+\.?\d*/g)].map(m=>Number(m[0]));
+      const atomsEq2=[...d.valuesText[1].matchAll(/-?\d+\.?\d*/g)].map(m=>Number(m[0]));
+      const expectEq1=[d.before,d.nc,d.noise,d.sc,d.x0Raw].map(sig6);
+      const expectEq2=[d.sp,d.x0Clip,d.np,d.noise,d.after].map(sig6);
+      if(atomsEq1.length!==5||!atomsEq1.every((v,i)=>Math.abs(v-expectEq1[i])<1e-9))err(label+': clean-estimate row atoms do not match source at 6 significant figures');
+      if(atomsEq2.length!==5||!atomsEq2.every((v,i)=>Math.abs(v-expectEq2[i])<1e-9))err(label+': next-candidate row atoms do not match source at 6 significant figures');
+    }
+  }
+  const after=await readAtomicSnapshot(page);
+  if(after.tick!==before.tick||after.planNumber!==before.planNumber||after.planStartTick!==before.planStartTick||after.cursor!==before.cursor)
+    err('sampler-all-steps: scrubbing/inspecting the denoise timeline changed the frozen plan/tick identity — '+JSON.stringify({before,after}));
+  if(browserErrors.length)err('sampler-all-steps browser errors: '+browserErrors.join(' | '));
+  report.samplerAllSteps={combos,anyClippedInRealPlan:anyClipped};
+  if(!anyClipped)warn('sampler-all-steps: the real captured plan has no clipped case across all 19 steps x 3 tracked actions (0/7/15) -- see samplerDeterministicRegression for a labelled synthetic clipped case');
+  await page.close();
+
+  // Deterministic, clearly-labelled Node-side numeric regression (NOT a physical
+  // rollout outcome): real trained-denoiser predictions on fixed seeded noise, chosen
+  // to include one naturally clipped case (seed 11, t=95, where sqrt(alpha_cur) is
+  // smallest) and one naturally unclipped case (seed 30303, t=95). Proves ddimPostChange
+  // reproduces ddimPreChange's x0/next bit-for-bit for both -- the correction only adds
+  // x0Raw/coef metadata, it does not alter the sampler's actual numeric output.
+  nodeRequire('../app/tiny_denoiser.js');
+  const model=await globalThis.CartPoleTinyDenoiser.load(baseURL+'artifacts/model.json');
+  const obs=[0.1,-0.2,0.05,0.3];
+  const cases=[{seed:11,label:'clipped'},{seed:30303,label:'unclipped'}];
+  const regression=[];
+  for(const c of cases){
+    const x=fixedGaussian16Oracle(c.seed),pred=model.predict(x,95,obs);
+    const pre=ddimPreChange(x,95,90,pred),post=ddimPostChange(x,95,90,pred);
+    const x0Match=pre.x0.every((v,i)=>v===post.x0[i]),nextMatch=pre.next.every((v,i)=>v===post.next[i]);
+    const isClipped=post.x0Raw.some(v=>Math.abs(v)>1.2);
+    if(c.label==='clipped'&&!isClipped)err('sampler-deterministic-regression ['+c.label+']: expected seed '+c.seed+' at t=95 to actually clip, it did not');
+    if(c.label==='unclipped'&&isClipped)err('sampler-deterministic-regression ['+c.label+']: expected seed '+c.seed+' at t=95 to stay unclipped, it clipped');
+    if(!x0Match||!nextMatch)err('sampler-deterministic-regression ['+c.label+', synthetic Node-side numeric case, not a physical rollout]: post-change ddim() x0/next do not bit-for-bit match the pre-change native expression for seed '+c.seed);
+    regression.push({label:c.label,seed:c.seed,isClipped,x0Match,nextMatch});
+  }
+  report.samplerDeterministicRegression={note:'synthetic Node-side numeric regression from real denoiser predictions on fixed seeded noise -- not a physical rollout outcome',cases:regression};
 }
 async function inspect(page,name){
   const d=await page.evaluate(()=>{
@@ -370,7 +525,8 @@ async function desktop(browser){
     ac:Number(el.dataset.coefAc),ap:Number(el.dataset.coefAp),sc:Number(el.dataset.coefSc),
     nc:Number(el.dataset.coefNc),sp:Number(el.dataset.coefSp),np:Number(el.dataset.coefNp),
     x0Raw:Number(el.dataset.x0Raw),x0Clip:Number(el.dataset.x0Clip),clipped:el.dataset.clipped,
-    eqCount:el.querySelectorAll('.sampler-eq code').length,
+    formulaCount:el.querySelectorAll('.sampler-eq .sampler-formula').length,
+    valuesText:[...el.querySelectorAll('.sampler-eq .sampler-values')].map(c=>c.textContent),
     detailsOpen:el.querySelector('.sampler-details')?.open ?? null,
     text:el.textContent||''
   }));
@@ -383,10 +539,25 @@ async function desktop(browser){
     err('guided denoise: displayed clipped estimate does not match clamp(clean estimate, -1.2, 1.2)');
   if(Math.abs(sampler.sp*sampler.x0Clip+sampler.np*actionOne.noise-actionOne.after)>1e-6)
     err('guided denoise: displayed next-candidate arithmetic does not reproduce sqrt(alpha_prev)*clipped_estimate + sqrt(1-alpha_prev)*epsilon');
-  if(sampler.eqCount<2)err('guided denoise: sampler arithmetic (clean estimate and next-candidate equations) is not visibly shown');
+  if(sampler.formulaCount!==2||sampler.valuesText.length!==2)err('guided denoise: sampler arithmetic (clean estimate and next-candidate equations) is not visibly shown as a symbolic identity plus a rounded-substitution row');
   if(sampler.detailsOpen!==false)err('guided denoise: full schedule-coefficient details is not a closed-by-default native <details>');
   if(!sampler.text.includes('±1.2')||!sampler.text.includes('±1')) err('guided denoise: intermediate +/-1.2 clip is not explicitly distinguished from the final plan +/-1 clip');
   if(!sampler.text.toLowerCase().includes('newton')) err('guided denoise: missing explicit note that epsilon/intermediate candidates are not Newtons');
+
+  // F2: coefficients/operands are shown at 6 significant figures with '≈', not '=' --
+  // at small sqrt(alpha_cur) (near t=95) a fixed-decimal rounding of the numerator can
+  // move the displayed quotient far more than any single term's own rounding suggests.
+  // No invented tolerance: each displayed atom is checked against its own true source
+  // value rounded to the same 6 significant figures the app itself displays with.
+  const sig6=v=>Number(Number(v).toPrecision(6));
+  const atomsEq1=[...sampler.valuesText[0].matchAll(/-?\d+\.?\d*/g)].map(m=>Number(m[0]));
+  const atomsEq2=[...sampler.valuesText[1].matchAll(/-?\d+\.?\d*/g)].map(m=>Number(m[0]));
+  const expectEq1=[actionOne.before,sampler.nc,actionOne.noise,sampler.sc,sampler.x0Raw].map(sig6);
+  const expectEq2=[sampler.sp,sampler.x0Clip,sampler.np,actionOne.noise,actionOne.after].map(sig6);
+  if(atomsEq1.length!==5||!atomsEq1.every((v,i)=>Math.abs(v-expectEq1[i])<1e-9))
+    err('guided denoise: clean-estimate row atoms do not each match their source value at 6 significant figures — '+JSON.stringify({shown:atomsEq1,expected:expectEq1}));
+  if(atomsEq2.length!==5||!atomsEq2.every((v,i)=>Math.abs(v-expectEq2[i])<1e-9))
+    err('guided denoise: next-candidate row atoms do not each match their source value at 6 significant figures — '+JSON.stringify({shown:atomsEq2,expected:expectEq2}));
 
   await slider.evaluate(el=>{el.value='18';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(100);
   const lastTimeline=await readTimeline(),lastOne=await readOne();
@@ -784,7 +955,7 @@ async function mobile(browser){
   await page.screenshot({path:path.join(outDir,'mobile.jpg'),type:'jpeg',quality:82,fullPage:true});await page.close();
 }
 let browser;
-try{browser=await chromium.launch({headless:true});await desktop(browser);await mobile(browser);await responsiveSweep(browser);}
+try{browser=await chromium.launch({headless:true});await desktop(browser);await mobile(browser);await responsiveSweep(browser);await verifySamplerAllSteps(browser);}
 catch(e){err('unhandled visual QA exception: '+(e?.stack||String(e)));}
 finally{if(browser)try{await browser.close()}catch{};fs.writeFileSync(path.join(outDir,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));}
 if(report.errors.length)process.exitCode=1;

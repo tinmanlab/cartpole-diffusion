@@ -2,6 +2,12 @@
 "use strict";
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}
+// 6 significant figures (not fixed decimals): at t near START_T, sqrt(alpha_cur) can be
+// as small as ~0.003, and a fixed-decimal rounding of the numerator/denominator there
+// swings the displayed quotient far more than the rounding of any one term suggests.
+// Significant figures keep each displayed atom's own relative rounding error ~1e-6
+// regardless of its magnitude, which is what the rounded-substitution row below relies on.
+function sig(x,n){return Number.isFinite(x)?Number(x).toPrecision(n||6):String(x)}
 function deg(x){return x*180/Math.PI}
 
 function pick(history,target){
@@ -191,6 +197,19 @@ function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
     +'<i>→</i>'
     +'<div class="update-card after"><span>④ 다음 후보</span><b>a'+nextT+'['+actionIndex+']</b><strong>'+fmt(after,3)+'</strong><small>다음 denoise 입력</small></div>'
     +'</div>'
+    +'<div class="denoise-sampler-math">'
+    +'<div class="sampler-eq"><b>③-1 clean estimate x̂₀</b>'
+    +'<code class="sampler-formula">x̂₀ = (a_t − √(1−α_cur)·ε) / √α_cur</code>'
+    +'<code class="sampler-values">≈ ('+sig(before)+' − '+sig(coef.nc)+'×'+sig(noise)+') / '+sig(coef.sc)+' ≈ '+sig(x0Raw)+'</code>'
+    +'<p class="sampler-clip">±1.2 clip → '+sig(x0Clip)+(clipped?' (clipped)':' (clip 없음)')+'</p>'
+    +'</div>'
+    +'<div class="sampler-eq"><b>③-2 next candidate</b>'
+    +'<code class="sampler-formula">a_{t-1} = √α_prev·x̂₀ + √(1−α_prev)·ε</code>'
+    +'<code class="sampler-values">≈ '+sig(coef.sp)+'×'+sig(x0Clip)+' + '+sig(coef.np)+'×'+sig(noise)+' ≈ '+sig(after)+'</code>'
+    +'</div>'
+    +'<p class="sampler-note">이 중간 ±1.2 clip은 최종 plan의 ±1 clip·×10N 변환과 다른 값입니다. x̂₀는 실제 정답이 아닌 추정값이고, ε·candidate는 아직 Newton(N) 힘이 아닙니다.</p>'
+    +'<details class="sampler-details"><summary>schedule 계수 전체 보기 · full schedule coefficients</summary><code>α_cur='+sig(coef.ac)+' · α_prev='+sig(coef.ap)+' · √α_cur='+sig(coef.sc)+' · √(1−α_cur)='+sig(coef.nc)+' · √α_prev='+sig(coef.sp)+' · √(1−α_prev)='+sig(coef.np)+'</code></details>'
+    +'</div>'
     +'<div class="denoise-update-chart"><div class="update-chart-title"><b>16개 전체도 같은 방식으로 조금씩 이동</b><span><i class="before-key"></i>t='+stage.t+' <i class="after-key"></i>t='+nextT+'</span></div>'
     +'<svg viewBox="0 0 700 124" role="img" aria-label="one denoising update across sixteen internal action candidates">'
     +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="update-zero"/>'
@@ -200,12 +219,6 @@ function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
     +'<circle cx="'+(x0+actionIndex/(stage.latent.length-1)*width).toFixed(1)+'" cy="'+(y0+height/2-(clamp(after,-limit,limit)/limit)*(height*.42)).toFixed(1)+'" r="5" class="update-after-dot"/>'
     +'</svg>'
     +'<div class="chart-axis"><span>a[0]</span><span>a[15]</span></div></div>'
-    +'<div class="denoise-sampler-math">'
-    +'<div class="sampler-eq"><b>③-1 clean estimate x̂₀</b><code>('+fmt(before,3)+' − '+fmt(coef.nc,4)+'×'+fmt(noise,3)+') / '+fmt(coef.sc,4)+' = '+fmt(x0Raw,3)+'</code><small>±1.2로 clip → '+fmt(x0Clip,3)+(clipped?' (clipped)':' (clip 없음)')+'</small></div>'
-    +'<div class="sampler-eq"><b>③-2 next candidate</b><code>'+fmt(coef.sp,4)+'×'+fmt(x0Clip,3)+' + '+fmt(coef.np,4)+'×'+fmt(noise,3)+' = '+fmt(after,3)+'</code></div>'
-    +'<p class="sampler-note">이 중간 ±1.2 clip은 최종 plan의 ±1 clip·×10N 변환과 다른 값입니다 · this intermediate ±1.2 clip is separate from the final plan\'s ±1 clip and its ×10N conversion. x̂₀는 실제 정답이 아니라 추정값이고, ε와 candidate는 아직 Newton이 아닙니다 · x̂₀ is an estimate, not ground truth, and ε/intermediate candidates are not Newtons yet.</p>'
-    +'<details class="sampler-details"><summary>schedule 계수 전체 보기 · full schedule coefficients</summary><code>α_cur='+fmt(coef.ac,5)+' · α_prev='+fmt(coef.ap,5)+' · √α_cur='+fmt(coef.sc,4)+' · √(1−α_cur)='+fmt(coef.nc,4)+' · √α_prev='+fmt(coef.sp,4)+' · √(1−α_prev)='+fmt(coef.np,4)+'</code></details>'
-    +'</div>'
     +'<p class="denoise-update-note"><b>중요:</b> denoiser의 출력 εθ는 cart에 보내는 force가 아닙니다. sampler가 이 noise 예측과 diffusion schedule을 이용해 다음 action 후보를 계산합니다.</p>';
 }
 function conditioningPlanPath(values,x0,y0,width,height,limit){
