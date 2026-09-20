@@ -186,6 +186,16 @@ function verifyAtomicTransition(before,after,label){
   if(!arraysClose(after.sim,after.planObservation,1e-10))err(label+': replan observation != post-transition plant state');
   return true;
 }
+// Shared 14px/44px reference-disclosure contract check, used for the three closed-by-default
+// <details> reference summaries (plan-explainer, sampling-compare, denoise-stages-details).
+// Only valid while the target is actually rendered (not [hidden]) -- callers must check at
+// the point in the flow where that disclosure is present.
+async function checkDisclosureSummary(page,selector,label){
+  const box=await page.locator(selector+'>summary').evaluate(el=>{const r=el.getBoundingClientRect();return{height:r.height,fontSize:parseFloat(getComputedStyle(el).fontSize)}});
+  if(box.fontSize<14)err(label+': disclosure summary font-size below 14px ('+box.fontSize+'px)');
+  if(box.height<44)err(label+': disclosure summary touch target below 44px ('+box.height+'px)');
+  return box;
+}
 // Independent oracle for the diffusion schedule (T=100, S=.008 -- the same constants
 // index.html declares), used only to crosscheck the app's own displayed coefficients;
 // this never replaces or duplicates the app's real computation for rendering.
@@ -471,14 +481,7 @@ async function desktop(browser){
   if(o0===o1)err('desktop: plan number did not advance over 450 ms');
   if(seq0===seq1)err('desktop: denoising sequence did not update with replanning');
   await inspect(page,'desktop');
-  // The repeated policy-plain/blackbox explanatory recap is a native closed-by-default
-  // reference; opening it must not touch the live plan identity (same plan/sequence text).
-  const explainerClosed=await page.locator('[data-qa="plan-explainer"]').evaluate(el=>!el.open);
-  if(!explainerClosed)err('desktop: policy-plain/blackbox recap should default to closed');
-  const planBeforeExplainerOpen=await page.locator('[data-qa="observation-title"]').innerText();
-  await page.locator('[data-qa="plan-explainer"]').evaluate(el=>{el.open=true});await page.waitForTimeout(60);
-  if((await page.locator('[data-qa="observation-title"]').innerText())!==planBeforeExplainerOpen)err('desktop: opening the policy-plain/blackbox recap changed the live plan identity');
-  await page.locator('[data-qa="plan-explainer"]').evaluate(el=>{el.open=false});
+  await checkDisclosureSummary(page,'[data-qa="plan-explainer"]','plan-explainer summary');
   const readHorizon=()=>page.locator('[data-qa="horizon"]').evaluate(el=>({
     predictionCount:Number(el.dataset.predictionCount),executeCount:Number(el.dataset.executeCount),
     predictionSeconds:Number(el.dataset.predictionSeconds),executeSeconds:Number(el.dataset.executeSeconds),
@@ -490,6 +493,22 @@ async function desktop(browser){
   // current plant + current plan cursor + next force are one atomic snapshot.
   const pauseAtomic=page.getByRole('button',{name:'Pause'});
   await pauseAtomic.click();await page.waitForTimeout(90);
+
+  // The repeated policy-plain/blackbox explanatory recap is a native closed-by-default
+  // reference; opening/closing it (via the real summary click, not evaluate-open) must
+  // never touch the atomic plant/plan snapshot. This must run while genuinely paused --
+  // checking it during live running mode let the wait straddle the ~80ms replan boundary,
+  // a test-precondition defect (not a product bug) that produced a false failure.
+  const explainer=page.locator('[data-qa="plan-explainer"]'),explainerSummary=explainer.locator('summary');
+  if(await explainer.evaluate(el=>el.open))err('desktop: policy-plain/blackbox recap should default to closed');
+  const atomicBeforeExplainer=await readAtomicSnapshot(page);
+  await explainerSummary.click();await page.waitForTimeout(60);
+  if(!(await explainer.evaluate(el=>el.open)))err('desktop: clicking the recap summary did not open it');
+  if(JSON.stringify(await readAtomicSnapshot(page))!==JSON.stringify(atomicBeforeExplainer))err('desktop: opening the policy-plain/blackbox recap changed the paused atomic snapshot');
+  await explainerSummary.click();await page.waitForTimeout(60);
+  if(await explainer.evaluate(el=>el.open))err('desktop: clicking the recap summary again did not close it');
+  if(JSON.stringify(await readAtomicSnapshot(page))!==JSON.stringify(atomicBeforeExplainer))err('desktop: closing the policy-plain/blackbox recap changed the paused atomic snapshot');
+
   const stepAtomic=page.getByRole('button',{name:'Step 20 ms'});
   if(!(await stepAtomic.isEnabled().catch(()=>false)))err('atomic snapshot: Step 20 ms is not enabled while paused');
   let atomicBefore=await readAtomicSnapshot(page);verifyAtomicSnapshot(atomicBefore,'atomic pause');
@@ -572,15 +591,21 @@ async function desktop(browser){
   if(!conditioningData.text.includes('condition'))err('guided conditioning: conditioning explanation missing');
   report.interactions.conditioning=conditioningData;
 
-  const sampling=page.locator('[data-qa="sampling-compare"]');
+  const sampling=page.locator('[data-qa="sampling-compare"]'),samplingSummary=sampling.locator('summary');
   if(!(await sampling.isVisible()))err('guided sampling: comparison panel is hidden at 1/6');
+  await checkDisclosureSummary(page,'[data-qa="sampling-compare"]','sampling-compare summary');
   // Sampling diversity is now a native <details> reference: it must default closed, and
-  // opening it must never re-roll or otherwise change the underlying fixed-seed experiment.
-  if(await sampling.evaluate(el=>el.tagName==='DETAILS'&&el.open))err('guided sampling: reference disclosure should default to closed at 1/6');
+  // opening it (via the real summary click -- guide mode is paused here, so this is safe)
+  // must never re-roll or otherwise change the underlying fixed-seed experiment. Close/reopen
+  // round-trips and survives an unrelated idle wait (no periodic re-render silently resets it).
+  if(await sampling.evaluate(el=>el.open))err('guided sampling: reference disclosure should default to closed at 1/6');
   const samplingIdentityBefore=await sampling.evaluate(el=>el.dataset.seeds+'|'+el.dataset.observationTheta);
-  await sampling.evaluate(el=>{el.open=true});await page.waitForTimeout(60);
+  await samplingSummary.click();await page.waitForTimeout(60);
+  if(!(await sampling.evaluate(el=>el.open)))err('guided sampling: clicking the summary did not open the disclosure');
   const samplingIdentityAfter=await sampling.evaluate(el=>el.dataset.seeds+'|'+el.dataset.observationTheta);
   if(samplingIdentityBefore!==samplingIdentityAfter)err('guided sampling: opening the closed reference changed the experiment identity');
+  await page.waitForTimeout(150);
+  if(!(await sampling.evaluate(el=>el.open)))err('guided sampling: disclosure did not stay open across an idle wait (persistence)');
   const samplingData=await sampling.evaluate(el=>({
     sameObservation:el.dataset.sameObservation==='true',
     observationTheta:Number(el.dataset.observationTheta),
@@ -601,6 +626,10 @@ async function desktop(browser){
   if(!samplingData.text.includes('sampling diversity'))err('guided sampling: diversity label missing');
   if(!samplingData.text.includes('calibrated uncertainty'))err('guided sampling: uncertainty claim boundary missing');
   report.interactions.samplingDiversity=samplingData;
+  await samplingSummary.click();await page.waitForTimeout(60);
+  if(await sampling.evaluate(el=>el.open))err('guided sampling: clicking the summary again did not close the disclosure');
+  await samplingSummary.click();await page.waitForTimeout(60);
+  if(!(await sampling.evaluate(el=>el.open)))err('guided sampling: reopening after close did not restore the disclosure');
   await page.screenshot({path:path.join(outDir,'desktop-observation-experiments.jpg'),type:'jpeg',quality:84,fullPage:true});
 
   const next=page.getByRole('button',{name:'다음'});
@@ -640,6 +669,12 @@ async function desktop(browser){
   if(stagesCheck.openBefore!==false)err('guided denoise: 16-action stages disclosure should default to closed while the recipe is active');
   if(!stagesCheck.insideBefore||!stagesCheck.insideAfter)err('guided denoise: #denoiseStages is not nested below the recipe inside its disclosure');
   if(!stagesCheck.pathBefore||stagesCheck.pathBefore!==stagesCheck.pathAfter)err('guided denoise: reopening the stages disclosure did not reveal the identical live plan node');
+  await checkDisclosureSummary(page,'[data-qa="denoise-stages-details"]','denoise-stages-details summary');
+  const stagesDetails=page.locator('[data-qa="denoise-stages-details"]'),stagesSummary=stagesDetails.locator('summary');
+  await stagesSummary.click();await page.waitForTimeout(60);
+  if(await stagesDetails.evaluate(el=>el.open))err('guided denoise: clicking the stages summary did not close the reopened disclosure');
+  await stagesSummary.click();await page.waitForTimeout(60);
+  if(!(await stagesDetails.evaluate(el=>el.open)))err('guided denoise: clicking the stages summary again did not reopen it');
 
   const readTimeline=()=>timeline.evaluate(el=>({stepIndex:Number(el.dataset.stepIndex),actionIndex:Number(el.dataset.actionIndex),currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),transitions:Number(el.dataset.transitions),points:el.querySelectorAll('.timeline-point').length,status:el.querySelector('.timeline-status')?.textContent||''}));
   const readOne=()=>oneStep.evaluate(el=>({currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),actionIndex:Number(el.dataset.actionIndex),before:Number(el.dataset.beforeValue),noise:Number(el.dataset.noiseValue),after:Number(el.dataset.afterValue),paths:el.querySelectorAll('.update-before,.update-after').length,note:el.querySelector('.denoise-update-note')?.textContent||''}));
