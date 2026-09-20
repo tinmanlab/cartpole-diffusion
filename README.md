@@ -428,7 +428,17 @@ GitHub Pages now repeats the core runtime, readability, model-runtime, and close
 
 The existing real six-step guided cycle (`한 cycle 설명`) now also exposes a compact common-stage nav — Input/입력 → Calculation/계산 → Action/행동 → Result/결과 — mapping guide step 0 to Input, steps 1–2 to Calculation, steps 3–4 to Action, and step 5 to Result. It is a display-only overlay: stage clicks jump between already-computed panels via the existing renderers, never advance physics or apply the four-action prefix implicitly, and the Result stage stays disabled until the real `앞 4개 실제 적용` step has executed. Revisiting an earlier stage (via the stage nav or the original 이전/다음 stepper) never rewinds or re-applies an already-executed prefix; it only changes which already-computed panel is displayed.
 
-The shared cross-project stage contract (`Input → Calculation → Action → Result`, shared typography/touch targets) is owned by `tinmanlab/cartpole-transformer`. That contract document is not yet merged to that repo's default branch, so linking a `main` URL here would 404; until it is integrated, see it on that repo's own P1.1 review branch at `docs/learning-suite.md`. This README does not duplicate that contract's text.
+The shared cross-project stage contract (`Input → Calculation → Action → Result`, shared typography/touch targets) is owned by [cartpole-transformer/docs/learning-suite.md](https://github.com/tinmanlab/cartpole-transformer/blob/main/docs/learning-suite.md). This README does not duplicate that contract's text.
+
+## Captured-plan single-input experiment (P1.2a)
+
+In **한 cycle 설명 → Input → 직접 실험 · 입력 하나만 바꿔보기**, choose **현재 계획 캡처**. A uses the actual observation and initial Gaussian latent of the current frozen plan. B changes exactly one observation component; the learned model, starting latent and sampler are fixed. Choose position x (metres), velocity ẋ (metres/second), angle θ (degrees, converted once to radians) or angular velocity θ̇ (radians/second). Changing the selected component resets its delta to zero. Zero delta must reproduce identical plans.
+
+The existing conditioning plots show both actual candidate histories and final commands. Select one future action to follow its candidate, first real noise prediction and first sampler update. Internal candidate/noise values are not Newton forces. Final-command plots use one explicitly labelled shared vertical scale for A and B. The displayed signed difference is B minus A; the sixteen-command summary is a mean absolute difference, not a probability or confidence interval.
+
+This is **model-input sensitivity**, not a robustness or causal physical-intervention benchmark. B is never applied to the plant. The guide's explicit execution still consumes only the original plan's first four actions. Revisiting stages retains the captured pair; a new cycle, reset or guide exit invalidates it. The old ±5° preset and separate sampling-diversity example remain available via **±5° 예시로 돌아가기**. No model weights, physics or sampler equations are changed.
+
+Run `node tests/conditioning_experiment.cjs` against the existing local static server (`QA_URL` overrides its URL). The existing visual-QA workflow runs it after the original suite. `QA_OFFLINE=1` supports an explicitly labelled in-memory artifact test with all asset requests fulfilled from the checkout; it is not evidence of HTTP deployment. `CHROMIUM_PATH` selects a locally installed executable when needed.
 
 ## References
 

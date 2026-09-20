@@ -7,6 +7,7 @@ on:
       - "app/**"
       - "artifacts/**"
       - "tests/visual_qa.mjs"
+      - "tests/conditioning_experiment.cjs"
       - ".github/workflows/visual-qa.yml"
   push:
     branches: [main, "feat/**", "fix/**"]
@@ -15,6 +16,7 @@ on:
       - "app/**"
       - "artifacts/**"
       - "tests/visual_qa.mjs"
+      - "tests/conditioning_experiment.cjs"
       - ".github/workflows/visual-qa.yml"
   workflow_dispatch:
 
@@ -52,6 +54,8 @@ jobs:
           exit 1
       - name: Run browser visual and interaction QA
         run: node tests/visual_qa.mjs
+      - name: Verify captured single-input experiment
+        run: node tests/conditioning_experiment.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -28,6 +28,21 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
 @media(max-width:980px){.replay-grid{grid-template-columns:1fr}.shared-disturbance{grid-template-columns:1fr}.replay-controls{grid-template-columns:1fr 1fr}.replay-controls input,.replay-controls span{grid-column:1/3}.replay-head h2{font-size:16px}}
 @media(orientation:portrait), (max-width:760px){.wrap{padding:10px 10px 36px}.topbar{min-height:38px}.topbar span{display:none}.lab-grid{grid-template-columns:1fr}.scene svg{max-height:250px}.card{padding:12px}.card-head b{font-size:14px}.card-head span{font-size:10px}.guide-bar{display:block}.guide-start{width:100%}.guide-copy,.guide-controls,.stage-nav,.guide-identity{width:100%;min-width:0;flex-basis:auto}.guide-controls{display:grid;grid-template-columns:1fr 1fr;margin-top:10px}.guide-step{grid-column:1/3;min-width:0}.guide-exit{grid-column:1/3}.stage-nav{grid-template-columns:1fr 1fr;margin-top:10px}.guide-identity{margin-top:8px}body.guide-mode .step.guide-dim,body.guide-mode .loop-back.guide-dim{display:none}.obs-values{grid-template-columns:1fr 1fr}.conditioning-head{flex-direction:column;gap:5px}.conditioning-observations{grid-template-columns:1fr}.cond-arrow{text-align:center}.conditioning-summary{grid-template-columns:1fr 1fr 1fr}.sampling-head{flex-direction:column;gap:5px}.sampling-summary{grid-template-columns:1fr 1fr}.sampling-legend{justify-content:flex-start}.step-head b{font-size:15px}.step-head span{font-size:11px}.policy-plain{font-size:13px}.blackbox{font-size:11px}.timeline-head{flex-direction:column;gap:5px}.timeline-status{text-align:left}.timeline-controls{grid-template-columns:1fr 1fr}.timeline-controls input[type="range"]{grid-column:1/3;grid-row:1}.timeline-controls label{grid-column:1/3}.timeline-scale{font-size:11px}.denoise-update-flow{grid-template-columns:1fr}.denoise-update-flow>i{transform:rotate(90deg);height:18px}.update-card strong{font-size:16px}.denoise-update-head{align-items:flex-start;flex-direction:column}.denoise-stages{overflow-x:visible}.sequence-svg{display:none}.mobile-sequence{display:flex;flex-direction:column;gap:8px}.sequence-guide{align-items:flex-start;flex-direction:column}}
 @media(max-width:520px){.topbar strong{font-size:17px}.controls button{font-size:12px}.obs-values{grid-template-columns:1fr}.obs-values b{font-size:16px}.conditioning-summary{grid-template-columns:1fr}.conditioning-legend,.divergence-legend,.sampling-legend{justify-content:flex-start;flex-wrap:wrap}.divergence-head{flex-direction:column;gap:5px}.divergence-head strong{white-space:normal}.divergence-metrics{grid-template-columns:1fr 1fr}.sampling-summary{grid-template-columns:1fr}.exec-prefix{grid-template-columns:1fr 1fr}.exec-now strong{font-size:20px}.horizon-head{flex-direction:column;gap:5px}.horizon-metrics{text-align:left;white-space:normal}.horizon-track{gap:2px}.horizon-slot{height:30px}.horizon-labels{grid-template-columns:1fr 1fr}.horizon-labels b{grid-column:1/3;grid-row:2;text-align:left;margin-top:3px}.horizon-labels span:nth-child(4){grid-column:1}.horizon-labels span:nth-child(5){grid-column:2;text-align:right}.horizon-groups{grid-template-columns:1fr}.reobserve-marker{left:25%}.reobserve-title{align-items:flex-start;flex-direction:column}.reobserve-values{grid-template-columns:1fr 1fr}.advanced-grid{grid-template-columns:1fr}.ladder{min-width:0;flex-direction:column}.ladder-arrow{width:100%;height:22px;flex:0 0 22px}.ladder-arrow svg{transform:rotate(90deg)}.inspect-row{grid-template-columns:1fr}.sequence-title{font-size:14px}.sequence-sub{font-size:10px}.sequence-plain{font-size:12px}}
+
+/* P1.2: local input sensitivity; controls remain separate from physics. */
+.conditioning-tools{margin:12px 0;padding:10px;border:1px solid #d7dce8;border-radius:10px;background:#f8faff;min-width:0}
+.conditioning-tools[hidden],.conditioning-fields[hidden]{display:none}
+.conditioning-tools>summary{font-size:16px;min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:650}
+.conditioning-tools p,.conditioning-tools label,.conditioning-tools output{font-size:14px;line-height:1.55;overflow-wrap:anywhere}
+.conditioning-tools button,.conditioning-tools select,.conditioning-tools input{font:14px system-ui;min-height:44px;max-width:100%;box-sizing:border-box;border:1px solid #c9d2e0;border-radius:7px;background:white;padding:7px 9px;color:#273247}
+.conditioning-tools button{cursor:pointer}.conditioning-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+.conditioning-fields>button{align-self:end}.conditioning-fields label{display:flex;flex-direction:column;gap:4px;min-width:0}.conditioning-actions{display:flex;gap:8px;flex-wrap:wrap}
+.conditioning-identity{font:14px ui-monospace,monospace;color:#5d4b92}.conditioning-error{color:#9f3419}
+.conditioning-compare[data-experiment="true"] b,.conditioning-compare[data-experiment="true"] span,.conditioning-compare[data-experiment="true"] em,.conditioning-compare[data-experiment="true"] small,.conditioning-compare[data-experiment="true"] p{font-size:14px;overflow-wrap:anywhere}
+.conditioning-compare[data-experiment="true"] .cond-obs b{white-space:normal}.conditioning-compare[data-experiment="true"] .conditioning-chart svg,.conditioning-compare[data-experiment="true"] .conditioning-divergence svg{height:144px;width:100%;display:block}
+.conditioning-estimates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.conditioning-estimates>div{padding:9px;border:1px solid #dfe4ee;border-radius:7px;background:#fafbff;min-width:0}.conditioning-estimates span,.conditioning-estimates b{display:block}
+@media(max-width:600px){.conditioning-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.conditioning-tools button{flex:1}.conditioning-compare[data-experiment="true"] .conditioning-summary{grid-template-columns:1fr}.conditioning-estimates{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -75,6 +90,20 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
     <section class="step" data-qa="observe">
       <div class="step-head"><i class="step-num">1</i><div><b>관측 (Observe)</b><span>현재 Cart-Pole에서 policy로 들어가는 4개 상태값</span></div></div>
       <div id="observation"></div>
+      <details id="conditioningExperimentTools" class="conditioning-tools" hidden>
+        <summary>직접 실험 · 입력 하나만 바꿔보기</summary>
+        <p>A는 캡처한 관측, B는 입력 하나만 변경한 관측입니다. 모델과 시작 잡음은 같습니다.</p>
+        <div class="conditioning-actions"><button id="captureConditioning" type="button">현재 계획 캡처</button><button id="restoreConditioning" type="button">±5° 예시로 돌아가기</button></div>
+        <p id="conditioningIdentity" class="conditioning-identity">현재 아래 그래프는 고정된 ±5° 예시입니다. 현재 계획을 캡처하면 그 관측값으로 비교합니다.</p>
+        <div id="conditioningFields" class="conditioning-fields" hidden>
+          <label>바꿀 입력<select id="conditioningField"><option value="0">x [m]</option><option value="1">ẋ [m/s]</option><option value="2" selected>θ [°]</option><option value="3">θ̇ [rad/s]</option></select></label>
+          <label><span id="conditioningDeltaLabel">B − A 변경량 [°]</span><input id="conditioningDelta" type="number" min="-5" max="5" step="0.5" value="0"></label>
+          <label>따라갈 행동<select id="conditioningAction"></select></label>
+          <button id="conditioningZero" type="button">변경량 0으로 비교</button>
+        </div>
+        <p id="conditioningError" class="conditioning-error" role="status"></p>
+        <p>B는 물리에 적용하지 않습니다. 원래 계획만 실행합니다. 모델 입력 민감도 비교이며 강인성·불확실성 검증이 아닙니다.</p>
+      </details>
       <div id="conditioningCompare" class="conditioning-compare" data-qa="conditioning-compare" hidden></div>
       <div id="samplingCompare" class="sampling-compare" data-qa="sampling-compare" hidden></div>
     </section>
@@ -148,7 +177,8 @@ var H=16,MAXF=10,S=.008,T=100,TAU=.02,EXECUTE=4,START_T=95,STRIDE=5;
 var model=null,state=null,running=true,disturbance=0,elapsed=0,simTick=0,policyForce=0,lastAppliedForce=0,lastAppliedActionIndex=-1,plan=[],planCursor=0,planCount=0,planStartTick=0,noiseSeed=11,history=[],selectedT=95,planObservation=null,raf=0,lastNow=0,acc=0,status="balancing";
 var guideMode=false,guideStep=0,guideApplied=false,guideBefore=null,guideAfter=null,guideWasRunning=true,denoiseStepIndex=0,denoiseActionIndex=0;
 var STAGE_OF_STEP=[0,1,1,2,2,3];
-var conditioningCompareData=null,samplingCompareData=null;
+var conditioningCompareData=null,samplingCompareData=null,conditioningExperiment=null;
+var CONDITION_FIELDS=[{name:"x",unit:"m",bound:.25,step:.05,scale:1},{name:"ẋ",unit:"m/s",bound:.5,step:.1,scale:1},{name:"θ",unit:"°",bound:5,step:.5,scale:Math.PI/180},{name:"θ̇",unit:"rad/s",bound:.5,step:.1,scale:1}];
 var appMode="learn",replayRun=null,replayIndex=0,replayRunning=false,replayAcc=0,replayWasRunning=true;
 function E(id){return document.getElementById(id)}function clamp(x,a,b){return Math.max(a,Math.min(b,x))}function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}function deg(x){return x*180/Math.PI}
 function reducedMotion(){return matchMedia("(prefers-reduced-motion: reduce)").matches}
@@ -195,6 +225,45 @@ function buildConditioningComparison(){
   var plusObs=[0,0,5*Math.PI/180,0],minusObs=[0,0,-5*Math.PI/180,0];
   var plus=planHistoryFromFixedLatent(plusObs,initial),minus=planHistoryFromFixedLatent(minusObs,initial);
   return{seed:seed,initial:initial,plusObs:plusObs,minusObs:minusObs,plusPlan:plus.plan,minusPlan:minus.plan,plusHistory:plus.history,minusHistory:minus.history,sameNoise:true};
+}
+// Read-only branch of the existing planner. Never calls physics or random().
+function captureConditioning(){
+  if(!model||!guideMode||guideStep!==0||!planObservation||!history.length)return;
+  var obs=planObservation.slice(),initial=history[0].latent.slice();
+  conditioningExperiment={number:planCount,tick:planStartTick,obs:obs,initial:initial,sourcePlan:plan.slice(),base:planHistoryFromFixedLatent(obs,initial),basePred:model.predict(initial,START_T,obs),field:2,delta:0,actionIndex:0,pair:null};
+  E("conditioningField").value="2";E("conditioningAction").value="0";
+  setConditioningDelta(0);
+}
+function setConditioningDelta(delta){
+  var c=conditioningExperiment;if(!c)return false;
+  var f=CONDITION_FIELDS[c.field];
+  if(!Number.isFinite(delta)||Math.abs(delta)>f.bound){E("conditioningError").textContent="변경량은 −"+f.bound+"~+"+f.bound+" "+f.unit+" 범위의 숫자로 입력하세요. 이전 결과를 유지합니다.";return false}
+  var obsB=c.obs.slice();obsB[c.field]+=delta*f.scale;
+  var b=planHistoryFromFixedLatent(obsB,c.initial);
+  c.delta=delta;
+  c.pair={experiment:true,number:c.number,tick:c.tick,fieldName:f.name,unit:f.unit,delta:delta,actionIndex:c.actionIndex,initial:c.initial.slice(),plusObs:c.obs.slice(),minusObs:obsB,plusPlan:c.base.plan,minusPlan:b.plan,plusHistory:c.base.history,minusHistory:b.history,firstPredA:c.basePred,firstPredB:model.predict(c.initial,START_T,obsB),sameNoise:true};
+  E("conditioningDelta").value=String(delta);E("conditioningError").textContent="";
+  renderConditioningExperiment();return true;
+}
+function renderConditioningExperiment(){
+  var tools=E("conditioningExperimentTools"),visible=guideMode&&guideStep===0;
+  if(!guideMode){conditioningExperiment=null;tools.open=false}
+  tools.hidden=!visible;
+  var c=conditioningExperiment;
+  tools.dataset.snapshot=c?JSON.stringify(c):"";
+  E("conditioningFields").hidden=!c;
+  if(c){
+    var f=CONDITION_FIELDS[c.field],input=E("conditioningDelta");
+    input.min=String(-f.bound);input.max=String(f.bound);input.step=String(f.step);
+    E("conditioningDeltaLabel").textContent="B − A 변경량 ["+f.unit+"]";
+    E("conditioningIdentity").textContent="FROZEN · plan #"+c.number+" · 관측 tick "+c.tick+" · 현재 tick "+simTick+" · B 미적용";
+  }else{
+    E("conditioningIdentity").textContent="고정된 ±5° 예시입니다. 현재 계획을 캡처하면 그 관측값으로 비교합니다.";
+    E("conditioningError").textContent="";
+  }
+  ControlLoopViz.renderConditioningCompare(E("conditioningCompare"),visible?(c?c.pair:conditioningCompareData):null);
+  // Sampling diversity is a different experiment. Show it again on preset restore.
+  ControlLoopViz.renderSamplingCompare(E("samplingCompare"),visible&&!c?samplingCompareData:null);
 }
 function comparisonCore(){
   return{
@@ -262,6 +331,7 @@ function setAppMode(mode){
 }
 function makePlan(){
   if(!model)return;
+  conditioningExperiment=null;
   planObservation=stateArray().slice();planStartTick=simTick;
   var x=gaussian16(),cur=START_T,out=[];
   while(cur>0){
@@ -296,8 +366,7 @@ function renderPlanSnapshot(){
 }
 function renderController(){
   ControlLoopViz.renderObservation(E("observation"),planObservation,planCount,planMeta());
-  ControlLoopViz.renderConditioningCompare(E("conditioningCompare"),guideMode&&guideStep===0?conditioningCompareData:null);
-  ControlLoopViz.renderSamplingCompare(E("samplingCompare"),guideMode&&guideStep===0?samplingCompareData:null);
+  renderConditioningExperiment();
   ControlLoopViz.renderStages(E("denoiseStages"),history,plan);
   renderGuidedDenoise();
   ControlLoopViz.renderExecution(E("execution"),plan,planCursor,policyForce,guideMode?{enabled:true,applied:guideApplied}:null);
@@ -396,8 +465,7 @@ function applyGuideFocus(){
   if(guideStep===5){markGuide("replan","guide-focus");markGuide("observe","guide-focus");markGuide("plant","guide-focus")}
   E("guidePrev").disabled=guideStep===0;E("guideNext").textContent=guideStep===3?(guideApplied?"실행 결과 확인":"앞 4개 실제 적용"):guideStep===4?"다시 관측":guideStep===5?"다음 cycle":"다음";
   ControlLoopViz.renderStateDelta(E("reobserveCompare"),guideMode&&guideStep===5?guideBefore:null,guideMode&&guideStep===5?guideAfter:null);
-  ControlLoopViz.renderConditioningCompare(E("conditioningCompare"),guideMode&&guideStep===0?conditioningCompareData:null);
-  ControlLoopViz.renderSamplingCompare(E("samplingCompare"),guideMode&&guideStep===0?samplingCompareData:null);
+  renderConditioningExperiment();
   renderGuidedDenoise();
   guideText();
   renderStageNav();
@@ -469,6 +537,13 @@ E("replayEndBtn").addEventListener("click",function(){if(!replayRun)return;repla
 E("replaySlider").addEventListener("input",function(){if(!replayRun)return;replayRunning=false;replayIndex=Number(this.value);replayAcc=0;renderReplay()});
 E("runBtn").addEventListener("click",function(){if(status==="fell")reset();else{running=!running;updateRunControls();renderSim()}});
 E("stepBtn").addEventListener("click",function(){if(running||guideMode||status==="fell")return;step();renderSim()});
+E("captureConditioning").addEventListener("click",captureConditioning);
+E("restoreConditioning").addEventListener("click",function(){conditioningExperiment=null;renderConditioningExperiment()});
+E("conditioningZero").addEventListener("click",function(){setConditioningDelta(0)});
+E("conditioningDelta").addEventListener("input",function(){if(this.value.trim()===""){E("conditioningError").textContent="숫자를 입력하세요. 이전 결과를 유지합니다.";return}setConditioningDelta(Number(this.value))});
+E("conditioningField").addEventListener("change",function(){var i=Number(this.value);if(!conditioningExperiment||!Number.isInteger(i)||i<0||i>3)return;conditioningExperiment.field=i;setConditioningDelta(0)});
+E("conditioningAction").addEventListener("change",function(){var i=Number(this.value),c=conditioningExperiment;if(!c||!Number.isInteger(i)||i<0||i>=H)return;c.actionIndex=i;c.pair.actionIndex=i;renderConditioningExperiment()});
+for(var ci=0;ci<H;ci++){var co=document.createElement("option");co.value=String(ci);co.textContent="a["+ci+"] · "+(ci*TAU).toFixed(2)+" s";E("conditioningAction").appendChild(co)}
 E("guideBtn").addEventListener("click",startGuide);
 E("guidePrev").addEventListener("click",function(){if(!guideMode||guideStep===0)return;guideStep--;applyGuideFocus()});
 E("guideNext").addEventListener("click",function(){if(!guideMode)return;if(guideStep===5){restartGuideCycle();return}guideStep++;if(guideStep===2){denoiseStepIndex=0;denoiseActionIndex=0}if(guideStep===4)applyGuidePrefix();applyGuideFocus()});
