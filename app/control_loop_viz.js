@@ -2,8 +2,8 @@
 "use strict";
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}
-// 6 significant figures (not fixed decimals): at t near START_T, sqrt(alpha_cur) can be
-// as small as ~0.003, and a fixed-decimal rounding of the numerator/denominator there
+// 6 significant figures (not fixed decimals): at t near START_T, sqrt(alpha_cur) is already
+// small (~0.078 at t=95), and a fixed-decimal rounding of the numerator/denominator there
 // swings the displayed quotient far more than the rounding of any one term suggests.
 // Significant figures keep each displayed atom's own relative rounding error ~1e-6
 // regardless of its magnitude, which is what the rounded-substitution row below relies on.
@@ -199,16 +199,16 @@ function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
     +'</div>'
     +'<div class="denoise-sampler-math">'
     +'<div class="sampler-eq"><b>③-1 clean estimate x̂₀</b>'
-    +'<code class="sampler-formula">x̂₀ = (a_t − √(1−α_cur)·ε) / √α_cur</code>'
+    +'<code class="sampler-formula">x̂₀ = (a_{'+stage.t+'} − √(1−ᾱ_{'+stage.t+'})·ε) / √ᾱ_{'+stage.t+'}</code>'
     +'<code class="sampler-values">≈ ('+sig(before)+' − '+sig(coef.nc)+'×'+sig(noise)+') / '+sig(coef.sc)+' ≈ '+sig(x0Raw)+'</code>'
-    +'<p class="sampler-clip">±1.2 clip → '+sig(x0Clip)+(clipped?' (clipped)':' (clip 없음)')+'</p>'
+    +'<p class="sampler-clip">±1.2 clip → x̂₀_clip = '+sig(x0Clip)+(clipped?' (clipped)':' (clip 없음)')+'</p>'
     +'</div>'
     +'<div class="sampler-eq"><b>③-2 next candidate</b>'
-    +'<code class="sampler-formula">a_{t-1} = √α_prev·x̂₀ + √(1−α_prev)·ε</code>'
+    +'<code class="sampler-formula">a_{'+nextT+'} = √ᾱ_{'+nextT+'}·x̂₀_clip + √(1−ᾱ_{'+nextT+'})·ε</code>'
     +'<code class="sampler-values">≈ '+sig(coef.sp)+'×'+sig(x0Clip)+' + '+sig(coef.np)+'×'+sig(noise)+' ≈ '+sig(after)+'</code>'
     +'</div>'
     +'<p class="sampler-note">이 중간 ±1.2 clip은 최종 plan의 ±1 clip·×10N 변환과 다른 값입니다. x̂₀는 실제 정답이 아닌 추정값이고, ε·candidate는 아직 Newton(N) 힘이 아닙니다.</p>'
-    +'<details class="sampler-details"><summary>schedule 계수 전체 보기 · full schedule coefficients</summary><code>α_cur='+sig(coef.ac)+' · α_prev='+sig(coef.ap)+' · √α_cur='+sig(coef.sc)+' · √(1−α_cur)='+sig(coef.nc)+' · √α_prev='+sig(coef.sp)+' · √(1−α_prev)='+sig(coef.np)+'</code></details>'
+    +'<details class="sampler-details"><summary>schedule 계수 전체 보기 · full schedule coefficients</summary><code>ᾱ_{'+stage.t+'}='+sig(coef.ac)+' · ᾱ_{'+nextT+'}='+sig(coef.ap)+' · √ᾱ_{'+stage.t+'}='+sig(coef.sc)+' · √(1−ᾱ_{'+stage.t+'})='+sig(coef.nc)+' · √ᾱ_{'+nextT+'}='+sig(coef.sp)+' · √(1−ᾱ_{'+nextT+'})='+sig(coef.np)+'</code></details>'
     +'</div>'
     +'<div class="denoise-update-chart"><div class="update-chart-title"><b>16개 전체도 같은 방식으로 조금씩 이동</b><span><i class="before-key"></i>t='+stage.t+' <i class="after-key"></i>t='+nextT+'</span></div>'
     +'<svg viewBox="0 0 700 124" role="img" aria-label="one denoising update across sixteen internal action candidates">'
