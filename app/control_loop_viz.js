@@ -206,6 +206,25 @@ function conditioningPlanPath(values,x0,y0,width,height,limit){
     return (i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
   }).join(" ");
 }
+// Marker geometry stays inside the SVG (real x-position); the "a[N]" text is HTML,
+// not an in-viewBox <text>, so it never shrinks below readability at narrow widths.
+function conditioningMarkerX(actionIndex,length,x0,width){return x0+actionIndex/(length-1)*width}
+// Anchor edges to their own side (own left/right edge at 0%/100%) instead of centering, so the
+// a[0]/a[15] label text can never clip past the plotting container. The dashed line + dots stay
+// pinned at the exact x — this only nudges where the callout *text* sits, presentation only.
+function conditioningMarkerTagStyle(actionIndex,length,pct){
+  if(actionIndex<=0)return 'left:0;transform:none';
+  if(actionIndex>=length-1)return 'left:auto;right:0;transform:none';
+  return 'left:'+pct.toFixed(2)+'%;transform:translateX(-50%)';
+}
+function conditioningActionMarker(plus,minus,actionIndex,x0,y0,width,height,limit){
+  var mx=conditioningMarkerX(actionIndex,plus.length,x0,width);
+  var yFor=function(v){return y0+height/2-(clamp(v*10,-limit,limit)/limit)*(height*.42)};
+  var yPlus=yFor(plus[actionIndex]),yMinus=yFor(minus[actionIndex]);
+  return '<line x1="'+mx.toFixed(1)+'" y1="'+y0+'" x2="'+mx.toFixed(1)+'" y2="'+(y0+height)+'" class="conditioning-marker-line"/>'
+    +'<circle cx="'+mx.toFixed(1)+'" cy="'+yPlus.toFixed(1)+'" r="5.5" class="conditioning-marker-dot plus"/>'
+    +'<circle cx="'+mx.toFixed(1)+'" cy="'+yMinus.toFixed(1)+'" r="5.5" class="conditioning-marker-dot minus"/>';
+}
 function conditioningHistoryPath(history,actionIndex,x0,y0,width,height,limit){
   if(!history||!history.length)return "";
   return history.map(function(stage,i){
@@ -217,8 +236,13 @@ function conditioningHistoryPath(history,actionIndex,x0,y0,width,height,limit){
 function renderConditioningCompare(rootEl,data){
   if(!rootEl)return;
   if(!data){rootEl.hidden=true;rootEl.innerHTML="";return}
+  // Final commands are always clamp(v,-1,1)*10 N (see planHistoryFromFixedLatent), so the
+  // physical ±MAXF(=10N) axis already covers every possible value here. A stable shared axis
+  // — not a per-delta autoscale — is what lets different input sensitivities compare honestly.
   var plus=data.plusPlan,minus=data.minusPlan,x0=34,y0=10,width=692,height=118,limit=10;
-  if(data.experiment===true)limit=Math.max(.1,Math.max.apply(null,plus.concat(minus).map(function(v){return Math.abs(v)*10}))*1.1);
+  var observedMax=Math.max.apply(null,plus.concat(minus).map(function(v){return Math.abs(v)*10}));
+  var rescaled=observedMax>limit;
+  if(rescaled)limit=observedMax*1.1;
   var plusPath=conditioningPlanPath(plus,x0,y0,width,height,limit),minusPath=conditioningPlanPath(minus,x0,y0,width,height,limit);
   var diff=0,maxDiff=0;
   for(var i=0;i<plus.length;i++){var d=Math.abs((plus[i]-minus[i])*10);diff+=d;maxDiff=Math.max(maxDiff,d)}
@@ -239,7 +263,7 @@ function renderConditioningCompare(rootEl,data){
   var obsText=function(o){return "x "+fmt(o[0],3)+" m · ẋ "+fmt(o[1],3)+" m/s · θ "+fmt(deg(o[2]),3)+"° · θ̇ "+fmt(o[3],3)+" rad/s"};
   var differenceText=custom?data.fieldName+"만 "+(data.delta>=0?"+":"")+fmt(data.delta,2)+" "+data.unit:"θ만 +5° ↔ −5°";
   rootEl.hidden=false;
-  rootEl.dataset.experiment=custom?"true":"false";rootEl.dataset.actionIndex=String(actionIndex);rootEl.dataset.forceScaleN=String(limit);
+  rootEl.dataset.experiment=custom?"true":"false";rootEl.dataset.actionIndex=String(actionIndex);rootEl.dataset.forceScaleN=String(limit);rootEl.dataset.rescaled=rescaled?"true":"false";
   rootEl.dataset.sameNoise=data.sameNoise?"true":"false";if(custom)delete rootEl.dataset.seed;else rootEl.dataset.seed=String(data.seed);
   rootEl.dataset.plusTheta=String(data.plusObs[2]);
   rootEl.dataset.minusTheta=String(data.minusObs[2]);
@@ -274,12 +298,16 @@ function renderConditioningCompare(rootEl,data){
     +'<div class="divergence-metrics"><div><span>t=95 시작 차이</span><b>'+fmt(initialDelta,3)+'</b></div><div><span>첫 update 후 t='+firstAfterT+'</span><b>'+fmt(firstDelta,3)+'</b></div><div><span>t≈50 차이</span><b>'+fmt(midDelta,3)+'</b></div><div><span>t=0 차이</span><b>'+fmt(finalDelta,3)+'</b></div></div>'
     +'</div>'
     +'<div class="conditioning-chart"><div class="conditioning-legend"><span><i class="plus-key"></i>'+labelA+' final plan</span><span><i class="minus-key"></i>'+labelB+' final plan</span></div>'
-    +'<svg viewBox="0 0 760 146" preserveAspectRatio="'+(custom?"none":"xMidYMid meet")+'" role="img" aria-label="same-noise final action plans under two observations">'
+    +'<div class="conditioning-chart-wrap">'
+    +'<svg viewBox="0 0 760 146" preserveAspectRatio="'+(custom?"none":"xMidYMid meet")+'" role="img" aria-label="same-noise final action plans under two observations, selected action marked">'
     +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="conditioning-zero"/>'
     +'<path d="'+plusPath+'" class="conditioning-plus" fill="none"/>'
     +'<path d="'+minusPath+'" class="conditioning-minus" fill="none"/>'
+    +(custom?conditioningActionMarker(plus,minus,actionIndex,x0,y0,width,height,limit):'')
     +'</svg>'
-    +'<div class="chart-axis"><span>a[0]</span>'+(custom?"<span>공통 ±"+fmt(limit,2)+" N</span>":"")+'<span>a[15]</span></div></div>'
+    +(custom?'<span class="conditioning-marker-tag" style="'+conditioningMarkerTagStyle(actionIndex,plus.length,conditioningMarkerX(actionIndex,plus.length,x0,width)/7.6)+'">a['+actionIndex+']</span>':'')
+    +'</div>'
+    +'<div class="chart-axis"><span>a[0]</span>'+(custom?"<span>"+(rescaled?"⚠ 확장된 ":"고정 ")+"±"+fmt(limit,2)+" N (최종 force 축)</span>":"")+'<span>a[15]</span></div></div>'
     +'<div class="conditioning-summary"><div><span>'+(custom?'a['+actionIndex+'] force A':'첫 force A')+'</span><b>'+(plus[actionIndex]>=0?"+":"")+fmt(plus[actionIndex]*10,2)+' N</b></div>'
     +'<div><span>'+(custom?'a['+actionIndex+'] force B':'첫 force B')+'</span><b>'+(minus[actionIndex]>=0?"+":"")+fmt(minus[actionIndex]*10,2)+' N</b></div>'
     +(custom?'<div><span>a['+actionIndex+'] 변화 B − A</span><b>'+fmt((minus[actionIndex]-plus[actionIndex])*10,3)+' N</b></div>':'')

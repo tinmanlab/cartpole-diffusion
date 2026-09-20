@@ -75,13 +75,23 @@ async function responsiveSweep(browser){
         if(narrowGap<0)err('responsive '+width+': guide bar overlaps the focused panel (gap '+narrowGap+'px)');
         if(narrowGap>60)err('responsive '+width+': giant blank gap between guide bar and focused panel ('+narrowGap+'px)');
       }
-      if(width===320){
-        // Viewport-truth screenshot at the narrowest contract width. Result requires a
-        // real four-action apply, which mobile() already screenshots/geometry-checks at
-        // 390 against the identical <=760px layout rule; duplicating that full apply
-        // flow here would add cost without new coverage.
+      if(width===320||width===390){
+        // F1: the guide bar (copy + controls + stage nav + identity) must stay compact at
+        // Calculation, the densest guided stage, well under the pre-fix ~539px it used to take.
         await page.locator('.stage-btn').nth(1).click();await page.waitForTimeout(120);
-        await page.screenshot({path:path.join(outDir,'responsive-320-guide-calculation-viewport.jpg'),type:'jpeg',quality:84});
+        const barHeight=await page.evaluate(()=>{
+          const bar=document.querySelector('[data-qa="guide-bar"]');
+          return bar?Math.round(bar.getBoundingClientRect().height):null;
+        });
+        if(barHeight===null)err('responsive '+width+' Calculation: guide bar not found for height measurement');
+        else if(barHeight>440)err('responsive '+width+' Calculation: guide bar height '+barHeight+'px exceeds the 440px budget');
+        if(width===320){
+          // Viewport-truth screenshot at the narrowest contract width. Result requires a
+          // real four-action apply, which mobile() already screenshots/geometry-checks at
+          // 390 against the identical <=760px layout rule; duplicating that full apply
+          // flow here would add cost without new coverage.
+          await page.screenshot({path:path.join(outDir,'responsive-320-guide-calculation-viewport.jpg'),type:'jpeg',quality:84});
+        }
         await page.locator('.stage-btn').nth(0).click();await page.waitForTimeout(80);
       }
     }
