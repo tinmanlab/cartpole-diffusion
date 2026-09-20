@@ -402,16 +402,20 @@ function renderObservation(rootEl,obs,planCount,meta){
 }
 function renderHorizon(plan,cursor,guide){
   var executeCount=4,dt=.02,predSeconds=plan.length*dt,execSeconds=executeCount*dt;
-  var isGuide=!!(guide&&guide.enabled),guideApplied=isGuide&&!!guide.applied;
-  var finished=isGuide?guideApplied&&cursor>=executeCount:cursor>=executeCount;
+  var isGuide=!!(guide&&guide.enabled),guideApplied=isGuide&&!!guide.applied,terminal=!!(guide&&guide.terminal);
+  var appliedCount=cursor;
+  var reasonText=guide&&guide.reason==="invalid"?"상태값이 비정상(무한대/NaN)이 되어":"물리 한계(|θ|>18° 또는 |x|>2.4 m)를 넘어";
+  var finished=terminal||(isGuide?guideApplied&&cursor>=executeCount:cursor>=executeCount);
   var slots=plan.map(function(v,i){
     var cls=i<executeCount?" execute":" planned";
     if(i<executeCount){
-      if(isGuide){
-        var guideActive=guideApplied?Math.max(0,Math.min(3,cursor-1)):-1;
-        if(i<guideActive)cls+=" done";
-        else if(i===guideActive)cls+=" current";
-        else cls+=" pending";
+      if(terminal){
+        if(i<appliedCount-1)cls+=" done";
+        else if(i===appliedCount-1)cls+=" current";
+        else cls+=" skipped";
+      }else if(isGuide){
+        if(!guideApplied)cls+=" pending";
+        else cls+=i<executeCount-1?" done":" current";
       }else{
         if(i<cursor)cls+=" done";
         else if(i===cursor&&cursor<executeCount)cls+=" current";
@@ -420,27 +424,41 @@ function renderHorizon(plan,cursor,guide){
     }else if(finished)cls+=" discarded";
     return '<i class="horizon-slot'+cls+'" data-action-index="'+i+'" title="a['+i+'] = '+fmt(v*10,2)+' N"></i>';
   }).join("");
-  return '<div class="horizon-panel" data-qa="horizon" data-prediction-count="'+plan.length+'" data-execute-count="'+executeCount+'" data-prediction-seconds="'+predSeconds.toFixed(2)+'" data-execute-seconds="'+execSeconds.toFixed(2)+'">'
+  var execLabel=terminal?appliedCount+' actions · '+(appliedCount*dt).toFixed(2)+' s (조기 종료)':executeCount+' actions · '+execSeconds.toFixed(2)+' s';
+  var execWindowSpan=terminal?(appliedCount===0?'적용된 action 없음 (시작 상태가 이미 한계 초과)':'a[0]~a['+(appliedCount-1)+'] · '+(appliedCount*dt).toFixed(2)+' s'):'a[0]~a[3] · '+execSeconds.toFixed(2)+' s';
+  return '<div class="horizon-panel" data-qa="horizon" data-prediction-count="'+plan.length+'" data-execute-count="'+executeCount+'" data-applied-count="'+appliedCount+'" data-terminal="'+(terminal?"true":"false")+'" data-prediction-seconds="'+predSeconds.toFixed(2)+'" data-execute-seconds="'+execSeconds.toFixed(2)+'">'
     +'<div class="horizon-head"><div><b>왜 16개를 만들고 4개만 실행하나?</b><span>prediction horizon과 execution horizon을 분리한 receding-horizon control</span></div>'
-    +'<div class="horizon-metrics"><strong>16 actions · '+predSeconds.toFixed(2)+' s 계획</strong><em>4 actions · '+execSeconds.toFixed(2)+' s 실행</em></div></div>'
+    +'<div class="horizon-metrics"><strong>16 actions · '+predSeconds.toFixed(2)+' s 계획</strong><em>'+execLabel+'</em></div></div>'
     +'<div class="horizon-track-wrap"><div class="horizon-track">'+slots+'</div><i class="reobserve-marker"></i></div>'
     +'<div class="horizon-labels"><span>a[0]</span><span>a[3]</span><b>↑ 여기서 다시 관측</b><span>a[4]</span><span>a[15]</span></div>'
-    +'<div class="horizon-groups"><div class="execute-window"><b>실제로 실행</b><span>a[0]~a[3] · '+execSeconds.toFixed(2)+' s</span></div>'
-    +'<div class="planned-window '+(finished?'is-discarded':'')+'"><b>'+(finished?'기존 계획은 폐기':'아직 미래 계획')+'</b><span>a[4]~a[15] · '+(predSeconds-execSeconds).toFixed(2)+' s</span></div></div>'
-    +'<p class="horizon-note">'+(finished
-      ?'<b>재관측 시점:</b> plant가 이미 변했으므로 old a[4]~a[15]를 계속 실행하지 않습니다. 새 x, ẋ, θ, θ̇로 다시 16-action plan을 생성합니다.'
+    +'<div class="horizon-groups"><div class="execute-window"><b>'+(terminal?'실제 적용':'실제로 실행')+'</b><span>'+execWindowSpan+'</span></div>'
+    +'<div class="planned-window '+(finished?'is-discarded':'')+'"><b>'+(terminal?'종료 · 재계획 없음':finished?'기존 계획은 폐기':'아직 미래 계획')+'</b><span>a[4]~a[15] · '+(predSeconds-execSeconds).toFixed(2)+' s</span></div></div>'
+    +'<p class="horizon-note">'+(terminal
+      ?(appliedCount===0
+        ?'<b>시작 상태 무효:</b> 관측된 x, ẋ, θ, θ̇가 이미 '+reasonText+' 있어 어떠한 action도 적용되지 않았습니다. 재계획하려면 Reset이 필요합니다.'
+        :'<b>조기 종료:</b> a['+appliedCount+']을 적용하기 전 '+reasonText+' 종료했습니다. 남은 a['+appliedCount+']~a[15]는 적용되지 않았고, 재계획하려면 Reset이 필요합니다.')
+      :finished
+      ?'<b>재관측 시점:</b> plant가 이미 변했으므로 old a[4]~a[15]를 계속 실행하지 않습니다. 새 x, ẋ, θ, θ̇로 다시 16-action plan을 생성합니다.'
       :'<b>핵심:</b> 0.32 s 전체를 미리 계획하지만 0.08 s만 실행합니다. 그 뒤 실제 plant를 다시 측정하고 남은 old a[4]~a[15] 대신 새 plan으로 교체합니다.')
     +'</p></div>';
 }
+
 function renderExecution(rootEl,plan,cursor,policyForce,guide){
   if(!plan||!plan.length){rootEl.innerHTML='<div class="exec-empty">plan을 기다리는 중…</div>';return}
-  var isGuide=!!(guide&&guide.enabled),guideApplied=isGuide&&!!guide.applied;
+  var isGuide=!!(guide&&guide.enabled),guideApplied=isGuide&&!!guide.applied,terminal=!!(guide&&guide.terminal);
+  var lastForce=guide&&guide.lastForce||0,lastIndex=guide&&typeof guide.lastIndex==="number"?guide.lastIndex:-1;
+  var appliedCount=cursor;
   var cards='';
   for(var i=0;i<4;i++){
     var state,label;
-    if(isGuide){
-      var guideActive=guideApplied?Math.max(0,Math.min(3,cursor-1)):-1;
-      state=i<guideActive?'done':i===guideActive?'active':'future';
+    if(terminal){
+      if(i<appliedCount-1)state='done';
+      else if(i===appliedCount-1)state='active';
+      else state='skipped';
+      label=state==='active'?'마지막 적용 · 종료':state==='done'?'완료':'미실행 (조기 종료)';
+    }else if(isGuide){
+      if(!guideApplied)state='future';
+      else state=i<3?'done':'active';
       label=state==='active'?'마지막 적용':state==='done'?'완료':'실행 예정';
     }else{
       state=i<cursor?'done':i===cursor&&cursor<4?'active':'future';
@@ -449,28 +467,32 @@ function renderExecution(rootEl,plan,cursor,policyForce,guide){
     cards+='<div class="exec-action '+state+'" data-qa="exec-action" data-action-index="'+i+'"><span>a['+i+']</span><b>'+(plan[i]>=0?'+':'')+fmt(plan[i]*10,2)+' N</b><small>'+label+'</small></div>';
   }
   var nowLabel,nowText;
-  if(isGuide){
+  if(terminal){
+    nowLabel=lastIndex<0?'시작 상태가 이미 한계를 벗어나 force 미적용':'종료 직전 마지막으로 적용한 force a['+lastIndex+']';
+    nowText=lastIndex<0?'<strong class="not-applied">적용 안 함</strong>':'<strong>'+(lastForce>=0?'+':'')+fmt(lastForce,2)+' N</strong>';
+  }else if(isGuide){
     nowLabel=guideApplied?'마지막으로 적용한 force':'현재 cart에 적용되는 force';
     nowText=guideApplied?'<strong>'+(policyForce>=0?'+':'')+fmt(policyForce,2)+' N</strong>':'<strong class="not-applied">아직 적용 안 함</strong>';
   }else{
     nowLabel=cursor<4?'현재 snapshot에서 다음 20 ms에 적용할 force':'다음 force';
     nowText=cursor<4?'<strong>'+(policyForce>=0?'+':'')+fmt(policyForce,2)+' N</strong>':'<strong class="not-applied">재계획</strong>';
   }
-  rootEl.innerHTML='<div class="exec-now" data-qa="current-force" data-next-action-index="'+(cursor<4?cursor:-1)+'"><span>'+nowLabel+'</span>'+nowText+'</div>'
+  rootEl.innerHTML='<div class="exec-now" data-qa="current-force" data-next-action-index="'+(cursor<4&&!terminal?cursor:-1)+'" data-terminal="'+(terminal?"true":"false")+'" data-applied-count="'+appliedCount+'"><span>'+nowLabel+'</span>'+nowText+'</div>'
     +'<div class="exec-prefix" data-qa="exec-prefix">'+cards+'</div>'
     +renderHorizon(plan,cursor,guide);
 }
-function renderStateDelta(rootEl,before,after){
+
+function renderStateDelta(rootEl,before,after,terminal){
   if(!rootEl)return;
   if(!before||!after){rootEl.hidden=true;rootEl.innerHTML="";return}
   var specs=[
     ["x",before[0],after[0],"m",2],
-    ["ẋ",before[1],after[1],"m/s",2],
+    ["ẋ",before[1],after[1],"m/s",2],
     ["θ",deg(before[2]),deg(after[2]),"°",1],
     ["θ̇",deg(before[3]),deg(after[3]),"°/s",0]
   ];
   rootEl.hidden=false;
-  rootEl.innerHTML='<div class="reobserve-title"><b>실행 전 → 실행 후</b><span>이 오른쪽 값들이 다음 plan의 새 observation이 됩니다.</span></div>'
+  rootEl.innerHTML='<div class="reobserve-title"><b>실행 전 → 실행 후</b><span>'+(terminal?'물리 한계를 벗어나 종료했습니다. 이 상태에서는 재계획하지 않습니다 — Reset이 필요합니다.':'이 오른쪽 값들이 다음 plan의 새 observation이 됩니다.')+'</span></div>'
     +'<div class="reobserve-values">'
     +specs.map(function(s){
       var delta=s[2]-s[1],sign=delta>=0?"+":"";
