@@ -196,7 +196,7 @@ function gaussian16(){var out=[],sp=null;while(out.length<H){if(sp!==null){out.p
 function r(){return random()}
 function ab(t){var x=(t/T+S)/(1+S),f=Math.cos(x*Math.PI/2),f0=Math.cos((S/(1+S))*Math.PI/2);return clamp(f*f/(f0*f0),1e-5,1)}
 function physics(s,u,push){var x=s.x,xd=s.xDot,th=s.theta,thd=s.thetaDot,c=Math.cos(th),sn=Math.sin(th),total=1.1,tmp=(clamp(u,-MAXF,MAXF)+push+.05*thd*thd*sn)/total,tha=(9.8*sn-c*tmp)/(.5*(4/3-.1*c*c/total)),xa=tmp-.05*tha*c/total;return{x:x+TAU*xd,xDot:xd+TAU*xa,theta:th+TAU*thd,thetaDot:thd+TAU*tha}}
-function ddim(x,cur,prev,pred){var ac=ab(cur),ap=ab(prev),sc=Math.sqrt(ac),nc=Math.sqrt(1-ac),sp=Math.sqrt(ap),np=Math.sqrt(1-ap);var x0=x.map(function(v,i){return clamp((v-nc*pred[i])/sc,-1.2,1.2)}),next=x0.map(function(v,i){return sp*v+np*pred[i]});return{x0:x0,next:next}}
+function ddim(x,cur,prev,pred){var ac=ab(cur),ap=ab(prev),sc=Math.sqrt(ac),nc=Math.sqrt(1-ac),sp=Math.sqrt(ap),np=Math.sqrt(1-ap);var x0Raw=x.map(function(v,i){return(v-nc*pred[i])/sc}),x0=x0Raw.map(function(v){return clamp(v,-1.2,1.2)}),next=x0.map(function(v,i){return sp*v+np*pred[i]});return{x0:x0,x0Raw:x0Raw,next:next,coef:{ac:ac,ap:ap,sc:sc,nc:nc,sp:sp,np:np}}}
 function fixedGaussian16(seed){
   var local=seed>>>0,sp=null,out=[];
   function rnd(){local+=0x6D2B79F5;var a=local;a=Math.imul(a^a>>>15,a|1);a^=a+Math.imul(a^a>>>7,a|61);return((a^a>>>14)>>>0)/4294967296}
@@ -345,7 +345,7 @@ function makePlan(){
   var x=gaussian16(),cur=START_T,out=[];
   while(cur>0){
     var prev=Math.max(0,cur-STRIDE),pred=model.predict(x,cur,planObservation),step=ddim(x,cur,prev,pred);
-    out.push({t:cur,latent:x.slice(),pred:pred.slice(),x0:step.x0.slice(),next:step.next.slice(),caption:cur===START_T?"random":"denoise"});
+    out.push({t:cur,latent:x.slice(),pred:pred.slice(),x0:step.x0.slice(),x0Raw:step.x0Raw.slice(),coef:step.coef,next:step.next.slice(),caption:cur===START_T?"random":"denoise"});
     x=step.next;cur=prev;
   }
   out.push({t:0,latent:x.slice(),pred:null,x0:x.slice(),next:x.slice(),caption:"force plan"});

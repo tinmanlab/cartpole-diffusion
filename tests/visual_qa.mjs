@@ -362,6 +362,32 @@ async function desktop(browser){
   if(Math.abs(actionOne.before-actionOne.after)<1e-12)err('guided denoise: selected action did not change across one update');
   if(actionOne.paths!==2||!actionOne.note.includes('force가 아닙니다'))err('guided denoise: one-step claim boundary or before/after paths missing');
 
+  // Real DDIM sampler arithmetic: clean estimate = (candidate - sqrt(1-alpha_cur)*epsilon)
+  // / sqrt(alpha_cur), clipped to +/-1.2; next = sqrt(alpha_prev)*clipped_estimate +
+  // sqrt(1-alpha_prev)*epsilon. Read from the same native ddim() coefficients/unclipped
+  // estimate recorded once in makePlan's history -- never a second sampler computed here.
+  const readSampler=()=>oneStep.evaluate(el=>({
+    ac:Number(el.dataset.coefAc),ap:Number(el.dataset.coefAp),sc:Number(el.dataset.coefSc),
+    nc:Number(el.dataset.coefNc),sp:Number(el.dataset.coefSp),np:Number(el.dataset.coefNp),
+    x0Raw:Number(el.dataset.x0Raw),x0Clip:Number(el.dataset.x0Clip),clipped:el.dataset.clipped,
+    eqCount:el.querySelectorAll('.sampler-eq code').length,
+    detailsOpen:el.querySelector('.sampler-details')?.open ?? null,
+    text:el.textContent||''
+  }));
+  const sampler=await readSampler();
+  if(![sampler.ac,sampler.ap,sampler.sc,sampler.nc,sampler.sp,sampler.np,sampler.x0Raw,sampler.x0Clip].every(Number.isFinite))
+    err('guided denoise: sampler coefficients/unclipped estimate are not all finite numbers');
+  if(Math.abs((actionOne.before-sampler.nc*actionOne.noise)/sampler.sc-sampler.x0Raw)>1e-6)
+    err('guided denoise: displayed clean estimate does not match (candidate - sqrt(1-alpha_cur)*epsilon)/sqrt(alpha_cur)');
+  if(Math.abs(Math.max(-1.2,Math.min(1.2,sampler.x0Raw))-sampler.x0Clip)>1e-9)
+    err('guided denoise: displayed clipped estimate does not match clamp(clean estimate, -1.2, 1.2)');
+  if(Math.abs(sampler.sp*sampler.x0Clip+sampler.np*actionOne.noise-actionOne.after)>1e-6)
+    err('guided denoise: displayed next-candidate arithmetic does not reproduce sqrt(alpha_prev)*clipped_estimate + sqrt(1-alpha_prev)*epsilon');
+  if(sampler.eqCount<2)err('guided denoise: sampler arithmetic (clean estimate and next-candidate equations) is not visibly shown');
+  if(sampler.detailsOpen!==false)err('guided denoise: full schedule-coefficient details is not a closed-by-default native <details>');
+  if(!sampler.text.includes('±1.2')||!sampler.text.includes('±1')) err('guided denoise: intermediate +/-1.2 clip is not explicitly distinguished from the final plan +/-1 clip');
+  if(!sampler.text.toLowerCase().includes('newton')) err('guided denoise: missing explicit note that epsilon/intermediate candidates are not Newtons');
+
   await slider.evaluate(el=>{el.value='18';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(100);
   const lastTimeline=await readTimeline(),lastOne=await readOne();
   if(lastTimeline.stepIndex!==18||lastTimeline.currentT!==5||lastTimeline.nextT!==0)err('guided denoise: final scrubber update should be t=5→0');

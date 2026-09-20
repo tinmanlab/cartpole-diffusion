@@ -169,12 +169,16 @@ function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
   var idx=history.indexOf(stage),nextT=(idx>=0&&history[idx+1])?history[idx+1].t:Math.max(0,stage.t-5);
   actionIndex=clamp(Math.round(actionIndex||0),0,stage.latent.length-1);
   var before=stage.latent[actionIndex],noise=stage.pred[actionIndex],after=stage.next[actionIndex];
+  var x0Raw=stage.x0Raw[actionIndex],x0Clip=stage.x0[actionIndex],coef=stage.coef,clipped=x0Raw!==x0Clip;
   var x0=24,y0=8,width=652,height=104,limit=1.6;
   var beforePath=normalizedPath(stage.latent,x0,y0,width,height,limit);
   var afterPath=normalizedPath(stage.next,x0,y0,width,height,limit);
   rootEl.hidden=false;
   rootEl.dataset.currentT=String(stage.t);rootEl.dataset.nextT=String(nextT);rootEl.dataset.actionIndex=String(actionIndex);
   rootEl.dataset.beforeValue=String(before);rootEl.dataset.noiseValue=String(noise);rootEl.dataset.afterValue=String(after);
+  rootEl.dataset.coefAc=String(coef.ac);rootEl.dataset.coefAp=String(coef.ap);rootEl.dataset.coefSc=String(coef.sc);
+  rootEl.dataset.coefNc=String(coef.nc);rootEl.dataset.coefSp=String(coef.sp);rootEl.dataset.coefNp=String(coef.np);
+  rootEl.dataset.x0Raw=String(x0Raw);rootEl.dataset.x0Clip=String(x0Clip);rootEl.dataset.clipped=String(clipped);
   if(actionIndex===0){rootEl.dataset.before0=String(before);rootEl.dataset.noise0=String(noise);rootEl.dataset.after0=String(after)}else{delete rootEl.dataset.before0;delete rootEl.dataset.noise0;delete rootEl.dataset.after0}
   rootEl.innerHTML=
     '<div class="denoise-update-head"><div><b>한 번의 denoise update</b><span>실제 plan의 t='+stage.t+' → t='+nextT+'</span></div><em>이 구조를 반복</em></div>'
@@ -196,6 +200,12 @@ function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
     +'<circle cx="'+(x0+actionIndex/(stage.latent.length-1)*width).toFixed(1)+'" cy="'+(y0+height/2-(clamp(after,-limit,limit)/limit)*(height*.42)).toFixed(1)+'" r="5" class="update-after-dot"/>'
     +'</svg>'
     +'<div class="chart-axis"><span>a[0]</span><span>a[15]</span></div></div>'
+    +'<div class="denoise-sampler-math">'
+    +'<div class="sampler-eq"><b>③-1 clean estimate x̂₀</b><code>('+fmt(before,3)+' − '+fmt(coef.nc,4)+'×'+fmt(noise,3)+') / '+fmt(coef.sc,4)+' = '+fmt(x0Raw,3)+'</code><small>±1.2로 clip → '+fmt(x0Clip,3)+(clipped?' (clipped)':' (clip 없음)')+'</small></div>'
+    +'<div class="sampler-eq"><b>③-2 next candidate</b><code>'+fmt(coef.sp,4)+'×'+fmt(x0Clip,3)+' + '+fmt(coef.np,4)+'×'+fmt(noise,3)+' = '+fmt(after,3)+'</code></div>'
+    +'<p class="sampler-note">이 중간 ±1.2 clip은 최종 plan의 ±1 clip·×10N 변환과 다른 값입니다 · this intermediate ±1.2 clip is separate from the final plan\'s ±1 clip and its ×10N conversion. x̂₀는 실제 정답이 아니라 추정값이고, ε와 candidate는 아직 Newton이 아닙니다 · x̂₀ is an estimate, not ground truth, and ε/intermediate candidates are not Newtons yet.</p>'
+    +'<details class="sampler-details"><summary>schedule 계수 전체 보기 · full schedule coefficients</summary><code>α_cur='+fmt(coef.ac,5)+' · α_prev='+fmt(coef.ap,5)+' · √α_cur='+fmt(coef.sc,4)+' · √(1−α_cur)='+fmt(coef.nc,4)+' · √α_prev='+fmt(coef.sp,4)+' · √(1−α_prev)='+fmt(coef.np,4)+'</code></details>'
+    +'</div>'
     +'<p class="denoise-update-note"><b>중요:</b> denoiser의 출력 εθ는 cart에 보내는 force가 아닙니다. sampler가 이 noise 예측과 diffusion schedule을 이용해 다음 action 후보를 계산합니다.</p>';
 }
 function conditioningPlanPath(values,x0,y0,width,height,limit){
