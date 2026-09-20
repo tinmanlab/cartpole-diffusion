@@ -143,7 +143,7 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
       <div id="execution"></div>
     </section>
 
-    <div class="loop-back" data-qa="replan"><b>4 · 다시 관측 → 새 계획</b> · a[3]까지 실행하면 바뀐 x, ẋ, θ, θ̇를 다시 읽고 새로운 16-action plan을 생성합니다.<div id="reobserveCompare" class="reobserve-compare" data-qa="reobserve-compare" hidden></div></div>
+    <div class="loop-back" data-qa="replan"><b id="loopBackTitle">4 · 다시 관측 → 새 계획</b> · <span id="loopBackDesc">a[3]까지 실행하면 바뀐 x, ẋ, θ, θ̇를 다시 읽고 새로운 16-action plan을 생성합니다.</span><div id="reobserveCompare" class="reobserve-compare" data-qa="reobserve-compare" hidden></div></div>
   </div>
 </section>
 </section>
@@ -429,9 +429,21 @@ function renderGuidedDenoise(){
   ControlLoopViz.renderDenoiseUpdate(E("denoiseOneStep"),history,current?current.t:null,denoiseActionIndex);
 }
 function planMeta(){return{planStartTick:planStartTick,currentTick:simTick}}
+// The static "4 · 다시 관측 → 새 계획" card always claims a fresh 16-action plan will
+// follow. Once the shared terminal gate has fired that claim is false (see F1) -- kept in
+// sync with every execution-panel render instead of a one-off call site so it can never
+// go stale across guide steps, exit, or Reset.
+function renderLoopBackCaption(){
+  var fell=status==="fell";
+  E("loopBackTitle").textContent=fell?"종료 결과 · 재계획 중지":"4 · 다시 관측 → 새 계획";
+  E("loopBackDesc").textContent=fell
+    ?terminalReasonText()+" 종료했습니다. 남은 a["+planCursor+"]~a[15]는 적용되지 않았습니다. 새로운 16-action plan은 만들지 않습니다 — 다시 시작하려면 Reset을 눌러 주세요."
+    :"a[3]까지 실행하면 바뀐 x, ẋ, θ, θ̇를 다시 읽고 새로운 16-action plan을 생성합니다.";
+}
 function renderPlanSnapshot(){
   ControlLoopViz.renderObservation(E("observation"),planObservation,planCount,planMeta());
   ControlLoopViz.renderExecution(E("execution"),plan,planCursor,policyForce,{enabled:guideMode,applied:guideApplied,terminal:status==="fell",reason:terminalReason,lastForce:lastAppliedForce,lastIndex:lastAppliedActionIndex});
+  renderLoopBackCaption();
 }
 function renderController(){
   ControlLoopViz.renderObservation(E("observation"),planObservation,planCount,planMeta());
@@ -439,6 +451,7 @@ function renderController(){
   ControlLoopViz.renderStages(E("denoiseStages"),history,plan);
   renderGuidedDenoise();
   ControlLoopViz.renderExecution(E("execution"),plan,planCursor,policyForce,{enabled:guideMode,applied:guideApplied,terminal:status==="fell",reason:terminalReason,lastForce:lastAppliedForce,lastIndex:lastAppliedActionIndex});
+  renderLoopBackCaption();
   renderAdvanced();
 }
 function renderAdvanced(){
@@ -562,6 +575,7 @@ function applyGuideFocus(){
   E("guideNext").disabled=status==="fell";
   E("guideNext").textContent=status==="fell"?"Reset 필요 · Result 탭에서 결과 확인":guideStep===3?(guideApplied?"실행 결과 확인":"앞 4개 실제 적용"):guideStep===4?"다시 관측":guideStep===5?"다음 cycle":"다음";
   ControlLoopViz.renderStateDelta(E("reobserveCompare"),guideMode&&guideStep===5?guideBefore:null,guideMode&&guideStep===5?guideAfter:null,status==="fell");
+  renderLoopBackCaption();
   renderConditioningExperiment();
   renderGuidedDenoise();
   guideText();

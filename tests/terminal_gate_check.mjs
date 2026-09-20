@@ -132,6 +132,14 @@ async function driveGuideToApply(page) {
   await page.waitForTimeout(20);
 }
 
+async function resultPanelData(page) {
+  return page.evaluate(() => ({
+    loopBackTitle: document.querySelector("#loopBackTitle")?.textContent,
+    loopBackDesc: document.querySelector("#loopBackDesc")?.textContent,
+    nestedResultSpan: document.querySelector("#reobserveCompare .reobserve-title span")?.textContent,
+  }));
+}
+
 async function execPanelData(page) {
   return page.evaluate(() => {
     const now = document.querySelector('[data-qa="current-force"]');
@@ -183,6 +191,8 @@ async function run() {
       check("normal: all 4 actions applied", cursor === 4, cursor);
       check("normal: exec panel not terminal", d.nowTerminal === "false" && d.horizonTerminal === "false", d);
       check("normal: 3 done + 1 active exec cards", d.actions.filter((c) => c.includes(" done")).length === 3 && d.actions.filter((c) => c.includes(" active")).length === 1, d.actions);
+      const rd = await resultPanelData(page);
+      check("normal: outer loop-back caption still claims a fresh 16-action replan (unchanged)", rd.loopBackTitle === "4 · 다시 관측 → 새 계획" && rd.loopBackDesc.includes("새로운 16-action plan을 생성합니다"), rd);
       check("normal: no page errors", pageErrors.length === 0, pageErrors);
       await page.close();
     }
@@ -234,6 +244,26 @@ async function run() {
 
       if (fixture === "angleTick1") {
         await page.screenshot({ path: path.join(shotDir, "terminal-action-1440.png") });
+      }
+
+      // Visiting the stage-nav Result tab after an early terminal must be pure inspection:
+      // no additional ticks/state/plan/force change, and BOTH the outer static loop-back
+      // card and the nested reobserve panel must agree there is no replan.
+      const beforeResult = { state: guideState, cursor: guideCursor, plan, lastIndex: guideLastIndex, lastForce: guideLastForce };
+      check(fixture + ": stageResultBtn is enabled after an early-terminal apply", !(await page.locator("#stageResultBtn").isDisabled()), null);
+      await page.locator("#stageResultBtn").click();
+      await page.waitForTimeout(20);
+      const afterResult = {
+        state: await qa(page, "getState"), cursor: await qa(page, "getPlanCursor"), plan: await qa(page, "getPlan"),
+        lastIndex: await qa(page, "getLastAppliedActionIndex"), lastForce: await qa(page, "getLastAppliedForce"),
+      };
+      check(fixture + ": viewing Result after early terminal applies zero additional ticks/state/plan/force change", JSON.stringify(beforeResult) === JSON.stringify(afterResult), { beforeResult, afterResult });
+      const rd = await resultPanelData(page);
+      check(fixture + ": outer loop-back caption reports no-replan once terminal", rd.loopBackTitle === "종료 결과 · 재계획 중지" && !rd.loopBackDesc.includes("새로운 16-action plan을 생성합니다."), rd);
+      check(fixture + ": nested reobserve panel also reports no-replan once terminal", !!rd.nestedResultSpan && rd.nestedResultSpan.includes("재계획하지 않습니다"), rd);
+
+      if (fixture === "angleTick1") {
+        await page.screenshot({ path: path.join(shotDir, "terminal-result-1440.png") });
       }
 
       // Gate: Next/exitGuide-replan must not resurrect or re-step the plant.
@@ -300,7 +330,7 @@ async function run() {
     }
 
     // --- 6) Viewport sweep: terminal-shortened prefix renders sanely at narrow/wide widths,
-    //        through both the terminal-action view and the post-exit Result view. ---
+    //        through the terminal-action view, the actual Result tab, and the post-exit view. ---
     for (const width of [390, 1440]) {
       const { page } = await openPage(browser, "angleTick1", { width, height: 900 });
       await driveGuideToApply(page);
@@ -309,6 +339,14 @@ async function run() {
       check(width + "px: no horizontal overflow with terminal exec panel", !overflow, null);
       check(width + "px: terminal exec panel still renders 4 action cards", d.actions.length === 4, d.actions);
       await page.screenshot({ path: path.join(shotDir, "terminal-action-" + width + ".png") });
+
+      await page.locator("#stageResultBtn").click();
+      await page.waitForTimeout(20);
+      overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2);
+      const rd = await resultPanelData(page);
+      check(width + "px: no horizontal overflow on the actual Result tab", !overflow, null);
+      check(width + "px: Result tab reports no-replan (outer + nested)", rd.loopBackTitle === "종료 결과 · 재계획 중지" && !!rd.nestedResultSpan && rd.nestedResultSpan.includes("재계획하지 않습니다"), rd);
+      await page.screenshot({ path: path.join(shotDir, "terminal-result-" + width + ".png") });
 
       await page.locator("#guideExit").click();
       await page.waitForTimeout(20);
