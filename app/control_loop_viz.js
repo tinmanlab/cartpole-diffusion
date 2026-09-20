@@ -2,6 +2,12 @@
 "use strict";
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function fmt(x,d){return Number(x).toFixed(d===undefined?2:d)}
+// 6 significant figures (not fixed decimals): at t near START_T, sqrt(alpha_cur) is already
+// small (~0.078 at t=95), and a fixed-decimal rounding of the numerator/denominator there
+// swings the displayed quotient far more than the rounding of any one term suggests.
+// Significant figures keep each displayed atom's own relative rounding error ~1e-6
+// regardless of its magnitude, which is what the rounded-substitution row below relies on.
+function sig(x,n){return Number.isFinite(x)?Number(x).toPrecision(n||6):String(x)}
 function deg(x){return x*180/Math.PI}
 
 function pick(history,target){
@@ -169,12 +175,16 @@ function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
   var idx=history.indexOf(stage),nextT=(idx>=0&&history[idx+1])?history[idx+1].t:Math.max(0,stage.t-5);
   actionIndex=clamp(Math.round(actionIndex||0),0,stage.latent.length-1);
   var before=stage.latent[actionIndex],noise=stage.pred[actionIndex],after=stage.next[actionIndex];
+  var x0Raw=stage.x0Raw[actionIndex],x0Clip=stage.x0[actionIndex],coef=stage.coef,clipped=x0Raw!==x0Clip;
   var x0=24,y0=8,width=652,height=104,limit=1.6;
   var beforePath=normalizedPath(stage.latent,x0,y0,width,height,limit);
   var afterPath=normalizedPath(stage.next,x0,y0,width,height,limit);
   rootEl.hidden=false;
   rootEl.dataset.currentT=String(stage.t);rootEl.dataset.nextT=String(nextT);rootEl.dataset.actionIndex=String(actionIndex);
   rootEl.dataset.beforeValue=String(before);rootEl.dataset.noiseValue=String(noise);rootEl.dataset.afterValue=String(after);
+  rootEl.dataset.coefAc=String(coef.ac);rootEl.dataset.coefAp=String(coef.ap);rootEl.dataset.coefSc=String(coef.sc);
+  rootEl.dataset.coefNc=String(coef.nc);rootEl.dataset.coefSp=String(coef.sp);rootEl.dataset.coefNp=String(coef.np);
+  rootEl.dataset.x0Raw=String(x0Raw);rootEl.dataset.x0Clip=String(x0Clip);rootEl.dataset.clipped=String(clipped);
   if(actionIndex===0){rootEl.dataset.before0=String(before);rootEl.dataset.noise0=String(noise);rootEl.dataset.after0=String(after)}else{delete rootEl.dataset.before0;delete rootEl.dataset.noise0;delete rootEl.dataset.after0}
   rootEl.innerHTML=
     '<div class="denoise-update-head"><div><b>한 번의 denoise update</b><span>실제 plan의 t='+stage.t+' → t='+nextT+'</span></div><em>이 구조를 반복</em></div>'
@@ -186,6 +196,19 @@ function renderDenoiseUpdate(rootEl,history,targetT,actionIndex){
     +'<div class="update-card sampler"><span>③ sampler</span><b>DDIM update</b><strong>schedule 사용</strong><small>εθ를 그대로 빼는 것이 아님</small></div>'
     +'<i>→</i>'
     +'<div class="update-card after"><span>④ 다음 후보</span><b>a'+nextT+'['+actionIndex+']</b><strong>'+fmt(after,3)+'</strong><small>다음 denoise 입력</small></div>'
+    +'</div>'
+    +'<div class="denoise-sampler-math">'
+    +'<div class="sampler-eq"><b>③-1 clean estimate x̂₀</b>'
+    +'<code class="sampler-formula">x̂₀ = (a_{'+stage.t+'} − √(1−ᾱ_{'+stage.t+'})·ε) / √ᾱ_{'+stage.t+'}</code>'
+    +'<code class="sampler-values">≈ ('+sig(before)+' − '+sig(coef.nc)+'×'+sig(noise)+') / '+sig(coef.sc)+' ≈ '+sig(x0Raw)+'</code>'
+    +'<p class="sampler-clip">±1.2 clip → x̂₀_clip = '+sig(x0Clip)+(clipped?' (clipped)':' (clip 없음)')+'</p>'
+    +'</div>'
+    +'<div class="sampler-eq"><b>③-2 next candidate</b>'
+    +'<code class="sampler-formula">a_{'+nextT+'} = √ᾱ_{'+nextT+'}·x̂₀_clip + √(1−ᾱ_{'+nextT+'})·ε</code>'
+    +'<code class="sampler-values">≈ '+sig(coef.sp)+'×'+sig(x0Clip)+' + '+sig(coef.np)+'×'+sig(noise)+' ≈ '+sig(after)+'</code>'
+    +'</div>'
+    +'<p class="sampler-note">이 중간 ±1.2 clip은 최종 plan의 ±1 clip·×10N 변환과 다른 값입니다. x̂₀는 실제 정답이 아닌 추정값이고, ε·candidate는 아직 Newton(N) 힘이 아닙니다.</p>'
+    +'<details class="sampler-details"><summary>schedule 계수 전체 보기 · full schedule coefficients</summary><code>ᾱ_{'+stage.t+'}='+sig(coef.ac)+' · ᾱ_{'+nextT+'}='+sig(coef.ap)+' · √ᾱ_{'+stage.t+'}='+sig(coef.sc)+' · √(1−ᾱ_{'+stage.t+'})='+sig(coef.nc)+' · √ᾱ_{'+nextT+'}='+sig(coef.sp)+' · √(1−ᾱ_{'+nextT+'})='+sig(coef.np)+'</code></details>'
     +'</div>'
     +'<div class="denoise-update-chart"><div class="update-chart-title"><b>16개 전체도 같은 방식으로 조금씩 이동</b><span><i class="before-key"></i>t='+stage.t+' <i class="after-key"></i>t='+nextT+'</span></div>'
     +'<svg viewBox="0 0 700 124" role="img" aria-label="one denoising update across sixteen internal action candidates">'
@@ -206,6 +229,25 @@ function conditioningPlanPath(values,x0,y0,width,height,limit){
     return (i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
   }).join(" ");
 }
+// Marker geometry stays inside the SVG (real x-position); the "a[N]" text is HTML,
+// not an in-viewBox <text>, so it never shrinks below readability at narrow widths.
+function conditioningMarkerX(actionIndex,length,x0,width){return x0+actionIndex/(length-1)*width}
+// Anchor edges to their own side (own left/right edge at 0%/100%) instead of centering, so the
+// a[0]/a[15] label text can never clip past the plotting container. The dashed line + dots stay
+// pinned at the exact x — this only nudges where the callout *text* sits, presentation only.
+function conditioningMarkerTagStyle(actionIndex,length,pct){
+  if(actionIndex<=0)return 'left:0;transform:none';
+  if(actionIndex>=length-1)return 'left:auto;right:0;transform:none';
+  return 'left:'+pct.toFixed(2)+'%;transform:translateX(-50%)';
+}
+function conditioningActionMarker(plus,minus,actionIndex,x0,y0,width,height,limit){
+  var mx=conditioningMarkerX(actionIndex,plus.length,x0,width);
+  var yFor=function(v){return y0+height/2-(clamp(v*10,-limit,limit)/limit)*(height*.42)};
+  var yPlus=yFor(plus[actionIndex]),yMinus=yFor(minus[actionIndex]);
+  return '<line x1="'+mx.toFixed(1)+'" y1="'+y0+'" x2="'+mx.toFixed(1)+'" y2="'+(y0+height)+'" class="conditioning-marker-line"/>'
+    +'<circle cx="'+mx.toFixed(1)+'" cy="'+yPlus.toFixed(1)+'" r="5.5" class="conditioning-marker-dot plus"/>'
+    +'<circle cx="'+mx.toFixed(1)+'" cy="'+yMinus.toFixed(1)+'" r="5.5" class="conditioning-marker-dot minus"/>';
+}
 function conditioningHistoryPath(history,actionIndex,x0,y0,width,height,limit){
   if(!history||!history.length)return "";
   return history.map(function(stage,i){
@@ -217,12 +259,18 @@ function conditioningHistoryPath(history,actionIndex,x0,y0,width,height,limit){
 function renderConditioningCompare(rootEl,data){
   if(!rootEl)return;
   if(!data){rootEl.hidden=true;rootEl.innerHTML="";return}
+  // Final commands are always clamp(v,-1,1)*10 N (see planHistoryFromFixedLatent), so the
+  // physical ±MAXF(=10N) axis already covers every possible value here. A stable shared axis
+  // — not a per-delta autoscale — is what lets different input sensitivities compare honestly.
   var plus=data.plusPlan,minus=data.minusPlan,x0=34,y0=10,width=692,height=118,limit=10;
+  var observedMax=Math.max.apply(null,plus.concat(minus).map(function(v){return Math.abs(v)*10}));
+  var rescaled=observedMax>limit;
+  if(rescaled)limit=observedMax*1.1;
   var plusPath=conditioningPlanPath(plus,x0,y0,width,height,limit),minusPath=conditioningPlanPath(minus,x0,y0,width,height,limit);
   var diff=0,maxDiff=0;
   for(var i=0;i<plus.length;i++){var d=Math.abs((plus[i]-minus[i])*10);diff+=d;maxDiff=Math.max(maxDiff,d)}
   var meanDiff=diff/plus.length;
-  var actionIndex=0,ph=data.plusHistory||[],mh=data.minusHistory||[];
+  var custom=data.experiment===true,actionIndex=custom?data.actionIndex:0,ph=data.plusHistory||[],mh=data.minusHistory||[];
   var values=[];
   for(var h=0;h<ph.length;h++){values.push(Math.abs(ph[h].latent[actionIndex]));values.push(Math.abs(mh[h].latent[actionIndex]))}
   var histLimit=Math.max(1,Math.max.apply(null,values)*1.08),hx0=34,hy0=10,hwidth=692,hheight=112;
@@ -234,8 +282,12 @@ function renderConditioningCompare(rootEl,data){
   var midDelta=ph.length&&mh.length?Math.abs(ph[midIndex].latent[actionIndex]-mh[midIndex].latent[actionIndex]):NaN;
   var finalDelta=Math.abs(plus[actionIndex]-minus[actionIndex]);
   var firstAfterT=ph.length>1?ph[1].t:null;
+  var labelA=custom?"A · 기준 관측":"θ=+5°",labelB=custom?"B · 입력 하나 변경":"θ=−5°";
+  var obsText=function(o){return "x "+fmt(o[0],3)+" m · ẋ "+fmt(o[1],3)+" m/s · θ "+fmt(deg(o[2]),3)+"° · θ̇ "+fmt(o[3],3)+" rad/s"};
+  var differenceText=custom?data.fieldName+"만 "+(data.delta>=0?"+":"")+fmt(data.delta,2)+" "+data.unit:"θ만 +5° ↔ −5°";
   rootEl.hidden=false;
-  rootEl.dataset.sameNoise=data.sameNoise?"true":"false";rootEl.dataset.seed=String(data.seed);
+  rootEl.dataset.experiment=custom?"true":"false";rootEl.dataset.actionIndex=String(actionIndex);rootEl.dataset.forceScaleN=String(limit);rootEl.dataset.rescaled=rescaled?"true":"false";
+  rootEl.dataset.sameNoise=data.sameNoise?"true":"false";if(custom)delete rootEl.dataset.seed;else rootEl.dataset.seed=String(data.seed);
   rootEl.dataset.plusTheta=String(data.plusObs[2]);
   rootEl.dataset.minusTheta=String(data.minusObs[2]);
   rootEl.dataset.meanAbsDiffN=String(meanDiff);
@@ -249,36 +301,42 @@ function renderConditioningCompare(rootEl,data){
   rootEl.dataset.finalDelta=String(finalDelta);
   rootEl.dataset.firstAfterT=String(firstAfterT);
   rootEl.innerHTML=
-    '<div class="conditioning-head"><div><b>같은 noise, observation만 바꿔보기</b><span>통제 실험: model · initial Gaussian latent · sampler는 동일</span></div><em>θ만 +5° ↔ −5°</em></div>'
+    '<div class="conditioning-head"><div><b>같은 noise, observation만 바꿔보기</b><span>통제 실험: model · initial Gaussian latent · sampler는 동일</span></div><em>'+differenceText+'</em></div>'
     +'<div class="conditioning-observations">'
-    +'<div class="cond-obs plus"><span>Observation A</span><b>[0, 0, +5°, 0]</b><small>x, ẋ, θ, θ̇</small></div>'
+    +'<div class="cond-obs plus"><span>Observation A</span><b>'+(custom?obsText(data.plusObs):"[0, 0, +5°, 0]")+'</b><small>x, ẋ, θ, θ̇</small></div>'
     +'<div class="cond-arrow">같은 noise →</div>'
-    +'<div class="cond-obs minus"><span>Observation B</span><b>[0, 0, −5°, 0]</b><small>오직 θ만 변경</small></div>'
+    +'<div class="cond-obs minus"><span>Observation B</span><b>'+(custom?obsText(data.minusObs):"[0, 0, −5°, 0]")+'</b><small>'+(custom?differenceText:"오직 θ만 변경")+'</small></div>'
     +'</div>'
     +'<div class="conditioning-divergence">'
-    +'<div class="divergence-head"><div><b>같은 a[0]이 언제 갈라지나?</b><span>t=95에서는 같은 initial latent · 첫 denoise update부터 observation-conditioned 경로 분기</span></div>'
+    +'<div class="divergence-head"><div><b>같은 a['+actionIndex+'] 후보가 어떻게 달라지나?</b><span>t=95에서는 같은 initial latent · 세로축은 정규화된 내부 후보값, N이 아닙니다</span></div>'
     +'<strong>Δ '+fmt(initialDelta,3)+' → '+fmt(firstDelta,3)+' → '+fmt(finalDelta,3)+'</strong></div>'
-    +'<div class="divergence-legend"><span><i class="plus-key"></i>θ=+5°</span><span><i class="minus-key"></i>θ=−5°</span></div>'
-    +'<svg viewBox="0 0 760 142" role="img" aria-label="same initial action candidate diverging across denoising under two observations">'
+    +'<div class="divergence-legend"><span><i class="plus-key"></i>'+labelA+'</span><span><i class="minus-key"></i>'+labelB+'</span></div>'
+    +'<svg viewBox="0 0 760 142" preserveAspectRatio="'+(custom?"none":"xMidYMid meet")+'" role="img" aria-label="same initial action candidate diverging across denoising under two observations">'
     +'<line x1="'+hx0+'" y1="'+(hy0+hheight/2)+'" x2="'+(hx0+hwidth)+'" y2="'+(hy0+hheight/2)+'" class="conditioning-zero"/>'
     +'<path d="'+plusHist+'" class="conditioning-plus-history" fill="none"/>'
     +'<path d="'+minusHist+'" class="conditioning-minus-history" fill="none"/>'
     +'<circle cx="'+hx0+'" cy="'+(hy0+hheight/2-(clamp(ph[0].latent[actionIndex],-histLimit,histLimit)/histLimit)*(hheight*.42)).toFixed(1)+'" r="5" class="conditioning-same-start"/>'
     +'</svg>'
-    +'<div class="chart-axis"><span>t=95 · same</span><span>t≈50</span><span>t=0</span></div>'
+    +'<div class="chart-axis"><span>t=95 · same</span><span>'+(custom?"공통 ±"+fmt(histLimit,2):"t≈50")+'</span><span>t=0</span></div>'
     +'<div class="divergence-metrics"><div><span>t=95 시작 차이</span><b>'+fmt(initialDelta,3)+'</b></div><div><span>첫 update 후 t='+firstAfterT+'</span><b>'+fmt(firstDelta,3)+'</b></div><div><span>t≈50 차이</span><b>'+fmt(midDelta,3)+'</b></div><div><span>t=0 차이</span><b>'+fmt(finalDelta,3)+'</b></div></div>'
     +'</div>'
-    +'<div class="conditioning-chart"><div class="conditioning-legend"><span><i class="plus-key"></i>θ=+5° final plan</span><span><i class="minus-key"></i>θ=−5° final plan</span></div>'
-    +'<svg viewBox="0 0 760 146" role="img" aria-label="same-noise final action plans under positive and negative pole angle observations">'
+    +'<div class="conditioning-chart"><div class="conditioning-legend"><span><i class="plus-key"></i>'+labelA+' final plan</span><span><i class="minus-key"></i>'+labelB+' final plan</span></div>'
+    +'<div class="conditioning-chart-wrap">'
+    +'<svg viewBox="0 0 760 146" preserveAspectRatio="'+(custom?"none":"xMidYMid meet")+'" role="img" aria-label="same-noise final action plans under two observations, selected action marked">'
     +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="conditioning-zero"/>'
     +'<path d="'+plusPath+'" class="conditioning-plus" fill="none"/>'
     +'<path d="'+minusPath+'" class="conditioning-minus" fill="none"/>'
+    +(custom?conditioningActionMarker(plus,minus,actionIndex,x0,y0,width,height,limit):'')
     +'</svg>'
-    +'<div class="chart-axis"><span>a[0]</span><span>a[15]</span></div></div>'
-    +'<div class="conditioning-summary"><div><span>첫 force A</span><b>'+(plus[0]>=0?"+":"")+fmt(plus[0]*10,2)+' N</b></div>'
-    +'<div><span>첫 force B</span><b>'+(minus[0]>=0?"+":"")+fmt(minus[0]*10,2)+' N</b></div>'
-    +'<div><span>16개 평균 차이</span><b>'+fmt(meanDiff,2)+' N</b></div></div>'
-    +'<p class="conditioning-note"><b>의미:</b> t=95의 시작 candidate는 완전히 같습니다. observation은 denoiser 입력에 들어가므로 첫 reverse update부터 두 candidate 경로가 달라지고, 그 차이가 누적되어 서로 다른 최종 16-action plan이 됩니다.</p>';
+    +(custom?'<span class="conditioning-marker-tag" style="'+conditioningMarkerTagStyle(actionIndex,plus.length,conditioningMarkerX(actionIndex,plus.length,x0,width)/7.6)+'">a['+actionIndex+']</span>':'')
+    +'</div>'
+    +'<div class="chart-axis'+(custom?' chart-axis-force':'')+'"><span>a[0]</span>'+(custom?"<span>"+(rescaled?"⚠ 확장된 ":"고정 ")+"±"+fmt(limit,2)+" N (최종 force 축)</span>":"")+'<span>a[15]</span></div></div>'
+    +'<div class="conditioning-summary"><div><span>'+(custom?'a['+actionIndex+'] force A':'첫 force A')+'</span><b>'+(plus[actionIndex]>=0?"+":"")+fmt(plus[actionIndex]*10,2)+' N</b></div>'
+    +'<div><span>'+(custom?'a['+actionIndex+'] force B':'첫 force B')+'</span><b>'+(minus[actionIndex]>=0?"+":"")+fmt(minus[actionIndex]*10,2)+' N</b></div>'
+    +(custom?'<div><span>a['+actionIndex+'] 변화 B − A</span><b>'+fmt((minus[actionIndex]-plus[actionIndex])*10,3)+' N</b></div>':'')
+    +'<div><span>16개 평균 절대 차이</span><b>'+fmt(meanDiff,2)+' N</b></div></div>'
+    +(custom?'<div class="conditioning-estimates"><div><span>첫 denoiser 출력 εθ['+actionIndex+'] · noise estimate, N 아님</span><b>A '+fmt(data.firstPredA[actionIndex],6)+' / B '+fmt(data.firstPredB[actionIndex],6)+'</b></div><div><span>첫 sampler update 후 후보 a['+actionIndex+'] · t=90, N 아님</span><b>A '+fmt(ph[1].latent[actionIndex],6)+' / B '+fmt(mh[1].latent[actionIndex],6)+'</b></div></div>':'')
+    +'<p class="conditioning-note"><b>의미:</b> '+(custom?(data.delta===0?'변경량 0: 같은 관측과 같은 시작 잡음이므로 두 계획이 같습니다.':'한 입력만 바꿔 같은 모델을 재계산했습니다. 차이가 작거나 0일 수도 있으며 이 결과만으로 제어 강인성은 판단할 수 없습니다.')+' B는 물리에 적용하지 않는 비교용 계획입니다.':'t=95의 시작 candidate는 완전히 같습니다. 이 고정된 ±5° 예시에서는 observation condition 차이가 첫 reverse update부터 경로 차이로 나타납니다. 임의의 입력 변경에서 항상 차이가 난다는 뜻은 아닙니다.')+'</p>';
 }
 function renderSamplingCompare(rootEl,data){
   if(!rootEl)return;
