@@ -385,6 +385,7 @@ function renderReplay(){
 }
 function setAppMode(mode){
   if(mode!=="learn"&&mode!=="replay")return;
+  pushEnd();
   if(mode==="replay"){
     if(!model||guideMode)return;
     replayWasRunning=running;running=false;updateRunControls();ensureReplayRun();replayRunning=true;replayAcc=0;lastNow=performance.now();
@@ -656,7 +657,7 @@ E("replayRunBtn").addEventListener("click",function(){if(!replayRun)return;if(re
 E("replayRestartBtn").addEventListener("click",function(){if(!replayRun)return;replayIndex=0;replayRunning=true;replayAcc=0;renderReplay()});
 E("replayEndBtn").addEventListener("click",function(){if(!replayRun)return;replayIndex=replayRun.trace.length-1;replayRunning=false;replayAcc=0;renderReplay()});
 E("replaySlider").addEventListener("input",function(){if(!replayRun)return;replayRunning=false;replayIndex=Number(this.value);replayAcc=0;renderReplay()});
-E("runBtn").addEventListener("click",function(){if(status==="fell")reset();else{running=!running;updateRunControls();renderSim()}});
+E("runBtn").addEventListener("click",function(){if(status==="fell")reset();else{running=!running;pushEnd();updateRunControls();renderSim()}});
 E("stepBtn").addEventListener("click",function(){if(running||guideMode||status==="fell")return;step();renderSim()});
 E("captureConditioning").addEventListener("click",captureConditioning);
 E("restoreConditioning").addEventListener("click",function(){conditioningExperiment=null;renderConditioningExperiment()});
@@ -671,7 +672,9 @@ E("guideNext").addEventListener("click",function(){if(!guideMode||status==="fell
 E("guideExit").addEventListener("click",exitGuide);
 document.querySelectorAll(".stage-btn").forEach(function(b){b.addEventListener("click",function(){gotoGuideStage(Number(b.dataset.stage))})});
 E("resetBtn").addEventListener("click",reset);
-[["pushL",-4],["pushR",4]].forEach(function(pair){var b=E(pair[0]);b.addEventListener("pointerdown",function(){push(pair[1])});["pointerup","pointerleave","pointercancel"].forEach(function(ev){b.addEventListener(ev,pushEnd)})});
+[["pushL",-4],["pushR",4]].forEach(function(pair){var b=E(pair[0]);b.addEventListener("pointerdown",function(e){if(e.button!==0)return;push(pair[1])});["pointerup","pointerleave","pointercancel"].forEach(function(ev){b.addEventListener(ev,pushEnd)})});
+window.addEventListener("blur",pushEnd);
+document.addEventListener("visibilitychange",function(){if(document.hidden)pushEnd()});
 DiffusionViz.subscribe(function(index){if(index===null){E("hoverReadout").textContent="hover a cell → follow action[i]";return}var s=stage(),parts=["action["+index+"]"];if(s){parts.push("a_t="+fmt(s.latent[index],3));if(s.pred)parts.push("εθ="+fmt(s.pred[index],3));if(s.x0)parts.push("â0="+fmt(s.x0[index],3));}E("hoverReadout").textContent=parts.join(" · ")});
 state=resetState();renderSim();DiffusionViz.renderInspector(E("inspector"),null);
 CartPoleTinyDenoiser.load("artifacts/model.json").then(function(m){model=m;var tr=m.metadata.training;E("modelTag").textContent="learned εθ · val MSE "+fmt(tr.validation_epsilon_mse,4);conditioningCompareData=buildConditioningComparison();samplingCompareData=buildSamplingComparison();makePlan();E("replayModeBtn").disabled=false;updateRunControls();raf=requestAnimationFrame(frame)}).catch(function(err){status="model load failed";E("modelTag").textContent=String(err);renderSim()});

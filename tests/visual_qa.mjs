@@ -585,6 +585,123 @@ async function desktop(browser){
 
   const pushBefore=await readAtomicSnapshot(page);const push=page.getByRole('button',{name:'Push right'});await push.dispatchEvent('pointerdown');await page.waitForTimeout(260);await push.dispatchEvent('pointerup');await page.waitForTimeout(100);const pushAfter=await readAtomicSnapshot(page);const pushDelta=Math.max(...pushAfter.sim.map((v,i)=>Math.abs(v-pushBefore.sim[i])));report.interactions.push={before:pushBefore.sim,after:pushAfter.sim,maxStateDelta:pushDelta,changed:pushDelta>1e-6};if(!(pushDelta>1e-6))err('desktop: Push right did not change full-precision plant state');
 
+  // Input-lifecycle regression: a held push must clear on every cancellation
+  // path, and must never silently reappear afterward. Each case confirms
+  // nonzero force is actually applied before checking the cancellation
+  // clears it. #simStatus renders "... push <N> N" every frame (rAF loop
+  // keeps rendering even while paused), so it's a reliable live readout.
+  async function readPush(){
+    const t=await page.locator('#simStatus').innerText();
+    const m=t.match(/push\s*([+-]?\d+)\s*N/);
+    return m?Number(m[1]):NaN;
+  }
+  async function beginLeftPush(dir){
+    const btn=page.getByRole('button',{name: dir>0?'Push right':'Push left'});
+    await btn.dispatchEvent('pointerdown',{button:0,pointerId:1,isPrimary:true});
+    await page.waitForTimeout(120);
+    return btn;
+  }
+  async function freshPole(){
+    // #resetBtn by id, not role name 'Reset' -- runBtn's own label becomes
+    // "Reset" when the pole has fallen, which would make the role query
+    // ambiguous (two "Reset" buttons) right when a reset is most needed.
+    await page.locator('#resetBtn').click();
+    await page.waitForTimeout(150);
+  }
+  // Reset also resumes the sim; pause immediately after for cases that
+  // aren't themselves testing Pause, so a real-time fall (physics ticks,
+  // not the cancellation path under test) can't zero the readout and
+  // produce a false pass.
+  async function freshPausedPole(){
+    await freshPole();
+    await page.getByRole('button',{name:'Pause'}).click();
+    await page.waitForTimeout(80);
+  }
+
+  const rightPushBtn=page.getByRole('button',{name:'Push right'});
+  await rightPushBtn.dispatchEvent('pointerdown',{button:2,pointerId:2,isPrimary:true});
+  await page.waitForTimeout(80);
+  const afterRightClick=await readPush();
+  if(afterRightClick!==0)err('input-lifecycle: right-click pointerdown applied force ('+afterRightClick+' N), primary-button-only guard missing');
+  await rightPushBtn.dispatchEvent('pointerup',{button:2,pointerId:2});
+
+  {
+    await freshPausedPole();
+    const btn=await beginLeftPush(1);
+    const held=await readPush();
+    if(held===0)err('input-lifecycle: pointerdown did not apply push force before pointercancel case');
+    await btn.dispatchEvent('pointercancel',{pointerId:1});
+    await page.waitForTimeout(80);
+    const after=await readPush();
+    if(after!==0)err('input-lifecycle: pointercancel did not clear held push force (still '+after+' N)');
+  }
+
+  {
+    await freshPausedPole();
+    const btn=await beginLeftPush(-1);
+    const held=await readPush();
+    if(held===0)err('input-lifecycle: pointerdown did not apply push force before window-blur case');
+    await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+    await page.waitForTimeout(80);
+    const after=await readPush();
+    if(after!==0)err('input-lifecycle: window blur (OS focus loss) did not clear held push force (still '+after+' N)');
+    await btn.dispatchEvent('pointerup',{pointerId:1});
+  }
+
+  {
+    await freshPausedPole();
+    const btn=await beginLeftPush(1);
+    const held=await readPush();
+    if(held===0)err('input-lifecycle: pointerdown did not apply push force before hidden-document case');
+    await page.evaluate(()=>{
+      Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});
+      Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'hidden'});
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForTimeout(80);
+    const after=await readPush();
+    if(after!==0)err('input-lifecycle: document hidden (tab switch) did not clear held push force (still '+after+' N)');
+    await page.evaluate(()=>{
+      Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
+      Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'visible'});
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await btn.dispatchEvent('pointerup',{pointerId:1});
+  }
+
+  {
+    await freshPole();
+    const btn=await beginLeftPush(1);
+    const held=await readPush();
+    if(held===0)err('input-lifecycle: pointerdown did not apply push force before pause case');
+    await page.getByRole('button',{name:'Pause'}).click();
+    await page.waitForTimeout(80);
+    const afterPause=await readPush();
+    if(afterPause!==0)err('input-lifecycle: Pause did not clear held push force (still '+afterPause+' N)');
+    await btn.dispatchEvent('pointerup',{pointerId:1});
+    await page.getByRole('button',{name:'Run'}).click();
+    await page.waitForTimeout(150);
+    const afterResume=await readPush();
+    if(afterResume!==0)err('input-lifecycle: resuming after a cleared push showed residual force reappearing ('+afterResume+' N)');
+  }
+
+  {
+    await freshPausedPole();
+    const btn=await beginLeftPush(1);
+    const held=await readPush();
+    if(held===0)err('input-lifecycle: pointerdown did not apply push force before mode-switch case');
+    await page.locator('#replayModeBtn').click();
+    await page.waitForTimeout(150);
+    await page.locator('#learnModeBtn').click();
+    await page.waitForTimeout(150);
+    const after=await readPush();
+    if(after!==0)err('input-lifecycle: switching app mode did not clear held push force (still '+after+' N)');
+    await btn.dispatchEvent('pointerup',{pointerId:1});
+  }
+
+  await freshPole();
+  report.interactions.inputLifecycle={checked:true};
+
   // Guided one-cycle walkthrough must freeze live control, expose each semantic stage,
   // apply exactly the first four forces, then resume live control on exit.
   const guide=page.getByRole('button',{name:'한 cycle 설명'});
