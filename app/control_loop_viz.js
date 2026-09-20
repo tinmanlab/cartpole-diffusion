@@ -340,7 +340,8 @@ function renderConditioningCompare(rootEl,data){
 }
 function renderSamplingCompare(rootEl,data){
   if(!rootEl)return;
-  if(!data){rootEl.hidden=true;rootEl.innerHTML="";return}
+  var body=rootEl.querySelector(".sampling-compare-body")||rootEl;
+  if(!data){rootEl.hidden=true;body.innerHTML="";return}
   var runs=data.runs||[],x0=34,y0=10,width=692,height=118,limit=10;
   var colors=["#5476df","#8968ca","#3c9a73"],paths=[],firstForces=[],initialA0=[];
   for(var r=0;r<runs.length;r++){
@@ -365,7 +366,7 @@ function renderSamplingCompare(rootEl,data){
   rootEl.dataset.initialSpread=String(initialSpread);
   rootEl.dataset.meanPairDiffN=String(meanPair);
   rootEl.dataset.maxPairDiffN=String(maxPair);
-  rootEl.innerHTML=
+  body.innerHTML=
     '<div class="sampling-head"><div><b>같은 observation, noise seed만 바꿔보기</b><span>통제 실험: model · observation · DDIM schedule은 동일</span></div><em>sampling diversity</em></div>'
     +'<div class="sampling-condition"><span>고정 observation</span><b>[0, 0, +5°, 0]</b><small>θ를 포함한 모든 state는 동일</small></div>'
     +'<div class="sampling-starts"><b>t=95 시작부터 다름</b>'

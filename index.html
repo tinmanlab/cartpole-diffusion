@@ -33,6 +33,7 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
 .conditioning-tools{margin:12px 0;padding:10px;border:1px solid #d7dce8;border-radius:10px;background:#f8faff;min-width:0}
 .conditioning-tools[hidden],.conditioning-fields[hidden]{display:none}
 .conditioning-tools>summary{font-size:16px;min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:650}
+.plan-explainer>summary,.sampling-compare>summary,.denoise-stages-details>summary{font-size:14px;min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:650}
 .conditioning-tools p,.conditioning-tools label,.conditioning-tools output{font-size:14px;line-height:1.55;overflow-wrap:anywhere}
 .conditioning-tools button,.conditioning-tools select,.conditioning-tools input{font:14px system-ui;min-height:44px;max-width:100%;box-sizing:border-box;border:1px solid #c9d2e0;border-radius:7px;background:white;padding:7px 9px;color:#273247}
 .conditioning-tools button{cursor:pointer}.conditioning-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
@@ -112,17 +113,26 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
         <p>B는 물리에 적용하지 않습니다. 원래 계획만 실행합니다. 모델 입력 민감도 비교이며 강인성·불확실성 검증이 아닙니다.</p>
       </details>
       <div id="conditioningCompare" class="conditioning-compare" data-qa="conditioning-compare" hidden></div>
-      <div id="samplingCompare" class="sampling-compare" data-qa="sampling-compare" hidden></div>
+      <details id="samplingCompare" class="sampling-compare" data-qa="sampling-compare" hidden>
+        <summary>참고 · sampling diversity (같은 observation, 다른 noise seed)</summary>
+        <div class="sampling-compare-body"></div>
+      </details>
     </section>
 
     <div class="loop-arrow">↓</div>
 
     <section class="step" data-qa="plan">
       <div class="step-head"><i class="step-num">2</i><div><b>계획 (Plan) · Diffusion이 미래 force 16개 생성</b><span>랜덤 후보를 현재 관측에 맞는 force sequence로 반복 수정합니다.</span></div></div>
-      <div class="policy-plain"><b>Noise</b>는 아직 실행하지 않는 랜덤 force 후보 16개입니다. <b>Denoise</b>는 현재 관측값을 보면서 이 후보들을 여러 번 고쳐 최종 force plan으로 만드는 과정입니다.</div>
-      <div class="blackbox"><span>현재 관측 4개</span><i>+</i><span>랜덤 미래 force 16개</span><i>→</i><b>denoiser가 force 후보를 조금 수정</b><i>→</i><span>반복 ×19</span><i>→</i><span>최종 force 16개</span></div>
+      <details class="plan-explainer" data-qa="plan-explainer">
+        <summary>참고 · Noise → Denoise 설명 다시 보기</summary>
+        <div class="policy-plain"><b>Noise</b>는 아직 실행하지 않는 랜덤 force 후보 16개입니다. <b>Denoise</b>는 현재 관측값을 보면서 이 후보들을 여러 번 고쳐 최종 force plan으로 만드는 과정입니다.</div>
+        <div class="blackbox"><span>현재 관측 4개</span><i>+</i><span>랜덤 미래 force 16개</span><i>→</i><b>denoiser가 force 후보를 조금 수정</b><i>→</i><span>반복 ×19</span><i>→</i><span>최종 force 16개</span></div>
+      </details>
       <div id="denoiseTimeline" class="denoise-timeline" data-qa="denoise-timeline" hidden></div>
       <div id="denoiseOneStep" class="denoise-one-step" data-qa="denoise-one-step" hidden></div>
+      <details id="denoiseStagesDetails" class="denoise-stages-details" data-qa="denoise-stages-details" hidden>
+        <summary>참고 · 16-action 전체 단계 다시 보기</summary>
+      </details>
       <div id="denoiseStages" class="denoise-stages"></div>
     </section>
 
@@ -182,7 +192,7 @@ details{background:#fff;border:1px solid var(--line);border-radius:11px;margin-t
 "use strict";
 var H=16,MAXF=10,S=.008,T=100,TAU=.02,EXECUTE=4,START_T=95,STRIDE=5;
 var model=null,state=null,running=true,disturbance=0,elapsed=0,simTick=0,policyForce=0,lastAppliedForce=0,lastAppliedActionIndex=-1,plan=[],planCursor=0,planCount=0,planStartTick=0,noiseSeed=11,history=[],selectedT=95,planObservation=null,raf=0,lastNow=0,acc=0,status="balancing";
-var guideMode=false,guideStep=0,guideApplied=false,guideBefore=null,guideAfter=null,guideWasRunning=true,denoiseStepIndex=0,denoiseActionIndex=0;
+var guideMode=false,guideStep=0,guideApplied=false,guideBefore=null,guideAfter=null,guideWasRunning=true,denoiseStepIndex=0,denoiseActionIndex=0,lastFocusStep=-1;
 var STAGE_OF_STEP=[0,1,1,2,2,3];
 var conditioningCompareData=null,samplingCompareData=null,conditioningExperiment=null;
 var CONDITION_FIELDS=[{name:"x",unit:"m",bound:.25,step:.05,scale:1},{name:"ẋ",unit:"m/s",bound:.5,step:.1,scale:1},{name:"θ",unit:"°",bound:5,step:.5,scale:Math.PI/180},{name:"θ̇",unit:"rad/s",bound:.5,step:.1,scale:1}];
@@ -422,7 +432,7 @@ function renderSim(){
   updateRunControls();
 }
 function reset(){
-  guideMode=false;guideApplied=false;guideStep=0;document.body.classList.remove("guide-mode");clearGuideClasses();setGuideDisabled(false);E("guideBtn").hidden=false;E("guideControls").hidden=true;E("stageNav").hidden=true;E("guideIdentity").hidden=true;ControlLoopViz.renderStateDelta(E("reobserveCompare"),null,null);
+  guideMode=false;guideApplied=false;guideStep=0;lastFocusStep=-1;document.body.classList.remove("guide-mode");clearGuideClasses();setGuideDisabled(false);E("guideBtn").hidden=false;E("guideControls").hidden=true;E("stageNav").hidden=true;E("guideIdentity").hidden=true;ControlLoopViz.renderStateDelta(E("reobserveCompare"),null,null);updateDenoiseStagesPlacement();
   state=resetState();simTick=0;elapsed=0;planStartTick=0;status="balancing";running=true;disturbance=0;plan=[];planCursor=0;planCount=0;policyForce=0;lastAppliedForce=0;lastAppliedActionIndex=-1;noiseSeed=11;selectedT=START_T;planObservation=null;acc=0;lastNow=0;if(model)makePlan();renderSim();
 }
 function step(){
@@ -465,7 +475,27 @@ function guideText(){
   ];
   E("guideStep").textContent=labels[guideStep];E("guideExplain").textContent=texts[guideStep];
 }
+function updateDenoiseStagesPlacement(){
+  var details=E("denoiseStagesDetails"),stages=E("denoiseStages");
+  var active=guideMode&&guideStep===2;
+  if(active){
+    if(stages.parentElement!==details)details.appendChild(stages);
+    details.hidden=false;
+  }else{
+    if(stages.parentElement===details)details.parentElement.insertBefore(stages,details.nextSibling);
+    details.hidden=true;
+  }
+}
 function applyGuideFocus(){
+  // Reset only happens on an actual step transition (this line only fires on real
+  // guideStep changes), never on the frequent re-renders triggered by experiment/scrubber
+  // interaction within the same step -- those never call applyGuideFocus.
+  var entering=guideStep!==lastFocusStep;lastFocusStep=guideStep;
+  if(entering){
+    if(guideStep===0){var sc=E("samplingCompare");if(sc)sc.open=false}
+    if(guideStep===2){var dd=E("denoiseStagesDetails");if(dd)dd.open=false}
+  }
+  updateDenoiseStagesPlacement();
   clearGuideClasses();
   ["observe","plan","act","replan"].forEach(function(q){markGuide(q,"guide-dim")});
   ["sequence-noise","sequence-mid","sequence-final"].forEach(function(q){markGuide(q,"guide-dim")});
@@ -517,7 +547,8 @@ function restartGuideCycle(){
   guideApplied=false;guideStep=0;denoiseStepIndex=0;denoiseActionIndex=0;guideBefore=stateArray().slice();guideAfter=null;policyForce=0;planCursor=0;ControlLoopViz.renderStateDelta(E("reobserveCompare"),null,null);makePlan();applyGuideFocus();renderSim();
 }
 function exitGuide(){
-  var resume=guideWasRunning;guideMode=false;document.body.classList.remove("guide-mode");clearGuideClasses();E("guideBtn").hidden=false;E("guideControls").hidden=true;E("stageNav").hidden=true;E("guideIdentity").hidden=true;ControlLoopViz.renderStateDelta(E("reobserveCompare"),null,null);
+  var resume=guideWasRunning;guideMode=false;lastFocusStep=-1;document.body.classList.remove("guide-mode");clearGuideClasses();E("guideBtn").hidden=false;E("guideControls").hidden=true;E("stageNav").hidden=true;E("guideIdentity").hidden=true;ControlLoopViz.renderStateDelta(E("reobserveCompare"),null,null);
+  updateDenoiseStagesPlacement();
   if(planCursor>=EXECUTE&&status!=="fell")makePlan();
   else if(plan.length&&planCursor<EXECUTE)policyForce=(plan[planCursor]||0)*MAXF;
   running=resume;setGuideDisabled(false);renderController();renderSim();

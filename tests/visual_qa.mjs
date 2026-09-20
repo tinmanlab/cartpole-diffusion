@@ -471,6 +471,14 @@ async function desktop(browser){
   if(o0===o1)err('desktop: plan number did not advance over 450 ms');
   if(seq0===seq1)err('desktop: denoising sequence did not update with replanning');
   await inspect(page,'desktop');
+  // The repeated policy-plain/blackbox explanatory recap is a native closed-by-default
+  // reference; opening it must not touch the live plan identity (same plan/sequence text).
+  const explainerClosed=await page.locator('[data-qa="plan-explainer"]').evaluate(el=>!el.open);
+  if(!explainerClosed)err('desktop: policy-plain/blackbox recap should default to closed');
+  const planBeforeExplainerOpen=await page.locator('[data-qa="observation-title"]').innerText();
+  await page.locator('[data-qa="plan-explainer"]').evaluate(el=>{el.open=true});await page.waitForTimeout(60);
+  if((await page.locator('[data-qa="observation-title"]').innerText())!==planBeforeExplainerOpen)err('desktop: opening the policy-plain/blackbox recap changed the live plan identity');
+  await page.locator('[data-qa="plan-explainer"]').evaluate(el=>{el.open=false});
   const readHorizon=()=>page.locator('[data-qa="horizon"]').evaluate(el=>({
     predictionCount:Number(el.dataset.predictionCount),executeCount:Number(el.dataset.executeCount),
     predictionSeconds:Number(el.dataset.predictionSeconds),executeSeconds:Number(el.dataset.executeSeconds),
@@ -566,6 +574,13 @@ async function desktop(browser){
 
   const sampling=page.locator('[data-qa="sampling-compare"]');
   if(!(await sampling.isVisible()))err('guided sampling: comparison panel is hidden at 1/6');
+  // Sampling diversity is now a native <details> reference: it must default closed, and
+  // opening it must never re-roll or otherwise change the underlying fixed-seed experiment.
+  if(await sampling.evaluate(el=>el.tagName==='DETAILS'&&el.open))err('guided sampling: reference disclosure should default to closed at 1/6');
+  const samplingIdentityBefore=await sampling.evaluate(el=>el.dataset.seeds+'|'+el.dataset.observationTheta);
+  await sampling.evaluate(el=>{el.open=true});await page.waitForTimeout(60);
+  const samplingIdentityAfter=await sampling.evaluate(el=>el.dataset.seeds+'|'+el.dataset.observationTheta);
+  if(samplingIdentityBefore!==samplingIdentityAfter)err('guided sampling: opening the closed reference changed the experiment identity');
   const samplingData=await sampling.evaluate(el=>({
     sameObservation:el.dataset.sameObservation==='true',
     observationTheta:Number(el.dataset.observationTheta),
@@ -596,6 +611,8 @@ async function desktop(browser){
   if(await sampling.isVisible())err('guided sampling: comparison panel should hide after observation step');
   if(await page.locator('[data-qa="denoise-timeline"]').isVisible())err('guided cycle: denoise timeline should be hidden at random-start');
   if(await page.locator('[data-qa="denoise-one-step"]').isVisible())err('guided cycle: one-step denoise panel should be hidden at random-start');
+  const stagesFolded=()=>page.evaluate(()=>{var d=document.querySelector('[data-qa="denoise-stages-details"]'),s=document.getElementById('denoiseStages');return{hidden:d?d.hidden:null,nested:!!(d&&d.contains(s))}});
+  if((await stagesFolded()).nested)err('guided cycle: full 16-action stages should stay directly visible (not folded) at random-start');
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(100);
   if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('guided cycle: denoise step missing');
@@ -604,6 +621,25 @@ async function desktop(browser){
   const oneStep=page.locator('[data-qa="denoise-one-step"]');
   if(!(await timeline.isVisible()))err('guided cycle: 19-step denoise timeline is hidden');
   if(!(await oneStep.isVisible()))err('guided cycle: one-step denoise panel is hidden');
+
+  // While the single-update recipe/timeline is the focused view, the full 16-action stage
+  // diagram becomes an optional native disclosure below it: default closed, and reopening it
+  // must reveal the exact same live #denoiseStages node (never a second cloned renderer).
+  const stagesCheck=await page.evaluate(()=>{
+    var details=document.querySelector('[data-qa="denoise-stages-details"]');
+    var stages=document.getElementById('denoiseStages');
+    var insideBefore=!!(details&&details.contains(stages));
+    var openBefore=details?details.open:null,hiddenBefore=details?details.hidden:null;
+    var pathBefore=stages.querySelector('[data-qa="sequence-final"] .sequence-path')?.getAttribute('d')||null;
+    if(details)details.open=true;
+    var insideAfter=!!(details&&details.contains(stages));
+    var pathAfter=stages.querySelector('[data-qa="sequence-final"] .sequence-path')?.getAttribute('d')||null;
+    return{insideBefore,openBefore,hiddenBefore,pathBefore,insideAfter,pathAfter};
+  });
+  if(stagesCheck.hiddenBefore!==false)err('guided denoise: 16-action stages disclosure should be present (not hidden) while the recipe is active');
+  if(stagesCheck.openBefore!==false)err('guided denoise: 16-action stages disclosure should default to closed while the recipe is active');
+  if(!stagesCheck.insideBefore||!stagesCheck.insideAfter)err('guided denoise: #denoiseStages is not nested below the recipe inside its disclosure');
+  if(!stagesCheck.pathBefore||stagesCheck.pathBefore!==stagesCheck.pathAfter)err('guided denoise: reopening the stages disclosure did not reveal the identical live plan node');
 
   const readTimeline=()=>timeline.evaluate(el=>({stepIndex:Number(el.dataset.stepIndex),actionIndex:Number(el.dataset.actionIndex),currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),transitions:Number(el.dataset.transitions),points:el.querySelectorAll('.timeline-point').length,status:el.querySelector('.timeline-status')?.textContent||''}));
   const readOne=()=>oneStep.evaluate(el=>({currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),actionIndex:Number(el.dataset.actionIndex),before:Number(el.dataset.beforeValue),noise:Number(el.dataset.noiseValue),after:Number(el.dataset.afterValue),paths:el.querySelectorAll('.update-before,.update-after').length,note:el.querySelector('.denoise-update-note')?.textContent||''}));
@@ -692,6 +728,7 @@ async function desktop(browser){
   if(await page.locator('.sequence-svg [data-qa="sequence-final"].guide-focus').count()!==1)err('guided cycle: final sequence not focused');
   if(await timeline.isVisible())err('guided cycle: denoise timeline should hide after denoise step');
   if(await oneStep.isVisible())err('guided cycle: one-step denoise panel should hide after denoise step');
+  if((await stagesFolded()).nested)err('guided cycle: full 16-action stages should return to directly visible (not folded) at final-plan');
   const horizonBefore=await readHorizon();
   if(horizonBefore.predictionCount!==16||horizonBefore.executeCount!==4||horizonBefore.slots!==16)err('guided horizon: final plan is not 16 actions with 4-action execution window');
   if(horizonBefore.discarded!==0)err('guided horizon: tail should not be discarded before execution');
@@ -944,6 +981,12 @@ async function mobile(browser){
     };
   });
   report.interactions.mobileConditioning=mobileConditioning;
+  // Sampling diversity is a native <details> reference on mobile too: confirm the default
+  // fold, then open it explicitly -- collapsed content has no client rects, so the font-size
+  // and layout checks below would otherwise silently no-op against an empty measurement.
+  const samplingClosedByDefault=await page.locator('[data-qa="sampling-compare"]').evaluate(el=>el.tagName==='DETAILS'&&!el.open);
+  if(!samplingClosedByDefault)err('mobile sampling: reference disclosure should default to closed at 1/6');
+  await page.locator('[data-qa="sampling-compare"]').evaluate(el=>{el.open=true});await page.waitForTimeout(60);
   const mobileSampling=await page.locator('[data-qa="sampling-compare"]').evaluate(el=>{
     const r=el.getBoundingClientRect();
     const fonts=[...el.querySelectorAll('b,span,small,em,p')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
