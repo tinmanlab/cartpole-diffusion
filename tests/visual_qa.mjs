@@ -42,6 +42,7 @@ async function responsiveSweep(browser){
     await page.goto(baseURL,{waitUntil:'networkidle',timeout:30000});await waitLearned(page);await page.waitForTimeout(350);
     const stages={};
     stages.live={...await checkPageWidth(page,'responsive '+width+' live'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' live')};
+    if(width===320)await checkPlanExplainerCopy(page,'responsive 320 plan-explainer');
     await page.getByRole('button',{name:'한 cycle 설명'}).click();await page.waitForTimeout(180);
     stages.observe={...await checkPageWidth(page,'responsive '+width+' guided 1/6'),svgText:checkSvgText(await svgTextSizes(page),'responsive '+width+' guided 1/6')};
     const stageBtnHeights=await page.locator('.stage-btn').evaluateAll(els=>els.map(e=>Math.round(e.getBoundingClientRect().height)));
@@ -185,6 +186,62 @@ function verifyAtomicTransition(before,after,label){
   if(after.planStartTick!==after.tick||after.planAge!==0)err(label+': replanned snapshot is not anchored to current tick');
   if(!arraysClose(after.sim,after.planObservation,1e-10))err(label+': replan observation != post-transition plant state');
   return true;
+}
+// Shared 14px/44px reference-disclosure contract check, used for the three closed-by-default
+// <details> reference summaries (plan-explainer, sampling-compare, denoise-stages-details).
+// Only valid while the target is actually rendered (not [hidden]) -- callers must check at
+// the point in the flow where that disclosure is present.
+async function checkDisclosureSummary(page,selector,label){
+  const box=await page.locator(selector+'>summary').evaluate(el=>{const r=el.getBoundingClientRect();return{height:r.height,fontSize:parseFloat(getComputedStyle(el).fontSize)}});
+  if(box.fontSize<14)err(label+': disclosure summary font-size below 14px ('+box.fontSize+'px)');
+  if(box.height<44)err(label+': disclosure summary touch target below 44px ('+box.height+'px)');
+  return box;
+}
+// F1 regression: the plan-explainer recap used to call the initial Gaussian noise a
+// "force 후보" and say the denoiser edits force -- contradicting the real sampler
+// arithmetic (denoiser predicts noise εθ, the DDIM sampler turns that into the next
+// internal candidate, and only the final clamp·×10N output is force in N). Opens the
+// closed-by-default recap, checks the fixed copy plus live geometry (F2: essential
+// explanation text must render >=14px and never clip/overflow at the contract widths
+// 320/390/1440 while actually open, not merely before opening), captures an opened-recap
+// screenshot at those three widths, and restores the original open state.
+async function checkPlanExplainerCopy(page,label){
+  const explainer=page.locator('[data-qa="plan-explainer"]');
+  const wasOpen=await explainer.evaluate(el=>el.open);
+  if(!wasOpen){await explainer.locator('summary').click();await page.waitForTimeout(60);}
+  const text=await page.evaluate(()=>{
+    const plain=document.querySelector('.policy-plain'),box=document.querySelector('.blackbox');
+    return(plain?plain.textContent:'')+' '+(box?box.textContent:'');
+  });
+  if(text.indexOf('force 후보')!==-1)err(label+': plan-explainer recap still calls the internal noise/candidate a "force 후보" (F1 regression)');
+  if(!/denoiser/.test(text)||!/sampler/.test(text))err(label+': plan-explainer recap does not distinguish denoiser vs sampler roles');
+  if(!(/force\s*16/.test(text)||text.indexOf('힘 명령 16개')!==-1))err(label+': plan-explainer recap does not name the final 16 force outputs');
+  const geom=await page.evaluate(()=>{
+    const explainerEl=document.querySelector('[data-qa="plan-explainer"]');
+    const plain=explainerEl.querySelector('.policy-plain');
+    const badges=[...explainerEl.querySelectorAll('.blackbox span,.blackbox b')];
+    const rendered=[plain,...badges].filter(e=>e&&e.getClientRects().length);
+    const sizes=rendered.map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
+    const overflowing=rendered.filter(e=>e.scrollWidth>e.clientWidth+1);
+    const er=explainerEl.getBoundingClientRect();
+    return{
+      minFont:sizes.length?Math.min(...sizes):null,
+      overflowCount:overflowing.length,
+      explainerLeft:er.left,explainerRight:er.right,
+      pageScrollWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth
+    };
+  });
+  if(geom.minFont===null||geom.minFont<14)err(label+': plan-explainer recap essential text below 14px effective while open ('+geom.minFont+'px)');
+  if(geom.overflowCount>0)err(label+': plan-explainer recap text is clipped instead of wrapping while open ('+geom.overflowCount+' element(s))');
+  if(geom.pageScrollWidth>geom.viewportWidth+2)err(label+': page-level horizontal overflow while plan-explainer recap is open ('+geom.pageScrollWidth+' > '+geom.viewportWidth+')');
+  if(geom.explainerRight>geom.viewportWidth+2||geom.explainerLeft<-2)err(label+': plan-explainer recap escapes the viewport bounds while open');
+  const width=page.viewportSize()?.width;
+  if(width===320||width===390||width===1440){
+    const shotPath=path.join(outDir,'plan-explainer-opened-'+width+'.jpg');
+    await explainer.screenshot({path:shotPath,type:'jpeg',quality:88});
+    (report.planExplainerOpenedScreenshots=report.planExplainerOpenedScreenshots||{})[width]=shotPath;
+  }
+  if(!wasOpen){await explainer.locator('summary').click();await page.waitForTimeout(60);}
 }
 // Independent oracle for the diffusion schedule (T=100, S=.008 -- the same constants
 // index.html declares), used only to crosscheck the app's own displayed coefficients;
@@ -471,6 +528,8 @@ async function desktop(browser){
   if(o0===o1)err('desktop: plan number did not advance over 450 ms');
   if(seq0===seq1)err('desktop: denoising sequence did not update with replanning');
   await inspect(page,'desktop');
+  await checkDisclosureSummary(page,'[data-qa="plan-explainer"]','plan-explainer summary');
+  await checkPlanExplainerCopy(page,'desktop 1440 plan-explainer');
   const readHorizon=()=>page.locator('[data-qa="horizon"]').evaluate(el=>({
     predictionCount:Number(el.dataset.predictionCount),executeCount:Number(el.dataset.executeCount),
     predictionSeconds:Number(el.dataset.predictionSeconds),executeSeconds:Number(el.dataset.executeSeconds),
@@ -482,6 +541,22 @@ async function desktop(browser){
   // current plant + current plan cursor + next force are one atomic snapshot.
   const pauseAtomic=page.getByRole('button',{name:'Pause'});
   await pauseAtomic.click();await page.waitForTimeout(90);
+
+  // The repeated policy-plain/blackbox explanatory recap is a native closed-by-default
+  // reference; opening/closing it (via the real summary click, not evaluate-open) must
+  // never touch the atomic plant/plan snapshot. This must run while genuinely paused --
+  // checking it during live running mode let the wait straddle the ~80ms replan boundary,
+  // a test-precondition defect (not a product bug) that produced a false failure.
+  const explainer=page.locator('[data-qa="plan-explainer"]'),explainerSummary=explainer.locator('summary');
+  if(await explainer.evaluate(el=>el.open))err('desktop: policy-plain/blackbox recap should default to closed');
+  const atomicBeforeExplainer=await readAtomicSnapshot(page);
+  await explainerSummary.click();await page.waitForTimeout(60);
+  if(!(await explainer.evaluate(el=>el.open)))err('desktop: clicking the recap summary did not open it');
+  if(JSON.stringify(await readAtomicSnapshot(page))!==JSON.stringify(atomicBeforeExplainer))err('desktop: opening the policy-plain/blackbox recap changed the paused atomic snapshot');
+  await explainerSummary.click();await page.waitForTimeout(60);
+  if(await explainer.evaluate(el=>el.open))err('desktop: clicking the recap summary again did not close it');
+  if(JSON.stringify(await readAtomicSnapshot(page))!==JSON.stringify(atomicBeforeExplainer))err('desktop: closing the policy-plain/blackbox recap changed the paused atomic snapshot');
+
   const stepAtomic=page.getByRole('button',{name:'Step 20 ms'});
   if(!(await stepAtomic.isEnabled().catch(()=>false)))err('atomic snapshot: Step 20 ms is not enabled while paused');
   let atomicBefore=await readAtomicSnapshot(page);verifyAtomicSnapshot(atomicBefore,'atomic pause');
@@ -564,8 +639,21 @@ async function desktop(browser){
   if(!conditioningData.text.includes('condition'))err('guided conditioning: conditioning explanation missing');
   report.interactions.conditioning=conditioningData;
 
-  const sampling=page.locator('[data-qa="sampling-compare"]');
+  const sampling=page.locator('[data-qa="sampling-compare"]'),samplingSummary=sampling.locator('summary');
   if(!(await sampling.isVisible()))err('guided sampling: comparison panel is hidden at 1/6');
+  await checkDisclosureSummary(page,'[data-qa="sampling-compare"]','sampling-compare summary');
+  // Sampling diversity is now a native <details> reference: it must default closed, and
+  // opening it (via the real summary click -- guide mode is paused here, so this is safe)
+  // must never re-roll or otherwise change the underlying fixed-seed experiment. Close/reopen
+  // round-trips and survives an unrelated idle wait (no periodic re-render silently resets it).
+  if(await sampling.evaluate(el=>el.open))err('guided sampling: reference disclosure should default to closed at 1/6');
+  const samplingIdentityBefore=await sampling.evaluate(el=>el.dataset.seeds+'|'+el.dataset.observationTheta);
+  await samplingSummary.click();await page.waitForTimeout(60);
+  if(!(await sampling.evaluate(el=>el.open)))err('guided sampling: clicking the summary did not open the disclosure');
+  const samplingIdentityAfter=await sampling.evaluate(el=>el.dataset.seeds+'|'+el.dataset.observationTheta);
+  if(samplingIdentityBefore!==samplingIdentityAfter)err('guided sampling: opening the closed reference changed the experiment identity');
+  await page.waitForTimeout(150);
+  if(!(await sampling.evaluate(el=>el.open)))err('guided sampling: disclosure did not stay open across an idle wait (persistence)');
   const samplingData=await sampling.evaluate(el=>({
     sameObservation:el.dataset.sameObservation==='true',
     observationTheta:Number(el.dataset.observationTheta),
@@ -586,6 +674,10 @@ async function desktop(browser){
   if(!samplingData.text.includes('sampling diversity'))err('guided sampling: diversity label missing');
   if(!samplingData.text.includes('calibrated uncertainty'))err('guided sampling: uncertainty claim boundary missing');
   report.interactions.samplingDiversity=samplingData;
+  await samplingSummary.click();await page.waitForTimeout(60);
+  if(await sampling.evaluate(el=>el.open))err('guided sampling: clicking the summary again did not close the disclosure');
+  await samplingSummary.click();await page.waitForTimeout(60);
+  if(!(await sampling.evaluate(el=>el.open)))err('guided sampling: reopening after close did not restore the disclosure');
   await page.screenshot({path:path.join(outDir,'desktop-observation-experiments.jpg'),type:'jpeg',quality:84,fullPage:true});
 
   const next=page.getByRole('button',{name:'다음'});
@@ -596,6 +688,8 @@ async function desktop(browser){
   if(await sampling.isVisible())err('guided sampling: comparison panel should hide after observation step');
   if(await page.locator('[data-qa="denoise-timeline"]').isVisible())err('guided cycle: denoise timeline should be hidden at random-start');
   if(await page.locator('[data-qa="denoise-one-step"]').isVisible())err('guided cycle: one-step denoise panel should be hidden at random-start');
+  const stagesFolded=()=>page.evaluate(()=>{var d=document.querySelector('[data-qa="denoise-stages-details"]'),s=document.getElementById('denoiseStages');return{hidden:d?d.hidden:null,nested:!!(d&&d.contains(s))}});
+  if((await stagesFolded()).nested)err('guided cycle: full 16-action stages should stay directly visible (not folded) at random-start');
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(100);
   if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('guided cycle: denoise step missing');
@@ -604,6 +698,31 @@ async function desktop(browser){
   const oneStep=page.locator('[data-qa="denoise-one-step"]');
   if(!(await timeline.isVisible()))err('guided cycle: 19-step denoise timeline is hidden');
   if(!(await oneStep.isVisible()))err('guided cycle: one-step denoise panel is hidden');
+
+  // While the single-update recipe/timeline is the focused view, the full 16-action stage
+  // diagram becomes an optional native disclosure below it: default closed, and reopening it
+  // must reveal the exact same live #denoiseStages node (never a second cloned renderer).
+  const stagesCheck=await page.evaluate(()=>{
+    var details=document.querySelector('[data-qa="denoise-stages-details"]');
+    var stages=document.getElementById('denoiseStages');
+    var insideBefore=!!(details&&details.contains(stages));
+    var openBefore=details?details.open:null,hiddenBefore=details?details.hidden:null;
+    var pathBefore=stages.querySelector('[data-qa="sequence-final"] .sequence-path')?.getAttribute('d')||null;
+    if(details)details.open=true;
+    var insideAfter=!!(details&&details.contains(stages));
+    var pathAfter=stages.querySelector('[data-qa="sequence-final"] .sequence-path')?.getAttribute('d')||null;
+    return{insideBefore,openBefore,hiddenBefore,pathBefore,insideAfter,pathAfter};
+  });
+  if(stagesCheck.hiddenBefore!==false)err('guided denoise: 16-action stages disclosure should be present (not hidden) while the recipe is active');
+  if(stagesCheck.openBefore!==false)err('guided denoise: 16-action stages disclosure should default to closed while the recipe is active');
+  if(!stagesCheck.insideBefore||!stagesCheck.insideAfter)err('guided denoise: #denoiseStages is not nested below the recipe inside its disclosure');
+  if(!stagesCheck.pathBefore||stagesCheck.pathBefore!==stagesCheck.pathAfter)err('guided denoise: reopening the stages disclosure did not reveal the identical live plan node');
+  await checkDisclosureSummary(page,'[data-qa="denoise-stages-details"]','denoise-stages-details summary');
+  const stagesDetails=page.locator('[data-qa="denoise-stages-details"]'),stagesSummary=stagesDetails.locator('summary');
+  await stagesSummary.click();await page.waitForTimeout(60);
+  if(await stagesDetails.evaluate(el=>el.open))err('guided denoise: clicking the stages summary did not close the reopened disclosure');
+  await stagesSummary.click();await page.waitForTimeout(60);
+  if(!(await stagesDetails.evaluate(el=>el.open)))err('guided denoise: clicking the stages summary again did not reopen it');
 
   const readTimeline=()=>timeline.evaluate(el=>({stepIndex:Number(el.dataset.stepIndex),actionIndex:Number(el.dataset.actionIndex),currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),transitions:Number(el.dataset.transitions),points:el.querySelectorAll('.timeline-point').length,status:el.querySelector('.timeline-status')?.textContent||''}));
   const readOne=()=>oneStep.evaluate(el=>({currentT:Number(el.dataset.currentT),nextT:Number(el.dataset.nextT),actionIndex:Number(el.dataset.actionIndex),before:Number(el.dataset.beforeValue),noise:Number(el.dataset.noiseValue),after:Number(el.dataset.afterValue),paths:el.querySelectorAll('.update-before,.update-after').length,note:el.querySelector('.denoise-update-note')?.textContent||''}));
@@ -692,6 +811,7 @@ async function desktop(browser){
   if(await page.locator('.sequence-svg [data-qa="sequence-final"].guide-focus').count()!==1)err('guided cycle: final sequence not focused');
   if(await timeline.isVisible())err('guided cycle: denoise timeline should hide after denoise step');
   if(await oneStep.isVisible())err('guided cycle: one-step denoise panel should hide after denoise step');
+  if((await stagesFolded()).nested)err('guided cycle: full 16-action stages should return to directly visible (not folded) at final-plan');
   const horizonBefore=await readHorizon();
   if(horizonBefore.predictionCount!==16||horizonBefore.executeCount!==4||horizonBefore.slots!==16)err('guided horizon: final plan is not 16 actions with 4-action execution window');
   if(horizonBefore.discarded!==0)err('guided horizon: tail should not be discarded before execution');
@@ -853,6 +973,7 @@ async function mobile(browser){
   await page.goto(baseURL,{waitUntil:'networkidle',timeout:30000});await waitLearned(page);await page.waitForTimeout(350);
   if((await page.evaluate(()=>scrollY))!==0)err('mobile: page auto-scrolled on plain render before any explicit guide interaction');
   const d=await inspect(page,'mobile');
+  await checkPlanExplainerCopy(page,'mobile 390 plan-explainer');
   const sc=await page.locator('.denoise-stages').evaluate(e=>({clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX}));
   report.interactions.mobileSequenceScroller=sc;
   if(sc.scrollWidth>sc.clientWidth+2)err('mobile: denoise view still requires horizontal scrolling '+sc.scrollWidth+' > '+sc.clientWidth);
@@ -944,6 +1065,12 @@ async function mobile(browser){
     };
   });
   report.interactions.mobileConditioning=mobileConditioning;
+  // Sampling diversity is a native <details> reference on mobile too: confirm the default
+  // fold, then open it explicitly -- collapsed content has no client rects, so the font-size
+  // and layout checks below would otherwise silently no-op against an empty measurement.
+  const samplingClosedByDefault=await page.locator('[data-qa="sampling-compare"]').evaluate(el=>el.tagName==='DETAILS'&&!el.open);
+  if(!samplingClosedByDefault)err('mobile sampling: reference disclosure should default to closed at 1/6');
+  await page.locator('[data-qa="sampling-compare"]').evaluate(el=>{el.open=true});await page.waitForTimeout(60);
   const mobileSampling=await page.locator('[data-qa="sampling-compare"]').evaluate(el=>{
     const r=el.getBoundingClientRect();
     const fonts=[...el.querySelectorAll('b,span,small,em,p')].filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
