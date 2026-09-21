@@ -13,13 +13,20 @@ const ControlLoopViz=globalThis.ControlLoopViz;
 if(!ControlLoopViz)throw new Error("ControlLoopViz did not attach to globalThis");
 
 function makeHistory(){
-  // 5 steps, t descending 95->0, each with a distinct, hand-picked 16-long latent array so
-  // the expected shared scale and per-panel values can be independently recomputed here.
+  // 7 steps, t descending 95->0. Deliberately NOT monotonic in si (every step's baseline
+  // magnitude is ~0.3-0.5, constant-ish, not growing with si): a per-row-autoscale regression
+  // on ANY one panel (noise/mid/final) must be independently detectable, which a fixture
+  // where later steps happen to have the largest values by construction would mask -- e.g. if
+  // only the FINAL step's own local max happened to equal the true global max, a "final" row
+  // recomputing its own local scale instead of using the shared one would silently draw
+  // identically and the regression would go uncaught (this was hit and fixed while
+  // authoring this check: an earlier version had si-scaled baselines and missed exactly the
+  // bug this file exists to catch).
   var H=16,steps=[95,79,63,47,32,16,0];
   return steps.map(function(t,si){
     var latent=[];
-    for(var i=0;i<H;i++)latent.push(((si+1)*0.31+i*0.02)*(i%2===0?1:-1));
-    latent[3]=si===2?2.35:latent[3]; // one deliberately large value, planted at the mid step
+    for(var i=0;i<H;i++)latent.push((0.3+i*0.01)*(i%2===0?1:-1));
+    latent[3]=si===2?2.35:latent[3]; // one deliberately large value, planted at the mid step only
     return {t:t,latent:latent};
   });
 }
