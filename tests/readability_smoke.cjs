@@ -47,8 +47,14 @@ const required=[
   '.sampling-note{margin:8px 0 0',
   '.policy-plain{border-left:4px',
   'font-size:13px;line-height:1.65',
-  '.sequence-title{font:700 15px',
-  '.sequence-scale{font:11px',
+  // The 3-snapshot latent strip (F1 rewrite): raw internal-unit values, a shared axis
+  // computed from the whole frozen history (not per-panel), zero baseline, and HTML axis
+  // labels/readouts (not in-SVG <text>) at the essential-info floor.
+  '.denoise-panels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))',
+  '.snapshot-axis{display:flex;justify-content:space-between;gap:8px;font-size:14px',
+  '.snapshot-readout{margin-top:3px;font:14px',
+  '.sequence-panel-head b,.mobile-seq-head b{font-size:14px',
+  '.sequence-panel-head span,.mobile-seq-head span{font-size:14px',
   '.sequence-plain{',
   '.exec-now strong{font:22px',
   '.exec-action small{font-size:11px',
@@ -73,10 +79,25 @@ const required=[
   '.update-card small{display:block;font-size:11px',
   '.update-chart-title span{font-size:11px',
   '.denoise-update-note{margin:7px 0 0',
-  // The wide denoise sequence must never be scaled below 1:1 against its 980-unit viewBox,
-  // otherwise its in-SVG labels shrink below the readability floor. .denoise-stages
-  // already provides overflow-x:auto as the scroll affordance.
-  '.sequence-svg{display:block;width:100%;min-width:980px',
+  // The 3-snapshot panels are compact (no more giant fixed-width in-SVG-labelled strip), so
+  // they scale to their grid column instead of forcing horizontal scroll.
+  '.sequence-svg,.mobile-seq-svg{display:block;width:100%',
+  // F3: the plant card's command/disturbance readout must be two explicit, colored, HTML
+  // lanes (green delivered/next-command, amber cart-applied disturbance) at >=14px, not a
+  // single ambiguous monospace status line.
+  '#plantCard .card-head span{font-size:14px',
+  '.force-lane span{font-size:14px',
+  '.force-lane b{font:700 14px',
+  '.force-lane.command b{color:#16805d}',
+  '.force-lane.disturbance b{color:#b86b16}',
+  // Common cross-repo scene geometry contract (docs/learning-suite.md art constants):
+  // 640x320 schematic, white bg, navy cart, warm-red pole, slate wheels, neutral rail.
+  'data-scene-contract="cartpole-v1"',
+  'viewBox="0 0 640 320"',
+  'fill="#334155"',
+  'stroke="#dc5b60"',
+  'fill="#1e293b"',
+  'stroke="#cbd5e1"',
   // Touch targets.
   '.controls button{min-height:44px',
   '.guide-start,.guide-controls button{min-height:44px',
@@ -90,7 +111,10 @@ const forbidden=[
   ['.scene text{','plant-scene labels must stay in the HTML .sim-readout, not in viewBox-scaled <text>'],
   ['class="timeline-axis"','axis labels must be HTML .chart-axis, not viewBox-scaled <text>'],
   ['class="update-axis"','axis labels must be HTML .chart-axis, not viewBox-scaled <text>'],
-  ['class="conditioning-axis"','axis labels must be HTML .chart-axis, not viewBox-scaled <text>']
+  ['class="conditioning-axis"','axis labels must be HTML .chart-axis, not viewBox-scaled <text>'],
+  ['class="sequence-title"','snapshot panel titles must stay in the HTML .sequence-panel-head, not viewBox-scaled <text>'],
+  ['class="sequence-scale"','snapshot axis values must stay in the HTML .snapshot-axis, not viewBox-scaled <text>'],
+  ['class="execute-band"','the 3-snapshot latent strip must not re-fold the N-scaled execute region into the internal-unit panels; that lives in the horizon/exec-prefix N strip']
 ];
 const appJs=fs.readdirSync(path.join(__dirname,"..","app")).filter(f=>f.endsWith(".js"))
   .map(f=>fs.readFileSync(path.join(__dirname,"..","app",f),"utf8")).join("\n");

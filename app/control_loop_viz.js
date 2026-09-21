@@ -19,89 +19,73 @@ function pick(history,target){
   }
   return best;
 }
-function sequencePath(values,x0,y0,width,height,limit){
+// Shared latent scale for the 3-snapshot strip: computed once from the FULL frozen history
+// (every step, every action index), not per-panel. This is what keeps the axis stable while
+// scrubbing the selected intermediate step -- a per-row autoscale would make the same value
+// draw at a different height depending only on which panel it happened to land in.
+function historyLatentScale(history){
+  var m=0;
+  for(var i=0;i<history.length;i++){
+    var lat=history[i].latent;
+    for(var j=0;j<lat.length;j++)m=Math.max(m,Math.abs(lat[j]));
+  }
+  return Math.max(1e-6,m*1.08);
+}
+function latentPath(values,x0,y0,width,height,scale){
   if(!values||!values.length)return "";
-  var pts=values.map(function(v,i){
-    var x=x0+i/(values.length-1)*width;
-    var raw=v*10,shown=clamp(raw,-limit,limit);
-    var y=y0+height/2-(shown/limit)*(height*.42);
-    return [x,y];
-  });
-  return pts.map(function(p,i){return (i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)}).join(" ");
+  return values.map(function(v,i){
+    var x=x0+i/(values.length-1)*width,y=y0+height/2-(v/scale)*(height*.42);
+    return (i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
+  }).join(" ");
 }
-function stageValues(stage,finalPlan){
-  if(!stage)return [];
-  if(stage.t===0&&finalPlan&&finalPlan.length)return finalPlan;
-  return stage.latent;
-}
-function rowSvg(stage,finalPlan,rowY,title,subtitle,color,kind){
+// One shared renderer for both the desktop and mobile markup: only the panel geometry
+// differs (svg viewBox + which responsive CSS class carries it) -- the value/scale math is
+// identical and lives in exactly one place, not duplicated per breakpoint.
+function snapshotPanel(stage,title,subtitle,color,kind,scale,actionIndex,mobile){
   if(!stage)return "";
-  var x0=170,width=720,height=66,limit=10,values=stageValues(stage,finalPlan);
-  var path=sequencePath(values,x0,rowY,width,height,limit);
-  var executeBand=kind==="final"
-    ? '<rect x="'+x0+'" y="'+rowY+'" width="'+(width*3.5/15).toFixed(1)+'" height="'+height+'" rx="8" class="execute-band"/>'
-      +'<text x="'+(x0+8)+'" y="'+(rowY+16)+'" class="execute-label">EXECUTE a[0]–a[3]</text>'
-    : '';
-  var points=values.map(function(v,i){
-    if(kind!=="final"||i>3)return "";
-    var x=x0+i/(values.length-1)*width,shown=clamp(v*10,-limit,limit),y=rowY+height/2-(shown/limit)*(height*.42);
-    return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.2" class="execute-point"/>';
-  }).join("");
-  var unit=kind==="final"?" N":"";
-  return '<g class="sequence-row '+kind+'" data-qa="sequence-'+kind+'">'
-    +'<text x="8" y="'+(rowY+20)+'" class="sequence-title">'+title+'</text>'
-    +'<text x="8" y="'+(rowY+39)+'" class="sequence-sub">'+subtitle+'</text>'
-    +'<line x1="'+x0+'" y1="'+(rowY+height/2)+'" x2="'+(x0+width)+'" y2="'+(rowY+height/2)+'" class="sequence-zero"/>'
-    +executeBand
-    +'<path d="'+path+'" fill="none" stroke="'+color+'" class="sequence-path"/>'
-    +points
-    +'<text x="'+(x0+width+12)+'" y="'+(rowY+20)+'" class="sequence-scale">+10'+unit+'</text>'
-    +'<text x="'+(x0+width+12)+'" y="'+(rowY+height-8)+'" class="sequence-scale">−10'+unit+'</text>'
-    +'</g>';
-}
-function mobileRow(stage,finalPlan,title,subtitle,color,kind){
-  if(!stage)return "";
-  var values=stageValues(stage,finalPlan),x0=14,width=302,y0=8,height=70,limit=10;
-  var path=sequencePath(values,x0,y0,width,height,limit);
-  var band=kind==="final"
-    ? '<rect x="'+x0+'" y="'+y0+'" width="'+(width*3.5/15).toFixed(1)+'" height="'+height+'" rx="7" class="execute-band"/>'
-    : '';
-  var points=values.map(function(v,i){
-    if(kind!=="final"||i>3)return "";
-    var x=x0+i/(values.length-1)*width,shown=clamp(v*10,-limit,limit),y=y0+height/2-(shown/limit)*(height*.42);
-    return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.5" class="execute-point"/>';
-  }).join("");
-  return '<article class="mobile-seq-card '+kind+'" data-qa="sequence-'+kind+'">'
-    +'<div class="mobile-seq-head"><b>'+title+'</b><span>'+subtitle+'</span></div>'
-    +'<svg viewBox="0 0 330 86" role="img" aria-label="'+title+'">'
+  var values=stage.latent,x0=mobile?14:10,width=mobile?302:268,y0=8,height=mobile?68:56;
+  var path=latentPath(values,x0,y0,width,height,scale);
+  var v=values[actionIndex]||0,mx=x0+actionIndex/(values.length-1)*width,my=y0+height/2-(v/scale)*(height*.42);
+  var pathClass=mobile?"mobile-sequence-path":"sequence-path";
+  var svg='<svg class="'+(mobile?"mobile-seq-svg":"sequence-svg")+'" viewBox="0 0 '+(x0+width+10)+' '+(y0+height+8)+'" role="img" aria-label="'+title+' internal latent candidate, not yet a force">'
     +'<line x1="'+x0+'" y1="'+(y0+height/2)+'" x2="'+(x0+width)+'" y2="'+(y0+height/2)+'" class="sequence-zero"/>'
-    +band+'<path d="'+path+'" fill="none" stroke="'+color+'" class="mobile-sequence-path"/>'+points
-    +'</svg>'
-    +'<div class="mobile-seq-axis"><span>a[0] · 먼저</span><span>a[15] · 나중</span></div>'
-    +'</article>';
+    +'<path d="'+path+'" fill="none" stroke="'+color+'" class="'+pathClass+'"/>'
+    +'<circle cx="'+mx.toFixed(1)+'" cy="'+my.toFixed(1)+'" r="'+(mobile?4.6:4.2)+'" class="snapshot-marker"/>'
+    +'</svg>';
+  var tag=mobile?"article":"div",headCls=mobile?"mobile-seq-head":"sequence-panel-head",cardCls=(mobile?"mobile-seq-card ":"sequence-row ")+kind;
+  return '<'+tag+' class="'+cardCls+'" data-qa="sequence-'+kind+'">'
+    +'<div class="'+headCls+'"><b>'+title+'</b><span>'+subtitle+'</span></div>'
+    +svg
+    +'<div class="snapshot-axis"><span>a[0]</span><span>±'+fmt(scale,3)+' · internal unit, not N (shared axis)</span><span>a[15]</span></div>'
+    +'<div class="snapshot-readout">a['+actionIndex+'] = '+sig(v,6)+' <i>internal unit</i></div>'
+    +'</'+tag+'>';
 }
-function renderMobileStages(start,mid,final,finalPlan){
-  return '<div class="mobile-sequence" data-qa="mobile-sequence">'
-    +mobileRow(start,finalPlan,'A · 랜덤 후보','내부 후보 · 아직 실행 안 함','#8968ca','noise')
-    +'<div class="mobile-seq-arrow">↓ 관측에 맞게 수정</div>'
-    +mobileRow(mid,finalPlan,'B · 정리 중','반복해서 action pattern을 만듦','#5476df','mid')
-    +'<div class="mobile-seq-arrow">↓ 최종 계획으로 수렴</div>'
-    +mobileRow(final,finalPlan,'C · 최종 force plan','초록 영역 a[0]–a[3]만 먼저 실행','#3c9a73','final')
+function renderStages(rootEl,history,finalPlan,guideSelection){
+  if(!rootEl)return;
+  if(!history||history.length<2){rootEl.innerHTML="";return}
+  var start=history[0],final=history[history.length-1];
+  var explicit=guideSelection&&typeof guideSelection.stepIndex==="number";
+  var midIdx=explicit?clamp(Math.round(guideSelection.stepIndex),0,history.length-1):Math.floor((history.length-1)/2);
+  var mid=history[midIdx];
+  var actionIndex=explicit&&typeof guideSelection.actionIndex==="number"?clamp(Math.round(guideSelection.actionIndex),0,start.latent.length-1):0;
+  var scale=historyLatentScale(history);
+  var midSubtitle=explicit?'현재 보고 있는 단계 · t='+mid.t+' (직접 선택)':'기본 중간 지점 · t='+mid.t+' (아직 단계를 선택하지 않음)';
+  var desktop='<div class="denoise-panels" data-qa="denoise-panels">'
+    +snapshotPanel(start,'A · 랜덤 후보','history[0] · t='+start.t,'#8968ca','noise',scale,actionIndex,false)
+    +snapshotPanel(mid,'B · 정리 중',midSubtitle,'#5476df','mid',scale,actionIndex,false)
+    +snapshotPanel(final,'C · 최종 후보','history[last] · t='+final.t,'#3c9a73','final',scale,actionIndex,false)
     +'</div>';
-}
-function renderStages(rootEl,history,finalPlan){
-  var start=pick(history,95),mid=pick(history,45),final=pick(history,0);
+  var mobile='<div class="mobile-sequence" data-qa="mobile-sequence">'
+    +snapshotPanel(start,'A · 랜덤 후보','history[0] · t='+start.t,'#8968ca','noise',scale,actionIndex,true)
+    +'<div class="mobile-seq-arrow">↓ 관측에 맞게 수정</div>'
+    +snapshotPanel(mid,'B · 정리 중',midSubtitle,'#5476df','mid',scale,actionIndex,true)
+    +'<div class="mobile-seq-arrow">↓ 최종 후보로 수렴</div>'
+    +snapshotPanel(final,'C · 최종 후보','history[last] · t='+final.t,'#3c9a73','final',scale,actionIndex,true)
+    +'</div>';
   rootEl.innerHTML=
-    '<div class="sequence-guide" data-qa="sequence-guide"><b>같은 16개 미래 action 자리</b><span>A/B는 내부 후보값, C만 실제 force(N)입니다. 왼쪽이 먼저 실행될 action입니다.</span></div>'
-    +'<svg class="sequence-svg" data-qa="denoise-sequence" viewBox="0 0 980 282" role="img" aria-label="random future-force candidates becoming the final force plan">'
-    +rowSvg(start,finalPlan,12,'A · 랜덤 후보','내부 action 후보 · 아직 실행 안 함 · t='+(start?start.t:'—'),'#8968ca','noise')
-    +'<text x="530" y="94" class="sequence-down">↓ 관측값을 조건으로 반복 수정</text>'
-    +rowSvg(mid,finalPlan,106,'B · 정리 중','관측 상태에 맞게 반복 수정 · t≈'+(mid?mid.t:'—'),'#5476df','mid')
-    +'<text x="530" y="188" class="sequence-down">↓ 실행 가능한 action pattern으로 수렴</text>'
-    +rowSvg(final,finalPlan,200,'C · 최종 force plan','이제 실행 가능 · t=0','#3c9a73','final')
-    +'</svg>'
-    +renderMobileStages(start,mid,final,finalPlan)
-    +'<div class="sequence-plain"><b>핵심:</b> Diffusion은 16개 force를 한 번에 결정하지 않습니다. 랜덤한 미래 action 후보를 현재 관측에 맞게 여러 번 고친 뒤, 마지막 C만 실제 force plan으로 사용합니다.</div>';
+    '<div class="sequence-guide" data-qa="sequence-guide"><b>같은 16개 미래 action 자리 · 내부 latent 단위</b><span>A/B/C 모두 아직 force(N)가 아닙니다. 세 패널은 전체 history에서 계산한 하나의 공유 축을 씁니다. 실제 N 단위 force plan은 아래 실행(Act) 표에서 따로 보여줍니다.</span></div>'
+    +desktop+mobile
+    +'<div class="sequence-plain"><b>핵심:</b> Diffusion은 16개 force를 한 번에 결정하지 않습니다. 랜덤한 미래 action 후보(A · history[0])를 관측에 맞게 반복 수정(B)한 뒤, 마지막 후보(C · history[last])를 clamp[-1,1]×10N 해야 비로소 force plan이 됩니다.</div>';
 }
 function normalizedPath(values,x0,y0,width,height,limit){
   if(!values||!values.length)return "";
