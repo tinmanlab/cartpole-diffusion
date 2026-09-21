@@ -475,7 +475,7 @@ async function inspect(page,name){
     const pick=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};
     const sels=['[data-qa="plant"]','[data-qa="controller"]','[data-qa="observe"]','[data-qa="plan"]','[data-qa="act"]','[data-qa="replan"]'];
     const boxes=Object.fromEntries(sels.map(s=>[s,pick(s)]));
-    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.conditioning-head b,.conditioning-head span,.conditioning-head em,.cond-obs span,.cond-obs b,.cond-obs small,.cond-arrow,.conditioning-legend,.conditioning-summary span,.conditioning-summary b,.conditioning-note,.divergence-head b,.divergence-head span,.divergence-head strong,.divergence-legend,.divergence-metrics span,.divergence-metrics b,.sampling-head b,.sampling-head span,.sampling-head em,.sampling-condition span,.sampling-condition b,.sampling-condition small,.sampling-starts,.sampling-legend,.sampling-summary span,.sampling-summary b,.sampling-note,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-title,.sequence-sub,.sequence-scale,.sequence-down,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.timeline-head b,.timeline-head span,.timeline-status strong,.timeline-status span,.timeline-controls button,.timeline-controls label,.timeline-controls select,.timeline-scale,.timeline-caption,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.horizon-head b,.horizon-head span,.horizon-metrics strong,.horizon-metrics em,.horizon-labels,.horizon-groups b,.horizon-groups span,.horizon-note,.loop-back')];
+    const core=[...document.querySelectorAll('.topbar strong,.card-head b,.step-head b,.step-head span,.obs-title b,.obs-title span,.obs-values span,.obs-values b,.obs-values small,.conditioning-head b,.conditioning-head span,.conditioning-head em,.cond-obs span,.cond-obs b,.cond-obs small,.cond-arrow,.conditioning-legend,.conditioning-summary span,.conditioning-summary b,.conditioning-note,.divergence-head b,.divergence-head span,.divergence-head strong,.divergence-legend,.divergence-metrics span,.divergence-metrics b,.sampling-head b,.sampling-head span,.sampling-head em,.sampling-condition span,.sampling-condition b,.sampling-condition small,.sampling-starts,.sampling-legend,.sampling-summary span,.sampling-summary b,.sampling-note,.policy-plain,.blackbox span,.blackbox b,.sequence-guide b,.sequence-guide span,.sequence-panel-head b,.sequence-panel-head span,.snapshot-axis,.snapshot-readout,.sequence-plain,.mobile-seq-head b,.mobile-seq-head span,.mobile-seq-axis,.mobile-seq-arrow,.timeline-head b,.timeline-head span,.timeline-status strong,.timeline-status span,.timeline-controls button,.timeline-controls label,.timeline-controls select,.timeline-scale,.timeline-caption,.denoise-update-head b,.denoise-update-head span,.update-card span,.update-card b,.update-card strong,.update-card small,.update-chart-title b,.update-chart-title span,.denoise-update-note,.exec-now span,.exec-now strong,.exec-action span,.exec-action b,.exec-action small,.horizon-head b,.horizon-head span,.horizon-metrics strong,.horizon-metrics em,.horizon-labels,.horizon-groups b,.horizon-groups span,.horizon-note,.loop-back')];
     const fonts=core.filter(e=>e.getClientRects().length).map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Number.isFinite);
     const overlap=(a,b)=>{if(!a||!b)return 0;return Math.max(0,Math.min(a.right,b.right)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y))};
     const visibleCount=s=>[...document.querySelectorAll(s)].filter(e=>e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden').length;
@@ -492,7 +492,15 @@ async function inspect(page,name){
       discardedSlots:horizon.querySelectorAll('.horizon-slot.discarded').length,
       markerRatio:tr&&mr?((mr.x+mr.width/2)-tr.x)/tr.width:null
     }:null;
-    return{viewport:{width:innerWidth,height:innerHeight},document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},boxes,minCoreFont:fonts.length?Math.min(...fonts):null,plantControllerOverlap:overlap(boxes[sels[0]],boxes[sels[1]]),sequencePaths:visibleCount('.sequence-svg .sequence-path'),executePoints:visibleCount('.execute-point'),executeBands:visibleCount('.execute-band'),obsValues:document.querySelectorAll('[data-qa="observation-values"]>div').length,execActions:document.querySelectorAll('[data-qa="exec-action"]').length,advancedOpen:document.querySelector('[data-qa="advanced"]')?.open||false,desktopSequenceDisplay:getComputedStyle(document.querySelector('.sequence-svg')).display,mobileSequenceDisplay:getComputedStyle(document.querySelector('[data-qa="mobile-sequence"]')).display,mobileSequencePaths:visibleCount('.mobile-sequence-path'),horizon:horizonInfo};
+    // Scale/unit disclosure now lives ONCE in the strip header (data-scale attr + one text
+    // line), not repeated per panel -- so this reads the header's real value plus each
+    // panel's own history-index/explicit lineage (now in data attrs, not visible copy).
+    const guideEl=document.querySelector('[data-qa="sequence-guide"]');
+    const headerScale=guideEl?Number(guideEl.dataset.scale):null;
+    const headerScaleTextCount=guideEl?(guideEl.textContent.match(/internal unit, not N/g)||[]).length:0;
+    const panelLineage=[...document.querySelectorAll('.denoise-panels [data-qa^="sequence-"]')].map(e=>({qa:e.dataset.qa,historyIndex:Number(e.dataset.historyIndex),t:Number(e.dataset.t),explicit:e.dataset.explicit==='true'}));
+    const realHistoryLength=window.__qaDiffusion.getHistory().length;
+    return{viewport:{width:innerWidth,height:innerHeight},document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},boxes,minCoreFont:fonts.length?Math.min(...fonts):null,plantControllerOverlap:overlap(boxes[sels[0]],boxes[sels[1]]),sequencePaths:visibleCount('.sequence-svg .sequence-path'),snapshotMarkers:visibleCount('.denoise-panels .snapshot-marker'),headerScale,headerScaleTextCount,panelLineage,realHistoryLength,obsValues:document.querySelectorAll('[data-qa="observation-values"]>div').length,execActions:document.querySelectorAll('[data-qa="exec-action"]').length,advancedOpen:document.querySelector('[data-qa="advanced"]')?.open||false,desktopSequenceDisplay:getComputedStyle(document.querySelector('.sequence-svg')).display,mobileSequenceDisplay:getComputedStyle(document.querySelector('[data-qa="mobile-sequence"]')).display,mobileSequencePaths:visibleCount('.mobile-sequence-path'),horizon:horizonInfo};
   });
   d.boxes=Object.fromEntries(Object.entries(d.boxes).map(([k,v])=>[k,rect(v)]));
   d.svgText=checkSvgText(await svgTextSizes(page),name);
@@ -504,7 +512,20 @@ async function inspect(page,name){
   if(name==='mobile'&&d.sequencePaths!==0)err(name+': hidden desktop denoising paths are still visible ('+d.sequencePaths+')');
   if(name==='desktop'&&d.mobileSequencePaths!==0)err(name+': hidden mobile denoising paths are visible ('+d.mobileSequencePaths+')');
   if(name==='mobile'&&d.mobileSequencePaths!==3)err(name+': expected 3 mobile denoising paths, got '+d.mobileSequencePaths);
-  if(d.executePoints!==4||d.executeBands!==1)err(name+': execute-region markers incorrect');
+  // F1 rewrite: the 3-snapshot latent strip no longer folds the N-scaled execute region into
+  // itself (that lives in the horizon/exec-prefix N strip, asserted below); instead each of
+  // the 3 desktop panels carries exactly one selected-action marker, and all 3 must quote the
+  // SAME shared scale string -- proving the axis is computed once from the whole frozen
+  // history, not autoscaled per panel.
+  if(name==='desktop'&&d.snapshotMarkers!==3)err(name+': expected 3 selected-action markers in the desktop latent strip, got '+d.snapshotMarkers);
+  if(name==='desktop'&&(!Number.isFinite(d.headerScale)||d.headerScale<=0))err(name+': strip header must carry a real, positive shared scale, got '+d.headerScale);
+  if(name==='desktop'&&d.headerScaleTextCount!==1)err(name+': shared scale/unit text must appear exactly once in the strip header, found '+d.headerScaleTextCount);
+  if(name==='desktop'&&d.panelLineage.length!==3)err(name+': expected 3 desktop panels carrying history-index/explicit lineage, got '+d.panelLineage.length);
+  else if(name==='desktop'){
+    const byQa=Object.fromEntries(d.panelLineage.map(p=>[p.qa,p]));
+    if(byQa['sequence-noise']?.historyIndex!==0)err(name+': noise panel must be literal history[0]');
+    if(byQa['sequence-final']?.historyIndex!==d.realHistoryLength-1)err(name+': final panel must be literal history[last] ('+(d.realHistoryLength-1)+'), got '+byQa['sequence-final']?.historyIndex);
+  }
   if(d.obsValues!==4)err(name+': observation card count '+d.obsValues);
   if(d.execActions!==4)err(name+': execution card count '+d.execActions);
   if(!d.horizon)err(name+': horizon visualization missing');
@@ -800,7 +821,7 @@ async function desktop(browser){
   const next=page.getByRole('button',{name:'다음'});
   await next.click();await page.waitForTimeout(80);
   if(!(await page.locator('#guideStep').innerText()).includes('2/6'))err('guided cycle: random-start step missing');
-  if(await page.locator('.sequence-svg [data-qa="sequence-noise"].guide-focus').count()!==1)err('guided cycle: random sequence not focused');
+  if(await page.locator('.denoise-panels [data-qa="sequence-noise"].guide-focus').count()!==1)err('guided cycle: random sequence not focused');
   if(await conditioning.isVisible())err('guided conditioning: comparison panel should hide after observation step');
   if(await sampling.isVisible())err('guided sampling: comparison panel should hide after observation step');
   if(await page.locator('[data-qa="denoise-timeline"]').isVisible())err('guided cycle: denoise timeline should be hidden at random-start');
@@ -810,7 +831,7 @@ async function desktop(browser){
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(100);
   if(!(await page.locator('#guideStep').innerText()).includes('3/6'))err('guided cycle: denoise step missing');
-  if(await page.locator('.sequence-svg [data-qa="sequence-mid"].guide-focus').count()!==1)err('guided cycle: mid sequence not focused');
+  if(await page.locator('.denoise-panels [data-qa="sequence-mid"].guide-focus').count()!==1)err('guided cycle: mid sequence not focused');
   const timeline=page.locator('[data-qa="denoise-timeline"]');
   const oneStep=page.locator('[data-qa="denoise-one-step"]');
   if(!(await timeline.isVisible()))err('guided cycle: 19-step denoise timeline is hidden');
@@ -925,7 +946,7 @@ async function desktop(browser){
 
   await page.getByRole('button',{name:'다음'}).click();await page.waitForTimeout(80);
   if(!(await page.locator('#guideStep').innerText()).includes('4/6'))err('guided cycle: final-plan step missing');
-  if(await page.locator('.sequence-svg [data-qa="sequence-final"].guide-focus').count()!==1)err('guided cycle: final sequence not focused');
+  if(await page.locator('.denoise-panels [data-qa="sequence-final"].guide-focus').count()!==1)err('guided cycle: final sequence not focused');
   if(await timeline.isVisible())err('guided cycle: denoise timeline should hide after denoise step');
   if(await oneStep.isVisible())err('guided cycle: one-step denoise panel should hide after denoise step');
   if((await stagesFolded()).nested)err('guided cycle: full 16-action stages should return to directly visible (not folded) at final-plan');

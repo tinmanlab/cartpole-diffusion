@@ -30,6 +30,8 @@ jobs:
       - run: node --check app/control_loop_viz.js
       - run: node tests/index_script_smoke.cjs
       - run: node tests/readability_smoke.cjs
+      - name: 3-snapshot latent strip regression (F1 rewrite, no browser needed)
+        run: node tests/snapshot_strip_check.cjs
       - name: Browser-model and visualization smoke contract
         if: hashFiles('artifacts/model.json') != ''
         run: node tests/model_smoke.cjs
