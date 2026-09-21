@@ -1,10 +1,13 @@
-/* F1/F2 regression: the 3-snapshot latent strip must show raw internal-unit values (no *10,
- * no clip-to-10 flattening), one shared scale computed from the FULL frozen history (stable
- * across which step is selected), a zero baseline, and must pick its middle panel from the
- * real currently-inspected guided step (denoiseStepIndex/denoiseActionIndex) rather than an
- * arbitrary fixed t, defaulting explicitly to the middle history entry only when there is no
- * such selection. Pure Node, no browser: app/control_loop_viz.js touches no DOM globals other
- * than the rootEl object it's handed, so it can be exercised directly.
+/* F1/F2/readability regression: the 3-snapshot latent strip must show raw internal-unit
+ * values (no *10, no clip-to-10 flattening), one shared scale computed from the FULL frozen
+ * history (stable across which step is selected, stated ONCE in the strip header rather than
+ * repeated per panel), a zero baseline, short jargon-free panel titles with the real t under
+ * each, and must pick its middle panel from the real currently-inspected guided step
+ * (denoiseStepIndex/denoiseActionIndex) rather than an arbitrary fixed t -- history index and
+ * explicit-vs-default lineage live in data attributes (data-history-index/data-explicit/
+ * data-t), not spelled out in the visible copy. Pure Node, no browser: app/control_loop_viz.js
+ * touches no DOM globals other than the rootEl object it's handed, so it can be exercised
+ * directly.
  */
 const assert=require("node:assert/strict");
 const path=require("node:path");
@@ -36,11 +39,15 @@ function expectedScale(history){
   return Math.max(1e-6,m*1.08);
 }
 function extractPanels(html,kind){
-  var re=new RegExp('data-qa="sequence-'+kind+'"[\\s\\S]*?<path d="([^"]+)"[\\s\\S]*?class="snapshot-axis">[\\s\\S]*?±([0-9.]+)[\\s\\S]*?snapshot-readout">a\\[(\\d+)\\] = ([^<\\s]+)','g');
+  var re=new RegExp('data-qa="sequence-'+kind+'" data-history-index="(\\d+)" data-t="(-?\\d+)" data-explicit="(true|false)"[\\s\\S]*?<path d="([^"]+)"[\\s\\S]*?snapshot-readout">a\\[(\\d+)\\] = ([^<\\s]+)<','g');
   var matches=[];
   var m;
-  while((m=re.exec(html)))matches.push({d:m[1],scale:Number(m[2]),actionIndex:Number(m[3]),readout:m[4]});
+  while((m=re.exec(html)))matches.push({historyIndex:Number(m[1]),t:Number(m[2]),explicit:m[3]==="true",d:m[4],actionIndex:Number(m[5]),readout:m[6]});
   return matches;
+}
+function headerScale(html){
+  var m=/data-scale="([^"]+)"/.exec(html);
+  return m?Number(m[1]):null;
 }
 
 var history=makeHistory();
@@ -48,21 +55,35 @@ var expScale=expectedScale(history);
 var root={innerHTML:""};
 
 // 1) No explicit guide selection: middle panel must be an EXPLICIT default-middle entry
-//    (history[floor((n-1)/2)]), not the fixed old t=45 target, and must say so.
+//    (history[floor((n-1)/2)]), not the fixed old t=45 target, carried via data attrs.
 ControlLoopViz.renderStages(root,history,null,null);
 var html=root.innerHTML;
 assert.ok(!html.includes('class="sequence-title"'),"in-SVG sequence-title text must not reappear (labels belong in HTML)");
 assert.ok(!html.includes('class="execute-band"'),"the latent strip must not re-fold the N-scaled execute band into it");
+assert.ok(html.includes("관측 4개"),"strip header must give a one-line present-observations-to-execute summary");
 var noise=extractPanels(html,"noise"),mid=extractPanels(html,"mid"),final=extractPanels(html,"final");
 assert.equal(noise.length,2,"expected desktop+mobile noise panels (2 occurrences)"); // desktop .sequence-row + mobile .mobile-seq-card
 assert.equal(mid.length,2,"expected desktop+mobile mid panels");
 assert.equal(final.length,2,"expected desktop+mobile final panels");
 var expectedMidIdx=Math.floor((history.length-1)/2);
-assert.ok(html.includes("아직 단계를 선택하지 않음"),"default middle must be labelled as not an explicit user selection");
-assert.ok(html.includes("t="+history[expectedMidIdx].t),"default middle must be the literal middle history entry, not a fixed t=45");
+noise.forEach(function(p){assert.equal(p.historyIndex,0,"noise panel must be literal history[0]");assert.equal(p.explicit,false)});
+final.forEach(function(p){assert.equal(p.historyIndex,history.length-1,"final panel must be literal history[last]");assert.equal(p.explicit,false)});
+mid.forEach(function(p){
+  assert.equal(p.historyIndex,expectedMidIdx,"default mid panel must be the literal middle history entry, not a fixed t=45");
+  assert.equal(p.t,history[expectedMidIdx].t);
+  assert.equal(p.explicit,false,"default middle must be marked data-explicit=false, not implied as a user choice");
+});
+// Panel titles must be short and jargon-free -- no "history[0]"/"history[last]" in visible copy.
+assert.ok(!/history\[/.test(html.replace(/data-history-index="\d+"/g,"")),"history[j] must not appear in visible copy, only in data-history-index");
+["초기 후보","선택 단계","최종 후보"].forEach(function(t){assert.ok(html.includes(t),"missing short panel title: "+t)});
+// The shared scale/unit text must appear exactly once (header), not once per panel (was 6x).
+var scaleOccurrences=(html.match(/internal unit, not N/g)||[]).length;
+assert.equal(scaleOccurrences,1,"shared axis/unit text must appear exactly once in the header, found "+scaleOccurrences);
+assert.ok(headerScale(html)!==null,"header must carry the real scale in a data-scale attribute");
+assert.ok(Math.abs(headerScale(html)-expScale)<1e-6,"header data-scale must equal the true full-history scale, got "+headerScale(html)+" expected "+expScale);
 [...noise,...mid,...final].forEach(function(p){
-  assert.ok(Math.abs(p.scale-Number(expScale.toFixed(3)))<1e-9,"every panel must share the SAME axis scale computed from the full history, got "+p.scale+" expected "+expScale.toFixed(3));
   assert.equal(p.actionIndex,0,"default action index readout must be explicit (a[0])");
+  assert.ok(!/\s/.test(p.readout),"readout value must be a single non-wrapping token, got "+JSON.stringify(p.readout));
 });
 // history[0]/history[last] must be literal, not nearest-to-a-fixed-t picks.
 var startY0=history[0].latent[0],finalYlast=history[history.length-1].latent[0];
@@ -72,14 +93,15 @@ assert.ok(Math.abs(firstPointY(noise[0].d)-expY(startY0))<0.6,"history[0] first-
 assert.ok(Math.abs(firstPointY(final[0].d)-expY(finalYlast))<0.6,"history[last] first-point y must match raw latent/scale formula, no *10/clip");
 
 // 2) Explicit guide selection (denoiseStepIndex/denoiseActionIndex) must drive the mid panel,
-//    not the separate Advanced-ladder selectedT, and must say it is an explicit selection.
+//    marked data-explicit=true, without ever needing "history[j]" or a prose sentence in copy.
 root.innerHTML="";
 ControlLoopViz.renderStages(root,history,null,{stepIndex:2,actionIndex:3});
 html=root.innerHTML;
 mid=extractPanels(html,"mid");
-assert.ok(html.includes("현재 보고 있는 단계"),"an explicit guided step must be labelled as the real current selection, not a default");
-assert.ok(html.includes("t="+history[2].t),"mid panel must be the real inspected step (history[2]), not an arbitrary fixed t");
 mid.forEach(function(p){
+  assert.equal(p.explicit,true,"an explicit guided step must be marked data-explicit=true");
+  assert.equal(p.historyIndex,2,"mid panel must be the real inspected step (history[2]), not an arbitrary fixed t");
+  assert.equal(p.t,history[2].t);
   assert.equal(p.actionIndex,3,"selected action index must come from denoiseActionIndex, not a hardcoded 0");
 });
 // Recompute expected readout text the same way the renderer does (6 sig figs).

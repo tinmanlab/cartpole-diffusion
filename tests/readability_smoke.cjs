@@ -55,6 +55,9 @@ const required=[
   '.snapshot-readout{margin-top:3px;font:14px',
   '.sequence-panel-head b,.mobile-seq-head b{font-size:14px',
   '.sequence-panel-head span,.mobile-seq-head span{font-size:14px',
+  // The shared scale/unit disclosure lives ONCE in the strip header, not repeated per panel.
+  '.sequence-guide{display:flex;flex-direction:column',
+  '.sequence-guide span{font-size:14px',
   '.sequence-plain{',
   '.exec-now strong{font:22px',
   '.exec-action small{font-size:11px',
@@ -87,9 +90,9 @@ const required=[
   // single ambiguous monospace status line.
   '#plantCard .card-head span{font-size:14px',
   '.force-lane span{font-size:14px',
-  '.force-lane b{font:700 14px',
-  '.force-lane.command b{color:#16805d}',
-  '.force-lane.disturbance b{color:#b86b16}',
+  '.force-lane output{display:block;font:700 14px',
+  '.force-lane.command output{color:#16805d}',
+  '.force-lane.disturbance output{color:#b86b16}',
   // Common cross-repo scene geometry contract (docs/learning-suite.md art constants):
   // 640x320 schematic, white bg, navy cart, warm-red pole, slate wheels, neutral rail.
   'data-scene-contract="cartpole-v1"',
@@ -114,7 +117,9 @@ const forbidden=[
   ['class="conditioning-axis"','axis labels must be HTML .chart-axis, not viewBox-scaled <text>'],
   ['class="sequence-title"','snapshot panel titles must stay in the HTML .sequence-panel-head, not viewBox-scaled <text>'],
   ['class="sequence-scale"','snapshot axis values must stay in the HTML .snapshot-axis, not viewBox-scaled <text>'],
-  ['class="execute-band"','the 3-snapshot latent strip must not re-fold the N-scaled execute region into the internal-unit panels; that lives in the horizon/exec-prefix N strip']
+  ['class="execute-band"','the 3-snapshot latent strip must not re-fold the N-scaled execute region into the internal-unit panels; that lives in the horizon/exec-prefix N strip'],
+  ['<b id="commandValue"','the command-lane value must be a semantic <output>, not a bare <b>'],
+  ['<b id="disturbanceValue"','the disturbance-lane value must be a semantic <output>, not a bare <b>']
 ];
 const appJs=fs.readdirSync(path.join(__dirname,"..","app")).filter(f=>f.endsWith(".js"))
   .map(f=>fs.readFileSync(path.join(__dirname,"..","app",f),"utf8")).join("\n");
@@ -123,4 +128,11 @@ for(const [token,why] of forbidden){
   if(html.includes(token))throw new Error("readability contract violated in index.html ("+token+"): "+why);
   if(appJs.includes(token))throw new Error("readability contract violated in app/*.js ("+token+"): "+why);
 }
+if(!html.includes('<output id="commandValue">'))throw new Error("commandValue must be a real <output> element");
+if(!html.includes('<output id="disturbanceValue">'))throw new Error("disturbanceValue must be a real <output> element");
+// The per-panel shared-scale/unit disclosure must live ONCE in the strip header
+// (.sequence-guide), not be repeated inside all 6 (3 desktop + 3 mobile) panels.
+const sharedAxisPhrase="internal unit, not N";
+const sharedAxisOccurrences=(appJs.match(new RegExp(sharedAxisPhrase.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"g"))||[]).length;
+if(sharedAxisOccurrences!==1)throw new Error("shared axis/unit text must appear exactly once (in the strip header), found "+sharedAxisOccurrences+" occurrence(s) in app/*.js");
 console.log("READABILITY_CONTRACT_OK");

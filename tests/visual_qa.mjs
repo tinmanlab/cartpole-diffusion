@@ -492,8 +492,15 @@ async function inspect(page,name){
       discardedSlots:horizon.querySelectorAll('.horizon-slot.discarded').length,
       markerRatio:tr&&mr?((mr.x+mr.width/2)-tr.x)/tr.width:null
     }:null;
-    const snapshotScales=[...document.querySelectorAll('.denoise-panels .snapshot-axis')].map(e=>e.textContent);
-    return{viewport:{width:innerWidth,height:innerHeight},document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},boxes,minCoreFont:fonts.length?Math.min(...fonts):null,plantControllerOverlap:overlap(boxes[sels[0]],boxes[sels[1]]),sequencePaths:visibleCount('.sequence-svg .sequence-path'),snapshotMarkers:visibleCount('.denoise-panels .snapshot-marker'),snapshotScales,obsValues:document.querySelectorAll('[data-qa="observation-values"]>div').length,execActions:document.querySelectorAll('[data-qa="exec-action"]').length,advancedOpen:document.querySelector('[data-qa="advanced"]')?.open||false,desktopSequenceDisplay:getComputedStyle(document.querySelector('.sequence-svg')).display,mobileSequenceDisplay:getComputedStyle(document.querySelector('[data-qa="mobile-sequence"]')).display,mobileSequencePaths:visibleCount('.mobile-sequence-path'),horizon:horizonInfo};
+    // Scale/unit disclosure now lives ONCE in the strip header (data-scale attr + one text
+    // line), not repeated per panel -- so this reads the header's real value plus each
+    // panel's own history-index/explicit lineage (now in data attrs, not visible copy).
+    const guideEl=document.querySelector('[data-qa="sequence-guide"]');
+    const headerScale=guideEl?Number(guideEl.dataset.scale):null;
+    const headerScaleTextCount=guideEl?(guideEl.textContent.match(/internal unit, not N/g)||[]).length:0;
+    const panelLineage=[...document.querySelectorAll('.denoise-panels [data-qa^="sequence-"]')].map(e=>({qa:e.dataset.qa,historyIndex:Number(e.dataset.historyIndex),t:Number(e.dataset.t),explicit:e.dataset.explicit==='true'}));
+    const realHistoryLength=window.__qaDiffusion.getHistory().length;
+    return{viewport:{width:innerWidth,height:innerHeight},document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},boxes,minCoreFont:fonts.length?Math.min(...fonts):null,plantControllerOverlap:overlap(boxes[sels[0]],boxes[sels[1]]),sequencePaths:visibleCount('.sequence-svg .sequence-path'),snapshotMarkers:visibleCount('.denoise-panels .snapshot-marker'),headerScale,headerScaleTextCount,panelLineage,realHistoryLength,obsValues:document.querySelectorAll('[data-qa="observation-values"]>div').length,execActions:document.querySelectorAll('[data-qa="exec-action"]').length,advancedOpen:document.querySelector('[data-qa="advanced"]')?.open||false,desktopSequenceDisplay:getComputedStyle(document.querySelector('.sequence-svg')).display,mobileSequenceDisplay:getComputedStyle(document.querySelector('[data-qa="mobile-sequence"]')).display,mobileSequencePaths:visibleCount('.mobile-sequence-path'),horizon:horizonInfo};
   });
   d.boxes=Object.fromEntries(Object.entries(d.boxes).map(([k,v])=>[k,rect(v)]));
   d.svgText=checkSvgText(await svgTextSizes(page),name);
@@ -511,7 +518,14 @@ async function inspect(page,name){
   // SAME shared scale string -- proving the axis is computed once from the whole frozen
   // history, not autoscaled per panel.
   if(name==='desktop'&&d.snapshotMarkers!==3)err(name+': expected 3 selected-action markers in the desktop latent strip, got '+d.snapshotMarkers);
-  if(name==='desktop'&&(d.snapshotScales.length!==3||new Set(d.snapshotScales).size!==1))err(name+': the 3 snapshot panels must share one identical axis-scale label, got '+JSON.stringify(d.snapshotScales));
+  if(name==='desktop'&&(!Number.isFinite(d.headerScale)||d.headerScale<=0))err(name+': strip header must carry a real, positive shared scale, got '+d.headerScale);
+  if(name==='desktop'&&d.headerScaleTextCount!==1)err(name+': shared scale/unit text must appear exactly once in the strip header, found '+d.headerScaleTextCount);
+  if(name==='desktop'&&d.panelLineage.length!==3)err(name+': expected 3 desktop panels carrying history-index/explicit lineage, got '+d.panelLineage.length);
+  else if(name==='desktop'){
+    const byQa=Object.fromEntries(d.panelLineage.map(p=>[p.qa,p]));
+    if(byQa['sequence-noise']?.historyIndex!==0)err(name+': noise panel must be literal history[0]');
+    if(byQa['sequence-final']?.historyIndex!==d.realHistoryLength-1)err(name+': final panel must be literal history[last] ('+(d.realHistoryLength-1)+'), got '+byQa['sequence-final']?.historyIndex);
+  }
   if(d.obsValues!==4)err(name+': observation card count '+d.obsValues);
   if(d.execActions!==4)err(name+': execution card count '+d.execActions);
   if(!d.horizon)err(name+': horizon visualization missing');

@@ -38,11 +38,17 @@ function latentPath(values,x0,y0,width,height,scale){
     return (i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1);
   }).join(" ");
 }
+// Short, jargon-free panel titles. The "history[0]/history[last]/explicit-vs-default"
+// lineage still needs to be real and testable -- it just moves to data attributes
+// (data-history-index/data-explicit/data-t on the panel element) instead of being spelled
+// out in the visible copy of every one of 6 (desktop+mobile) panels.
+var SNAPSHOT_TITLES={noise:"초기 후보",mid:"선택 단계",final:"최종 후보"};
 // One shared renderer for both the desktop and mobile markup: only the panel geometry
 // differs (svg viewBox + which responsive CSS class carries it) -- the value/scale math is
 // identical and lives in exactly one place, not duplicated per breakpoint.
-function snapshotPanel(stage,title,subtitle,color,kind,scale,actionIndex,mobile){
+function snapshotPanel(stage,kind,color,scale,actionIndex,historyIndex,explicit,mobile){
   if(!stage)return "";
+  var title=SNAPSHOT_TITLES[kind];
   var values=stage.latent,x0=mobile?14:10,width=mobile?302:268,y0=8,height=mobile?68:56;
   var path=latentPath(values,x0,y0,width,height,scale);
   var v=values[actionIndex]||0,mx=x0+actionIndex/(values.length-1)*width,my=y0+height/2-(v/scale)*(height*.42);
@@ -53,39 +59,38 @@ function snapshotPanel(stage,title,subtitle,color,kind,scale,actionIndex,mobile)
     +'<circle cx="'+mx.toFixed(1)+'" cy="'+my.toFixed(1)+'" r="'+(mobile?4.6:4.2)+'" class="snapshot-marker"/>'
     +'</svg>';
   var tag=mobile?"article":"div",headCls=mobile?"mobile-seq-head":"sequence-panel-head",cardCls=(mobile?"mobile-seq-card ":"sequence-row ")+kind;
-  return '<'+tag+' class="'+cardCls+'" data-qa="sequence-'+kind+'">'
-    +'<div class="'+headCls+'"><b>'+title+'</b><span>'+subtitle+'</span></div>'
+  return '<'+tag+' class="'+cardCls+'" data-qa="sequence-'+kind+'" data-history-index="'+historyIndex+'" data-t="'+stage.t+'" data-explicit="'+(explicit?"true":"false")+'">'
+    +'<div class="'+headCls+'"><b>'+title+'</b><span>t='+stage.t+'</span></div>'
     +svg
-    +'<div class="snapshot-axis"><span>a[0]</span><span>±'+fmt(scale,3)+' · internal unit, not N (shared axis)</span><span>a[15]</span></div>'
-    +'<div class="snapshot-readout">a['+actionIndex+'] = '+sig(v,6)+' <i>internal unit</i></div>'
+    +'<div class="snapshot-axis"><span>a[0]</span><span>a[15]</span></div>'
+    +'<div class="snapshot-readout">a['+actionIndex+'] = '+sig(v,6)+'</div>'
     +'</'+tag+'>';
 }
 function renderStages(rootEl,history,finalPlan,guideSelection){
   if(!rootEl)return;
   if(!history||history.length<2){rootEl.innerHTML="";return}
-  var start=history[0],final=history[history.length-1];
+  var start=history[0],final=history[history.length-1],finalIndex=history.length-1;
   var explicit=guideSelection&&typeof guideSelection.stepIndex==="number";
   var midIdx=explicit?clamp(Math.round(guideSelection.stepIndex),0,history.length-1):Math.floor((history.length-1)/2);
   var mid=history[midIdx];
   var actionIndex=explicit&&typeof guideSelection.actionIndex==="number"?clamp(Math.round(guideSelection.actionIndex),0,start.latent.length-1):0;
   var scale=historyLatentScale(history);
-  var midSubtitle=explicit?'현재 보고 있는 단계 · t='+mid.t+' (직접 선택)':'기본 중간 지점 · t='+mid.t+' (아직 단계를 선택하지 않음)';
   var desktop='<div class="denoise-panels" data-qa="denoise-panels">'
-    +snapshotPanel(start,'A · 랜덤 후보','history[0] · t='+start.t,'#8968ca','noise',scale,actionIndex,false)
-    +snapshotPanel(mid,'B · 정리 중',midSubtitle,'#5476df','mid',scale,actionIndex,false)
-    +snapshotPanel(final,'C · 최종 후보','history[last] · t='+final.t,'#3c9a73','final',scale,actionIndex,false)
+    +snapshotPanel(start,'noise','#8968ca',scale,actionIndex,0,false,false)
+    +snapshotPanel(mid,'mid','#7552bd',scale,actionIndex,midIdx,explicit,false)
+    +snapshotPanel(final,'final','#5476df',scale,actionIndex,finalIndex,false,false)
     +'</div>';
   var mobile='<div class="mobile-sequence" data-qa="mobile-sequence">'
-    +snapshotPanel(start,'A · 랜덤 후보','history[0] · t='+start.t,'#8968ca','noise',scale,actionIndex,true)
+    +snapshotPanel(start,'noise','#8968ca',scale,actionIndex,0,false,true)
     +'<div class="mobile-seq-arrow">↓ 관측에 맞게 수정</div>'
-    +snapshotPanel(mid,'B · 정리 중',midSubtitle,'#5476df','mid',scale,actionIndex,true)
+    +snapshotPanel(mid,'mid','#7552bd',scale,actionIndex,midIdx,explicit,true)
     +'<div class="mobile-seq-arrow">↓ 최종 후보로 수렴</div>'
-    +snapshotPanel(final,'C · 최종 후보','history[last] · t='+final.t,'#3c9a73','final',scale,actionIndex,true)
+    +snapshotPanel(final,'final','#5476df',scale,actionIndex,finalIndex,false,true)
     +'</div>';
   rootEl.innerHTML=
-    '<div class="sequence-guide" data-qa="sequence-guide"><b>같은 16개 미래 action 자리 · 내부 latent 단위</b><span>A/B/C 모두 아직 force(N)가 아닙니다. 세 패널은 전체 history에서 계산한 하나의 공유 축을 씁니다. 실제 N 단위 force plan은 아래 실행(Act) 표에서 따로 보여줍니다.</span></div>'
+    '<div class="sequence-guide" data-qa="sequence-guide" data-scale="'+scale+'"><b>관측 4개 → candidate 반복 갱신 → 앞 4개만 실행</b><span>공유 축 ±'+fmt(scale,3)+' · internal unit, not N (전체 history 기준) · 실제 N force plan은 Act 표에서 별도 표시</span></div>'
     +desktop+mobile
-    +'<div class="sequence-plain"><b>핵심:</b> Diffusion은 16개 force를 한 번에 결정하지 않습니다. 랜덤한 미래 action 후보(A · history[0])를 관측에 맞게 반복 수정(B)한 뒤, 마지막 후보(C · history[last])를 clamp[-1,1]×10N 해야 비로소 force plan이 됩니다.</div>';
+    +'<div class="sequence-plain"><b>핵심:</b> Diffusion은 16개 force를 한 번에 결정하지 않습니다. 랜덤한 초기 후보를 관측에 맞게 반복 수정한 뒤, 최종 후보를 clamp[-1,1]×10N 해야 비로소 force plan이 됩니다.</div>';
 }
 function normalizedPath(values,x0,y0,width,height,limit){
   if(!values||!values.length)return "";
