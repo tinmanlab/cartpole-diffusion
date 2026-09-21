@@ -75,7 +75,24 @@ mid.forEach(function(p){
 });
 // Panel titles must be short and jargon-free -- no "history[0]"/"history[last]" in visible copy.
 assert.ok(!/history\[/.test(html.replace(/data-history-index="\d+"/g,"")),"history[j] must not appear in visible copy, only in data-history-index");
-["초기 후보","선택 단계","최종 후보"].forEach(function(t){assert.ok(html.includes(t),"missing short panel title: "+t)});
+// The mid title itself must distinguish default-middle from a real user selection: without
+// an explicit guide selection it must read "중간 단계" (default), never the "선택한 단계"
+// wording that would imply the user actually chose it.
+["초기 후보","중간 단계","최종 후보"].forEach(function(t){assert.ok(html.includes(t),"missing short panel title: "+t)});
+assert.ok(!html.includes("선택한 단계"),"non-explicit default middle must not say 선택한 단계 (implies a real user choice)");
+// The stale "converges to a final candidate" mobile-arrow copy and the ambiguous "diffusion
+// never decides all 16 at once" footer claim (false: all 16 action positions ARE jointly
+// updated and returned together as one plan) must not reappear.
+assert.ok(!html.includes("최종 후보로 수렴"),"mobile arrow must not claim unshown convergence");
+assert.ok(html.includes("마지막 샘플링 단계"),"mobile arrow must use the precise 'last sampling step' copy");
+assert.ok(!html.includes("한 번에 결정하지 않습니다"),"footer must not repeat the ambiguous/false 'not decided all at once' claim");
+assert.ok(html.includes("16개 미래 행동 후보를 함께 갱신합니다"),"footer must state the real joint-update semantics");
+["더 나은","더 부드러","최적","monotonic","optimal"].forEach(function(bad){assert.ok(!html.includes(bad),"footer must not claim monotonic/better/smoother/optimal ("+bad+")")});
+// Final panel is still internal (not an observation, not an applied force): its stroke must
+// stay in the purple model-computation family, never the blue reserved for observations.
+var finalStrokeMatch=/data-qa="sequence-final"[\s\S]*?stroke="(#[0-9a-fA-F]{6})" class="sequence-path"/.exec(html);
+assert.ok(finalStrokeMatch,"could not find the desktop final panel's path stroke color");
+assert.notEqual(finalStrokeMatch[1],"#5476df","final latent panel must not use the observation-blue stroke color");
 // The shared scale/unit text must appear exactly once (header), not once per panel (was 6x).
 var scaleOccurrences=(html.match(/internal unit, not N/g)||[]).length;
 assert.equal(scaleOccurrences,1,"shared axis/unit text must appear exactly once in the header, found "+scaleOccurrences);
@@ -97,6 +114,8 @@ assert.ok(Math.abs(firstPointY(final[0].d)-expY(finalYlast))<0.6,"history[last] 
 root.innerHTML="";
 ControlLoopViz.renderStages(root,history,null,{stepIndex:2,actionIndex:3});
 html=root.innerHTML;
+assert.ok(html.includes("선택한 단계"),"an explicit guided step must say 선택한 단계, not the default 중간 단계 label");
+assert.ok(!html.includes("중간 단계"),"an explicit guided step must not still show the default-middle title");
 mid=extractPanels(html,"mid");
 mid.forEach(function(p){
   assert.equal(p.explicit,true,"an explicit guided step must be marked data-explicit=true");

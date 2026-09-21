@@ -42,13 +42,15 @@ function latentPath(values,x0,y0,width,height,scale){
 // lineage still needs to be real and testable -- it just moves to data attributes
 // (data-history-index/data-explicit/data-t on the panel element) instead of being spelled
 // out in the visible copy of every one of 6 (desktop+mobile) panels.
-var SNAPSHOT_TITLES={noise:"초기 후보",mid:"선택 단계",final:"최종 후보"};
+var SNAPSHOT_TITLES={noise:"초기 후보",final:"최종 후보"};
 // One shared renderer for both the desktop and mobile markup: only the panel geometry
 // differs (svg viewBox + which responsive CSS class carries it) -- the value/scale math is
 // identical and lives in exactly one place, not duplicated per breakpoint.
 function snapshotPanel(stage,kind,color,scale,actionIndex,historyIndex,explicit,mobile){
   if(!stage)return "";
-  var title=SNAPSHOT_TITLES[kind];
+  // The mid panel's title must itself disclose whether it's a real guided selection or an
+  // explicit default -- not a fixed label that could be misread as always user-chosen.
+  var title=kind==="mid"?(explicit?"선택한 단계":"중간 단계"):SNAPSHOT_TITLES[kind];
   var values=stage.latent,x0=mobile?14:10,width=mobile?302:268,y0=8,height=mobile?68:56;
   var path=latentPath(values,x0,y0,width,height,scale);
   var v=values[actionIndex]||0,mx=x0+actionIndex/(values.length-1)*width,my=y0+height/2-(v/scale)*(height*.42);
@@ -78,19 +80,19 @@ function renderStages(rootEl,history,finalPlan,guideSelection){
   var desktop='<div class="denoise-panels" data-qa="denoise-panels">'
     +snapshotPanel(start,'noise','#8968ca',scale,actionIndex,0,false,false)
     +snapshotPanel(mid,'mid','#7552bd',scale,actionIndex,midIdx,explicit,false)
-    +snapshotPanel(final,'final','#5476df',scale,actionIndex,finalIndex,false,false)
+    +snapshotPanel(final,'final','#5b3fa0',scale,actionIndex,finalIndex,false,false)
     +'</div>';
   var mobile='<div class="mobile-sequence" data-qa="mobile-sequence">'
     +snapshotPanel(start,'noise','#8968ca',scale,actionIndex,0,false,true)
     +'<div class="mobile-seq-arrow">↓ 관측에 맞게 수정</div>'
     +snapshotPanel(mid,'mid','#7552bd',scale,actionIndex,midIdx,explicit,true)
-    +'<div class="mobile-seq-arrow">↓ 최종 후보로 수렴</div>'
-    +snapshotPanel(final,'final','#5476df',scale,actionIndex,finalIndex,false,true)
+    +'<div class="mobile-seq-arrow">↓ 마지막 샘플링 단계</div>'
+    +snapshotPanel(final,'final','#5b3fa0',scale,actionIndex,finalIndex,false,true)
     +'</div>';
   rootEl.innerHTML=
     '<div class="sequence-guide" data-qa="sequence-guide" data-scale="'+scale+'"><b>관측 4개 → candidate 반복 갱신 → 앞 4개만 실행</b><span>공유 축 ±'+fmt(scale,3)+' · internal unit, not N (전체 history 기준) · 실제 N force plan은 Act 표에서 별도 표시</span></div>'
     +desktop+mobile
-    +'<div class="sequence-plain"><b>핵심:</b> Diffusion은 16개 force를 한 번에 결정하지 않습니다. 랜덤한 초기 후보를 관측에 맞게 반복 수정한 뒤, 최종 후보를 clamp[-1,1]×10N 해야 비로소 force plan이 됩니다.</div>';
+    +'<div class="sequence-plain"><b>핵심:</b> 16개 미래 행동 후보를 함께 갱신합니다. 최종 후보를 [-1,1]로 제한하고 10 N을 곱해 힘 계획을 만들며, 앞 4개만 실행한 뒤 다시 관측합니다.</div>';
 }
 function normalizedPath(values,x0,y0,width,height,limit){
   if(!values||!values.length)return "";
